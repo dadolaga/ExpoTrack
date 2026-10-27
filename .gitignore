@@ -1,0 +1,24 @@
+# Dependencies and local package cache
+/node_modules/
+/.npm-cache/
+
+# Next.js and TypeScript output
+/.next/
+/out/
+/build/
+*.tsbuildinfo
+next-env.d.ts
+
+# Local configuration and secrets
+.env*
+!.env.example
+*.pem
+
+# Logs and editor / OS files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
+.idea/
+

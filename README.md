@@ -1,7 +1,20 @@
 # ExpoTrack
 
 > Applicazione privata, mobile-first e offline-first per pianificare e documentare visite a fiere, esposizioni ed eventi.  
-> **Evento pilota:** EICMA 2026. **Stato:** specifica funzionale consolidata; implementazione da avviare.
+> **Evento pilota:** EICMA 2026. **Stato:** base Next.js e devcontainer con PostgreSQL disponibili; funzionalità applicative da implementare.
+
+## Avvio dello sviluppo
+
+Aprire il repository in VS Code, eseguire **Dev Containers: Reopen in Container**
+e, terminata l'installazione automatica delle dipendenze, lanciare `npm run dev`
+nel terminale del container. L'app è disponibile su **http://localhost:3000**.
+
+Il devcontainer usa [Docker Compose](.devcontainer/compose.yaml) per avviare
+l'ambiente Node.js e PostgreSQL 17 con dati persistenti. `DATABASE_URL` è già
+configurata nel container applicativo.
+
+Per prerequisiti, avvio senza container e comandi di verifica, vedere
+[la guida allo sviluppo](docs/development.md).
 
 ## 1. Obiettivo
 

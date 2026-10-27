@@ -1,0 +1,41 @@
+name: expotrack-dev
+
+services:
+  app:
+    image: mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm
+    init: true
+    command: sleep infinity
+    working_dir: /workspaces/expotrack
+    volumes:
+      - ..:/workspaces/expotrack:cached
+      - node_modules:/workspaces/expotrack/node_modules
+      - next_cache:/workspaces/expotrack/.next
+    environment:
+      NEXT_TELEMETRY_DISABLED: "1"
+      DATABASE_URL: postgresql://expotrack:expotrack_dev@postgres:5432/expotrack
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-bookworm
+    environment:
+      # Credenziali locali di sviluppo, non destinate alla produzione.
+      POSTGRES_DB: expotrack
+      POSTGRES_USER: expotrack
+      POSTGRES_PASSWORD: expotrack_dev
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  node_modules:
+  next_cache:
+  postgres_data:
