@@ -2,7 +2,7 @@
 
 Questo README definisce **come lavoriamo**, un passo alla volta, sulla parte web mobile da fiera. Ogni step parte da una domanda concreta, produce un’implementazione circoscritta e termina con un risultato verificabile. Non autorizza a implementare l’intera applicazione in un’unica sessione.
 
-**Stato iniziale:** piano predisposto; nessuno degli step sotto è stato eseguito tramite questo piano. Il progetto contiene la base Next.js e le specifiche. Le cartelle indicate qui sono destinazioni da creare quando servono, non funzionalità già presenti.
+**Base iniziale:** il progetto contiene la base Next.js e le specifiche. Lo step 00 è stato eseguito e accettato dall’utente; gli step successivi non sono iniziati. Le cartelle indicate qui sono destinazioni da creare quando servono, non funzionalità già presenti. Gli esiti sono riportati nel registro della singola consegna.
 
 ## Riferimenti e priorità
 
@@ -23,6 +23,8 @@ La specifica mobile prevale sui mockup superati e sugli esempi tecnici precedent
 6. Passo allo step successivo soltanto quando me lo chiedi. Il silenzio o il superamento dei test non valgono come via libera.
 
 **I commit li gestisci tu.** Non eseguo commit, push o operazioni Git distruttive automaticamente. Il commit non è obbligatorio per continuare: puoi dirmi di procedere anche senza averlo fatto. Le modifiche già presenti nel repository restano distinte dal lavoro del nuovo step; niente `git add .` indiscriminato.
+
+**Lingua dei commit:** titoli e messaggi di commit devono essere in inglese.
 
 Uno step dovrebbe produrre un singolo cambiamento comprensibile. Se durante il lavoro risulta troppo ampio, lo divido qui in sottopassi numerati, per esempio `17a` e `17b`, e consegno soltanto il primo. Non considero una funzione completata se i suoi controlli non sono eseguibili o se il risultato dipende da codice ancora da realizzare.
 
@@ -90,7 +92,7 @@ L’ordine è intenzionale: prima fondamenta e funzioni locali verificabili, poi
 
 | Step | Risultato | Stato |
 |---|---|---|
-| 00 | Base di lavoro e controlli iniziali | Da iniziare |
+| 00 | Base di lavoro e controlli iniziali | Accettato |
 | 01 | Token grafici e tipografia | Da iniziare |
 | 02 | Componenti UI di base | Da iniziare |
 | 03 | Shell mobile, navigazione e tema | Da iniziare |
@@ -312,4 +314,38 @@ Commit suggerito: ...
 Riscontro dell’utente / correzioni: ...
 ```
 
-Il primo passo operativo sarà **00**. La creazione di questo README non avvia lo sviluppo dei passi successivi.
+### Consegna step 00 — Base di lavoro e controlli iniziali
+
+- **Data:** 28 ottobre 2026.
+- **Stato:** Accettato.
+- **Domanda:** Qual è la base verificata da cui iniziamo?
+- **Risultato:** base Next.js verificata senza modifiche al codice applicativo. Pagina iniziale servita correttamente in sviluppo e build di produzione completata. Nessuna funzione degli step successivi implementata.
+- **Stato Git iniziale:** al commit `94b6672` (`Add mockup images for various app screens and logos`), `git status --porcelain=v1` non riportava modifiche o file non tracciati. Nessuna modifica documentale preesistente da separare.
+- **Ambiente e dipendenze:** Node.js `22.16.0`, npm `10.9.2`, Next.js `16.4.3`, React/React DOM `19.3.1`, TypeScript `5.9.3`. Node rispetta il requisito `>=22.14.0`. Dipendenze dirette di `package.json` allineate al lockfile; `npm ls --depth=0` termina con codice 0. Sono presenti sei pacchetti segnalati come `extraneous` nell’installazione locale (`@emnapi/core`, `@emnapi/runtime`, `@emnapi/wasi-threads`, `@img/sharp-wasm32`, `@napi-rs/wasm-runtime`, `@tybys/wasm-util`), senza impedire i controlli. Nessuna reinstallazione, aggiornamento o modifica al lockfile effettuata.
+- **File dello step:** solo `README_IMPLEMENTAZIONE.md` (stato del piano e questa consegna). I file generati in `.next/` e gli altri output già ignorati non fanno parte del commit.
+- **Componenti riusati / introdotti:** nessuno; pagina e layout iniziali invariati.
+
+**Verifiche eseguite:**
+
+| Comando / controllo | Esito |
+|---|---|
+| `npm run lint` | Superato, codice 0, nessun warning. |
+| `npm run typecheck` | Superato, codice 0; tipi delle route generati e TypeScript senza errori. |
+| `npm run build` | Superato, codice 0; `/` e `/_not-found` prerenderizzate. |
+| `npm run dev` e richiesta HTTP a `http://localhost:3000/` | Server avviato; HTTP 200, lingua `it`, titolo ExpoTrack e testo «Applicazione in fase di sviluppo.» presenti nell’HTML. Server arrestato al termine della verifica. |
+| `git status --short` dopo le verifiche, prima dell’aggiornamento di questo file | Nessuna modifica ai file tracciati o nuovo file non tracciato. |
+
+**Problemi iniziali e diagnosi:** nell’ambiente limitato dell’agente, la prima build è fallita con `binding to a port / Operation not permitted` durante PostCSS; anche il primo avvio dev era impedito da `listen EPERM` sulla porta 3000. L’esecuzione con permessi aggiuntivi ha consentito avvio e richiesta HTTP. Per la build è stato necessario rimuovere anche la sola cache generata `.next/cache/turbopack`, che conservava l’errore, e ripetere `npm run build` con gli stessi permessi: esito positivo. Come tentativo diagnostico, `npm run build -- --webpack` nell’ambiente limitato ha restituito `Could not parse output from TypeScript’s --showConfig`; `tsc --showConfig` eseguito direttamente era valido. Non è stato cambiato il bundler configurato né disattivato alcun controllo; la build finale usa Turbopack. Build e dev non sono stati eseguiti contemporaneamente.
+
+**Come provarlo:**
+
+1. Dalla root eseguire `npm run lint`, `npm run typecheck` e `npm run build`: ciascun comando deve terminare senza errori. Arrestare prima un eventuale dev server.
+2. Eseguire `npm run dev` e aprire [http://localhost:3000](http://localhost:3000).
+3. Verificare il titolo «ExpoTrack», l’introduzione sulle visite e il messaggio «Applicazione in fase di sviluppo.». La pagina è ancora il segnaposto iniziale.
+4. Arrestare il server con `Ctrl+C`.
+
+**Controlli non eseguiti / limiti:** la verifica HTTP non equivale a un controllo visivo in browser; quest’ultimo resta da eseguire dall’utente. Nessun test PostgreSQL, API o persistenza: l’app iniziale non usa ancora il database. I temi e la verifica UI chiaro/scuro appartengono agli step successivi.
+
+**Punto di commit:** unico file `README_IMPLEMENTAZIONE.md`; titolo suggerito `docs: record step 00 baseline verification`. Nessun commit o push effettuato.
+
+**Riscontro dell’utente / correzioni:** l’utente conferma «funziona» e richiede commit in inglese; step accettato. Lo step 01 parte soltanto su richiesta.
