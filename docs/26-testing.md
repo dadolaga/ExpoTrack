@@ -1,5 +1,12 @@
 # ExpoTrack — 26. Strategia di test e criteri di rilascio
 
+## Aggiornamento mobile — risposte A1–A9
+
+**Contratto vigente per il web mobile da fiera:** [specifica UI mobile, risposte A1–A9](27_Specifiche_UI_Mobile.md#10-risposte-di-revisione-recepite). Questo aggiornamento prevale sui paragrafi, diagrammi, pseudocodice e casi di test precedenti incompatibili. In particolare, gli esempi con `drafts`, conferma finale «Salva», dettaglio mobile 08, foto stand o scelta manuale del conflitto descrivono la progettazione precedente e non vanno implementati nel mobile. Le parti compatibili e le funzioni desktop/post-fiera mantengono il proprio ambito.
+
+Il piano mobile deve verificare autosalvataggio senza drafts/Salva finale, editor unico 05 e assenza di 08, input parziali recuperabili, categoria/stand bloccati, originali foto prodotto, LWW server/idempotenza/delete, checklist/interessi, budget e stand personali in fiera. I vecchi casi che pretendono bozze, foto stand o scelta manuale conflitti sono superati per il mobile.
+
+
 > **Percorso previsto:** `docs/26-testing.md`  
 > **Stato:** specifica tecnica; non rappresenta test già eseguiti  
 > **Ambito:** Next.js/React/TypeScript, PostgreSQL, IndexedDB, PWA, Docker, Cloudflare Tunnel  
@@ -483,43 +490,19 @@ Salvare risposte con versione 1, aggiornare JSON alla versione 2, aprire il prod
 
 ---
 
-## 14. Test offline: bootstrap, bozze e Salva
+## 14. Test offline: bootstrap e salvataggio automatico
 
-### 14.1 Bootstrap
-
-- Primo avvio online: snapshot validato e memorizzato.
-- Avvio successivo offline: app shell, catalogo e dati locali disponibili.
-- Primo avvio offline senza cache: messaggio esplicito, non schermata vuota.
-- Snapshot aggiornato ma non valido: ultimo snapshot valido conservato.
-
-### 14.2 Bozze
-
-1. Aprire un modulo prodotto.
-2. Digitare un nome senza premere Salva.
-3. Chiudere la schermata.
-4. Verificare avviso di modifiche non confermate.
-5. Riaprire e recuperare la bozza.
-6. Verificare che non sia comparsa alcuna mutazione in outbox.
-
-### 14.3 Commit locale atomico
-
-1. Disattivare la rete.
-2. Compilare il prodotto.
-3. Premere Salva.
-4. Verificare conferma «Salvato sul dispositivo» soltanto dopo commit IndexedDB.
-5. Verificare presenza del record e dell'operazione outbox nella stessa transazione.
-6. Ricaricare la PWA e ritrovare il prodotto.
-7. Verificare che lo stato resti «Da sincronizzare».
-
-### 14.4 Fallimento storage
-
-Simulare quota esaurita o transazione abortita: il client **non** deve mostrare «Salvato» se record e outbox non sono stati scritti entrambi. La bozza va mantenuta se possibile e l'errore deve essere comprensibile.
-
-### 14.5 Foto offline
-
-Aggiungere una foto offline, premere Salva, ricaricare e verificare che il blob sia ancora visualizzabile senza rete. Una foto disponibile solo sul server e mai scaricata su quel dispositivo deve invece mostrare un placeholder appropriato.
-
----
+| ID | Scenario | Esito atteso |
+|---|---|---|
+| MOB-AUTO-01 | Modifica di prodotto valido in modalità aereo senza premere Salva | Record e outbox atomici; riapertura mantiene dati |
+| MOB-AUTO-02 | Nome/stand/categoria iniziali incompleti e refresh | Input recuperati localmente; nessun prodotto registrato o payload server invalido |
+| MOB-AUTO-03 | Compilazione dell’ultimo campo obbligatorio | Prima registrazione automatica, categoria/stand bloccati anche offline |
+| MOB-AUTO-04 | Campo richiesto temporaneamente invalido su prodotto esistente | Ultima versione valida preservata; input da correggere recuperabile; nessuna sync invalida |
+| MOB-AUTO-05 | Modifica risposta/descrizione/foto e ritorno | Dati locali conservati; nessuna modalità bozza o commit separato |
+| MOB-AUTO-06 | Quota/transazione fallita | Nessun falso Salvato; errore e riprova, nessuna perdita di dati già persistiti |
+| MOB-AUTO-07 | Cambio profilo/evento con modifica in corso | Commit locale prima della navigazione, isolamento e code mantenuti |
+| MOB-AUTO-08 | Aggiornamento server mentre esistono mutazioni locali successive | Ack/pull non cancellano input più recenti; ordine per record preservato |
+| MOB-AUTO-09 | App chiusa e riaperta durante upload | Stessa operationId, nessun duplicato; nessuna promessa di sync a PWA chiusa |
 
 ## 15. Test di sincronizzazione multi-dispositivo
 

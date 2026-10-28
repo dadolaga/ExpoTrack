@@ -1,4 +1,11 @@
-# 19 — Offline Storage: IndexedDB, cache PWA, bozze e resilienza
+# 19 — Offline Storage: IndexedDB, cache PWA, salvataggio automatico e resilienza
+
+## Aggiornamento mobile — risposte A1–A9
+
+**Contratto vigente per il web mobile da fiera:** [specifica UI mobile, risposte A1–A9](27_Specifiche_UI_Mobile.md#10-risposte-di-revisione-recepite). Questo aggiornamento prevale sui paragrafi, diagrammi, pseudocodice e casi di test precedenti incompatibili. In particolare, gli esempi con `drafts`, conferma finale «Salva», dettaglio mobile 08, foto stand o scelta manuale del conflitto descrivono la progettazione precedente e non vanno implementati nel mobile. Le parti compatibili e le funzioni desktop/post-fiera mantengono il proprio ambito.
+
+Nessuno store drafts. Gli store entità conservano input locali, ultima versione valida e metadati di validazione; soltanto payload validi entrano nell’outbox con transazione atomica. Flush prima della navigazione; nessun Salva finale. Errori quota non dichiarano successo. Il recupero dopo refresh riguarda dati autosalvati, non una lista bozze. Concorrenza LWW e tombstone protette.
+
 
 > **Progetto:** ExpoTrack · **Documento:** `docs/19-offline-storage.md` · **Stato:** specifica tecnica proposta per v1  
 > **Precedente:** [`18-questionnaire-engine.md`](18-questionnaire-engine.md) · **Successivo:** [`20-synchronization.md`](20-synchronization.md)  
@@ -23,7 +30,7 @@ Il presente documento definisce **come** conservare i dati sul dispositivo. Il p
 - Creare e modificare stand personali, priorità, cose da vedere, note e stati di visita.
 - Creare e modificare prodotti e risposte ai questionari.
 - Scattare/selezionare foto e renderle disponibili localmente **dopo il salvataggio**.
-- Conservare bozze in corso senza inviarle al server.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 - Premere **Salva** e ottenere una conferma locale verificabile.
 - Eliminare entità con conferma, registrando una mutazione recuperabile.
 - Visualizzare dashboard e contatori coerenti con i dati locali confermati.
@@ -47,8 +54,8 @@ Il presente documento definisce **come** conservare i dati sul dispositivo. Il p
 - Prodotti personali collegati a uno stand, con una categoria **immutabile dal primo Salva**, anche offline.
 - Priorità stand 1–10; stato `to_visit`/`visited`/`revisit`; note e fotografie per profilo.
 - Questionari per profilo e categoria, con tutte le domande facoltative.
-- Autosalvataggio della **bozza** durante la digitazione; conferma solo con **Salva**.
-- Conflitti tra dispositivi risolti manualmente, mantenendo entrambe le versioni.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
+- Concorrenza mobile LWW per record in ordine di accettazione server; revisioni monotone, idempotenza e protezione delle tombstone.
 
 ---
 
@@ -162,9 +169,9 @@ Nome database: `expotrack-local`. La versione iniziale è una decisione di imple
 | `answer_sets` | `id` | Risposte questionari confermate | `productId`, `profileId` |
 | `photo_metadata` | `id` | Stato foto e metadati | `ownerRef`, `profileId`, `uploadState` |
 | `photo_blobs` | `id` | Blob foto locali | — |
-| `drafts` | `draftId` | Modifiche non confermate | `[profileId,eventId,entityType,entityId]` |
+| Metadati locali sulle entità | Chiave entità | Input pendenti di validazione, ultima versione valida, sequenza locale | Non inviati al server |
 | `outbox` | `operationId` | Operazioni confermate pendenti | `status`, `queuedAt`, `entityRef` |
-| `conflicts` | `conflictId` | Versioni divergenti | `profileId`, `status`, `entityRef` |
+| `recovery_entries` | `operationId` | Payload respinti per tombstone e riferimenti recuperabili | `profileId`, `eventId`, `entityRef` |
 | `sync_meta` | `key` | Cursor, revisioni, ultimo sync | — |
 
 **Nota progettuale:** la forma precisa delle chiavi e degli indici deve essere testata su browser target; gli array composti IndexedDB hanno una semantica propria. Evitare chiavi stringa concatenate senza escaping che possano collidere.
@@ -190,6 +197,9 @@ Lo stand personale può essere visto e modificato soltanto nel contesto del prof
 ## 5. Modelli TypeScript di riferimento
 
 Le interfacce seguenti descrivono il **contratto logico proposto**, non file di implementazione.
+
+<details>
+<summary>Esempio della progettazione precedente: gestione bozze superata nel mobile (non implementare)</summary>
 
 ```ts
 type ISODateTime = string;
@@ -261,123 +271,44 @@ interface PhotoLocalMeta {
 }
 ```
 
+</details>
+
 **Vincolo:** le proprietà `pendingSync` e `serverRevision` non devono essere interpretate come prova di upload completato di tutte le foto. I media possono avere uno stato di trasferimento separato.
 
 ---
 
-## 6. Tre stati distinti: bozza, salvato, sincronizzato
+## 6. Stati del salvataggio automatico
 
-| Stato | Dove vive | Cosa significa | Indicazione UI |
-|---|---|---|---|
-| **Bozza** | `drafts` | Dati in corso, non confermati | «Modifiche non salvate» |
-| **Salvato sul dispositivo** | Store entità + `outbox` | Dati confermati localmente | «Salvato sul dispositivo · in attesa di sync» |
-| **Sincronizzato** | Store entità + revisione server | Server ha confermato l'operazione | «Sincronizzato» |
-| **Errore sync** | Store entità + `outbox` fallita | Salvataggio locale resta valido | «Salvato sul dispositivo · sincronizzazione non riuscita» |
-| **Conflitto** | Store entità + `conflicts` | Due versioni richiedono scelta | «Conflitto da risolvere» |
+| Stato | Persistenza e comportamento |
+|---|---|
+| Input in validazione | Valori iniziali/parziali conservati nel record locale; nessun payload invalido in outbox |
+| Salvato sul dispositivo | Transazione locale completata, operazione valida in coda |
+| Sincronizzato | Operazione confermata dal server e revisione registrata localmente |
+| Errore locale | Scrittura non riuscita; mantenere input e mostrare riprova |
+| Errore sync | Record locale resta salvato; dettaglio errore e retry secondo tipo |
+| Recupero richiesto | Update respinto per tombstone; payload conservato, possibile nuovo elemento |
 
-**Mai** usare un unico booleano `saved` per questi casi.
+## 7. Persistenza automatica degli input
 
-### 6.1 Ciclo di modifica
+Ogni modifica intenzionale viene persistita automaticamente sul dispositivo. Per dati validi, record e mutazione outbox sono scritti nella stessa transazione; la rete interviene dopo. Non esistono store o modalità bozza né conferma Salva finale. Nome, stand e categoria restano obbligatori per la prima registrazione prodotto: i valori iniziali incompleti sono recuperabili nello stesso record locale, senza essere contati o inviati come prodotto valido. Categoria e stand si bloccano alla prima registrazione locale valida. Un input successivamente invalido resta recuperabile senza sostituire l’ultima versione valida sincronizzabile. Vedere [§5.1 della specifica mobile](27_Specifiche_UI_Mobile.md#51-salvataggio-automatico-validazione-e-recupero).
 
-```mermaid
-stateDiagram-v2
-    [*] --> Viewing
-    Viewing --> Draft: modifica campo
-    Draft --> Draft: autosalvataggio locale
-    Draft --> LocalCommitted: Salva + transazione riuscita
-    Draft --> Viewing: annulla e scarta bozza
-    LocalCommitted --> SyncPending: outbox pendente
-    SyncPending --> Synced: conferma server
-    SyncPending --> SyncError: errore recuperabile
-    SyncError --> SyncPending: riprova
-    SyncPending --> Conflict: revisione divergente
-    Conflict --> SyncPending: risoluzione esplicita
-```
+Dichiarare «Salvato sul dispositivo» solo dopo commit riuscito; errori quota o transazione mantengono l’input e non producono falso successo. Prima di cambio vista/profilo completare la persistenza, senza dialogo di conferma per modifiche già autosalvate. «Fine»/indietro non annullano scritture effettuate.
 
-### 6.2 Bozze non valide
+Ogni record mantiene separati dati validi sincronizzabili, eventuali campi locali ancora invalidi e metadati di revisione. Questi metadati locali non si inviano nel payload API. Se si adotta debounce breve, completarlo prima delle transizioni; un evento di chiusura browser non è l’unico punto in cui tentare la scrittura.
 
-La bozza può contenere campi incompleti e deve essere persistibile. Solo premendo **Salva** si applica la validazione completa del record (nome prodotto, categoria, prezzo, rating, riferimenti).
+Le query restano isolate per profilo/evento; budget per profilo/categoria. Filtri e ordinamenti sono stato UI: conservarli tornando alla stessa lista, ripristinare i default entrando nuovamente dal tab.
 
-### 6.3 Bozze e cambio profilo
+## 8. Transazione automatica record e outbox
 
-Il cambio profilo deve avvertire se esistono modifiche non confermate nella schermata, ma conservarle sotto il profilo originario. Aprire `father` non deve mostrare la bozza di `me`.
+1. Leggere l’input corrente e verificare proprietà immutabili.
+2. Persistire i valori locali anche se incompleti, senza accodare payload invalidi.
+3. Per ogni modifica valida preparare snapshot del record e un nuovo `operationId` stabile.
+4. Scrivere in un’unica transazione gli store entità coinvolti e l’outbox; per foto includere metadati e blob, già preparati fuori transazione.
+5. Attendere il commit reale; solo allora aggiornare feedback e conteggi.
+6. Richiedere sync senza bloccare la navigazione sulla rete. Preservare l’ordine delle operazioni per record e le dipendenze stand/prodotto/foto.
+7. Applicare ack/pull senza perdere input invalidi conservati o modifiche locali di sequenza successiva.
 
----
-
-## 7. Autosalvataggio delle bozze
-
-### 7.1 Strategia
-
-- Salvare ogni modifica significativa nel modello di bozza.
-- Ridurre scritture eccessive con debounce breve, **senza affidarsi solo al debounce**.
-- Forzare il flush quando l'utente preme Salva, cambia schermata o l'app perde visibilità, nei limiti delle API del browser.
-- Ripristinare la bozza quando si riapre lo stesso oggetto e profilo.
-- Mantenere identificativi stabili per foto temporanee e per un prodotto nuovo ancora non confermato.
-
-### 7.2 Gestione errori
-
-Se la scrittura della bozza fallisce, mostrare un errore immediato e persistente; non dichiarare che il contenuto è al sicuro. Consentire all'utente di copiare il testo, liberare spazio o riprovare.
-
-### 7.3 Riconciliazione bozza con sync
-
-Una risposta server arrivata mentre si modifica una bozza **non** deve sostituire i campi digitati. Conservare `baseServerRevision` e presentare il conflitto al momento opportuno.
-
-### 7.4 Reset dei filtri
-
-Filtri e ordinamenti delle liste sono stato UI transitorio: si azzerano quando si riapre la lista, secondo il requisito definito. Non confonderli con bozze persistenti.
-
----
-
-## 8. Salva: transazione locale atomica
-
-### 8.1 Contratto di dominio
-
-Premendo **Salva**:
-
-1. Attendere il flush dell'ultima bozza.
-2. Validare campi e referenze.
-3. Verificare l'immutabilità della categoria del prodotto già confermato.
-4. Preparare ID record e `operationId` senza connessione.
-5. Aprire **un'unica transazione readwrite** sui necessari object store.
-6. Scrivere il record confermato.
-7. Inserire l'operazione in `outbox`.
-8. Rimuovere o marcare come confermata la bozza.
-9. Completare la transazione e attendere il commit.
-10. Aggiornare la UI e mostrare «Salvato sul dispositivo».
-11. Richiedere la sincronizzazione, se possibile.
-
-Se la transazione fallisce, **nessuno dei passaggi 6–8 deve restare parzialmente applicato**.
-
-### 8.2 Pseudocodice
-
-```ts
-async function commitLocalProduct(input: ProductDraft): Promise<void> {
-  const product = validateAndFreezeCategory(input);
-  const operation = buildIdempotentOperation(product);
-
-  const tx = db.transaction(["products", "outbox", "drafts"], "readwrite");
-  await tx.objectStore("products").put(product);
-  await tx.objectStore("outbox").put(operation);
-  await tx.objectStore("drafts").delete(input.draftId);
-  await tx.done;
-
-  // Soltanto adesso la UI può confermare il salvataggio locale.
-  showLocalSaveSuccess();
-  requestSyncIfOnline();
-}
-```
-
-**Attenzione implementativa:** alcune librerie e browser chiudono transazioni IndexedDB se si eseguono `await` estranei alla transazione tra le operazioni. Validazione, conversione delle immagini e generazione dei payload devono avvenire **prima** di aprire la transazione.
-
-### 8.3 Foto associate
-
-Se un prodotto include nuove foto, il commit locale deve garantire che il riferimento a ciascuna foto confermata corrisponda a un blob effettivamente disponibile. La transazione può coinvolgere `photo_metadata` e `photo_blobs`, o utilizzare un protocollo di staging con recovery. Non lasciare record «foto salvata» senza binario disponibile.
-
-### 8.4 Non bloccare su Internet
-
-Nessuna chiamata HTTP deve essere richiesta per completare il Salva locale. Un timeout server non deve trasformare un salvataggio locale riuscito in un messaggio «non salvato».
-
----
+Nessuna cancellazione di drafts o transizione draft→confirmed. Non tenere transazioni IndexedDB aperte durante richieste HTTP o elaborazione asincrona delle immagini.
 
 ## 9. Prima creazione del prodotto e categoria immutabile
 
@@ -518,32 +449,13 @@ Non promettere sync dopo la chiusura. Quando l'app torna attiva, riprendere la c
 
 ---
 
-## 14. Conflitti e dati locali
+## 14. Concorrenza e recupero locale
 
-### 14.1 Due versioni da preservare
+La policy mobile è **LWW per record nell’ordine di accettazione server**, con revisioni monotone assegnate in transazione. Una revisione di base obsoleta su un record vivo non apre una scelta manuale: l’ultima nuova mutazione valida accettata prevale come record intero, senza merge per campo. Il timestamp del telefono è solo diagnostico. Vincoli di dominio e integrità restano applicati.
 
-Se il server segnala una revisione diversa, non sovrascrivere il record locale. Conservare:
+Il retry della stessa `operationId` e dello stesso payload restituisce l’esito già registrato, senza diventare una nuova scrittura; stesso ID con hash diverso è errore. Il client serializza le operazioni dello stesso record e non sovrascrive modifiche locali più recenti quando applica una conferma o un pull remoto.
 
-- versione locale confermata e non ancora sincronizzata;
-- versione server;
-- revisione base;
-- operazione originale;
-- stato di conflitto;
-- eventuali riferimenti alle foto di entrambe le versioni.
-
-### 14.2 Risoluzione manuale
-
-La UI mostra le differenze e chiede una scelta esplicita. La risoluzione produce una **nuova** operazione, basata sulla revisione server aggiornata. Non cancellare il conflitto finché la risoluzione non è stata confermata.
-
-### 14.3 Bozze durante il conflitto
-
-Se l'utente sta ancora modificando una bozza, non sostituirla automaticamente con nessuna delle versioni. La bozza è un terzo stato distinto da entrambe le versioni confermate.
-
-### 14.4 Stesso profilo su due dispositivi
-
-La selezione del profilo non è autenticazione. I conflitti sono per record e revisione, non per identità fisica del dispositivo. Modifiche a profili diversi non devono interferire.
-
----
+Un update contro una tombstone viene respinto senza resuscitare il record. Conservare payload e riferimenti media necessari al recupero; offrire «Recupera come nuovo elemento», con nuovo ID e dipendenze valide. Nessun dialogo «versione locale/versione server» per i normali aggiornamenti concorrenti. Conservare audit per diagnosi senza promettere recupero automatico di ogni versione storica.
 
 ## 15. Seed editoriali e override personali
 
@@ -647,6 +559,9 @@ Se il browser termina durante la preparazione di una foto, usare staging e marke
 
 ### 18.2 Migrazione di esempio
 
+<details>
+<summary>Esempio della progettazione precedente: gestione bozze superata nel mobile (non implementare)</summary>
+
 ```ts
 // Pseudocodice con API simile a idb, non codice di produzione.
 const db = await openDB("expotrack-local", 2, {
@@ -664,6 +579,8 @@ const db = await openDB("expotrack-local", 2, {
   },
 });
 ```
+
+</details>
 
 **Nota:** in un progetto reale, la migrazione deve creare tutti gli store iniziali richiesti e rispettare i tipi della libreria. Il frammento è intenzionalmente incompleto.
 
@@ -722,7 +639,7 @@ Una funzione di reset locale, se introdotta, deve avvertire chiaramente che elim
 L'utente deve distinguere facilmente:
 
 - «Offline» dalla presenza di operazioni in attesa.
-- «Bozza» da «Salvato sul dispositivo».
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 - «Salvato sul dispositivo» da «Sincronizzato».
 - «Errore di sincronizzazione» da «Salvataggio locale non riuscito».
 - «Conflitto» da un generico errore di rete.
@@ -897,8 +814,8 @@ Testare almeno Chrome/Edge Android, Safari iOS/iPadOS e browser desktop usati da
 - [ ] Stand personali isolati dal profilo creatore.
 - [ ] Catalogo condiviso distinto dagli interessi personali.
 - [ ] Seed aggiornati senza cancellare override espliciti.
-- [ ] Bozze autosalvate e recuperabili senza rete.
-- [ ] Nessuna bozza inviata al server prima di Salva.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 - [ ] Salva locale atomico e conferma solo dopo commit.
 - [ ] Salva non dipende da una chiamata HTTP.
 - [ ] Categoria prodotto bloccata dal primo Salva locale.

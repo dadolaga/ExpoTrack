@@ -1,5 +1,12 @@
 # 20 — Sincronizzazione offline-first: IndexedDB ↔ PostgreSQL
 
+## Aggiornamento mobile — risposte A1–A9
+
+**Contratto vigente per il web mobile da fiera:** [specifica UI mobile, risposte A1–A9](27_Specifiche_UI_Mobile.md#10-risposte-di-revisione-recepite). Questo aggiornamento prevale sui paragrafi, diagrammi, pseudocodice e casi di test precedenti incompatibili. In particolare, gli esempi con `drafts`, conferma finale «Salva», dettaglio mobile 08, foto stand o scelta manuale del conflitto descrivono la progettazione precedente e non vanno implementati nel mobile. Le parti compatibili e le funzioni desktop/post-fiera mantengono il proprio ambito.
+
+Sync automatica sempre attiva ad app aperta e server raggiungibile, più avvio manuale, entrambe le reti. Mutazioni valide accodate dall’autosalvataggio, senza drafts. LWW per record in ordine di accettazione server; retry idempotente non diventa una nuova scrittura. Delete protette; recupero come nuovo elemento. Contatore di tutte le operazioni pendenti sul dispositivo, foto già incluse.
+
+
 > **Progetto:** ExpoTrack · **Documento:** `docs/20-synchronization.md` · **Stato:** specifica tecnica proposta, non implementazione  
 > **Dipendenze:** `12-database.md`, `13-backend-api.md`, `19-offline-storage.md` · **Successivo:** `21-photo-management.md`
 
@@ -7,26 +14,26 @@
 
 ExpoTrack è una PWA privata, mobile-first, utilizzabile durante EICMA 2026 e altre fiere anche in assenza di rete. La sincronizzazione deve trasferire al server i dati **già confermati localmente** e ricevere le modifiche degli altri dispositivi, senza confondere la sincronizzazione con il salvataggio.
 
-Tre eventi distinti:
+Tre passaggi automatici distinti:
 
-1. **Modifica del modulo:** autosalvataggio della **bozza** esclusivamente in IndexedDB; non inviare al server.
-2. **Pressione di «Salva»:** validazione e transazione atomica in IndexedDB per record confermato + operazione in outbox. Mostrare «Salvato sul dispositivo» soltanto dopo il commit.
-3. **Sincronizzazione:** invio asincrono dell'outbox, ricezione di conferme/revisioni e download delle modifiche remote. Mostrare «Sincronizzato» solo quando l'esito è stato confermato e registrato localmente.
+1. **Modifica:** persistenza locale immediata degli input; nessuna modalità bozza.
+2. **Valore valido:** transazione atomica record e outbox, senza conferma Salva finale. Input iniziali incompleti restano recuperabili localmente e non generano payload invalidi.
+3. **Sync:** invio automatico della coda, ricezione ack/revisioni e pull remoto; «Sincronizzato» solo dopo conferma registrata localmente.
 
 **Non è garantito** che il browser esegua sync in background a PWA chiusa. L'app deve riprendere correttamente quando torna attiva.
 
 ### 1.1 Invarianti
 
-- Nessuna bozza non confermata raggiunge PostgreSQL.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 - Ogni mutazione confermata offline è durevole nel database locale prima di essere annunciata come salvata.
 - Ogni operazione ha un ID idempotente stabile e non viene persa dopo crash/retry.
 - I profili sono perimetri logici distinti; `me` e `father` non condividono note, priorità, prodotti o stati.
 - Un profilo selezionato **non equivale ad autenticazione**: il server non può verificarne l'identità senza un sistema di accesso.
-- Il server non sovrascrive automaticamente una modifica concorrente allo stesso record.
-- Entrambe le versioni di un conflitto sono conservate fino a decisione esplicita.
+- Sul record vivo prevale l’ultima nuova mutazione valida accettata dal server, con revisione monotona.
+- Conservare audit delle scritture e payload respinti per tombstone, senza scelta manuale della versione ordinaria.
 - Le eliminazioni hanno tombstone e revisioni: un dispositivo vecchio non deve resuscitare record cancellati.
 - Le fotografie richiedono un protocollo specifico: metadati e binari non sono la stessa cosa.
-- La categoria di un prodotto resta immutabile **dal primo Salva locale**, anche se il server non ha ancora ricevuto il prodotto.
+- La categoria di un prodotto resta immutabile **dalla prima registrazione locale valida**, anche se il server non ha ancora ricevuto il prodotto.
 - Gli stand editoriali sono JSON condivisi; gli stand aggiunti dall'app sono privati del profilo.
 - Le configurazioni editoriali non sono modificabili mediante la normale sync dei record personali.
 
@@ -41,11 +48,11 @@ Tre eventi distinti:
 | Priorità e `whatToSee` modificati | PostgreSQL | Override + outbox | Separati per profilo/evento/stand |
 | Stati visita, note stand | PostgreSQL | IndexedDB + outbox | Default `to_visit` se nessun record |
 | Stand personali | PostgreSQL | IndexedDB + outbox | Proprietario = profilo creatore |
-| Prodotti | PostgreSQL | IndexedDB + outbox | Categoria immutabile dopo Salva |
+| Prodotti | PostgreSQL | IndexedDB + outbox | Categoria immutabile dopo prima registrazione locale valida |
 | Risposte questionari | PostgreSQL | IndexedDB + outbox | Conservare versione/definizione storica |
 | Foto | Volume media + metadati PostgreSQL | Blob + metadati + coda upload | Upload recuperabile, riferimenti stabili |
-| Bozze | Nessuno | Solo IndexedDB | Non sincronizzabili fino a Salva |
-| Conflitti | Server + client | Copie locali | Risoluzione manuale |
+| Input incompleti | Client | Campi locali del record | Recuperabili, non inviati finché invalidi |
+| Recupero da tombstone | Server + client | Payload respinti e riferimenti | Recupero con nuovo ID |
 
 Il protocollo è **multi-evento**: ogni mutazione include `eventId` quando l'entità appartiene a una fiera.
 
@@ -53,8 +60,8 @@ Il protocollo è **multi-evento**: ogni mutazione include `eventId` quando l'ent
 
 ```mermaid
 flowchart TD
-    UI[Form e viste React] --> D[Draft store IndexedDB]
-    UI -->|Salva esplicito| TX[Transazione IndexedDB]
+    UI[Editor unico 05] -->|modifica valida| TX[Transazione IndexedDB]
+    UI -->|input da correggere| I[Campi locali in validazione]
     TX --> R[Record confermati locali]
     TX --> O[Outbox locale]
     O --> E[Sync engine]
@@ -63,7 +70,7 @@ flowchart TD
     E -->|Pull incrementale| API
     API --> E
     E --> R
-    E --> C[Archivio conflitti]
+    E --> C[Recupero degli update su tombstone]
     E --> P[Upload foto separato]
     P --> M[(Storage media)]
 ```
@@ -72,13 +79,13 @@ Il **sync engine** è un modulo client, non una dipendenza dei componenti UI. Le
 
 ## 4. Vocabolario operativo
 
-- **Draft:** modifiche non confermate.
+- **Input in validazione:** campi locali incompleti, recuperabili ma non inviabili al server.
 - **Committed local:** record validato e salvato in IndexedDB.
 - **Pending:** operazione presente nell'outbox e non ancora confermata dal server.
 - **In flight:** invio in corso; stato recuperabile dopo crash.
 - **Acknowledged:** server ha applicato o riconosciuto idempotentemente l'operazione.
 - **Pulled:** revisione remota scaricata e applicata localmente.
-- **Conflict:** revisione di base obsoleta rispetto al server; nessuna perdita di versioni.
+- **Recovery required:** update respinto perché il record è cancellato; payload locale recuperabile come nuovo elemento.
 - **Tombstone:** informazione versionata che un record è stato eliminato.
 - **Cursor:** token opaco che identifica un punto nel flusso ordinato dei cambiamenti server.
 - **Snapshot:** configurazione editoriale validata con versione/hash.
@@ -129,7 +136,7 @@ type OutboxStatus =
   | 'pending'
   | 'inFlight'
   | 'acknowledged'
-  | 'blockedByConflict'
+  | 'recoveryRequired'
   | 'blockedByDependency'
   | 'failedRetryable'
   | 'failedPermanent';
@@ -161,42 +168,13 @@ interface OutboxEntry {
 
 **Attenzione:** se la rappresentazione server usa `upsert` anziché `create/update`, concordare un unico contratto; evitare traduzioni implicite che rendano ambigua l'operazione di creazione.
 
-## 7. Commit locale atomico
+## 7. Commit locale automatico e atomico
 
-### 7.1 Algoritmo
+Ogni modifica intenzionale viene persistita automaticamente sul dispositivo. Per dati validi, record e mutazione outbox sono scritti nella stessa transazione; la rete interviene dopo. Non esistono store o modalità bozza né conferma Salva finale. Nome, stand e categoria restano obbligatori per la prima registrazione prodotto: i valori iniziali incompleti sono recuperabili nello stesso record locale, senza essere contati o inviati come prodotto valido. Categoria e stand si bloccano alla prima registrazione locale valida. Un input successivamente invalido resta recuperabile senza sostituire l’ultima versione valida sincronizzabile. Vedere [§5.1 della specifica mobile](27_Specifiche_UI_Mobile.md#51-salvataggio-automatico-validazione-e-recupero).
 
-1. Recuperare bozza e versione base del record.
-2. Validare secondo le regole del dominio.
-3. Aprire una transazione IndexedDB `readwrite` su `records`, `outbox` e `drafts` (store effettivi definiti in `19-offline-storage.md`).
-4. Creare un ID operazione una sola volta.
-5. Salvare il record confermato e l'operazione corrispondente.
-6. Eliminare la bozza o contrassegnarla come completata.
-7. Attendere il completamento effettivo della transazione.
-8. Aggiornare la UI: «Salvato sul dispositivo»; stato sync «In attesa».
-9. Avviare sync in modo non bloccante se possibile.
+Dichiarare «Salvato sul dispositivo» solo dopo commit riuscito; errori quota o transazione mantengono l’input e non producono falso successo. Prima di cambio vista/profilo completare la persistenza, senza dialogo di conferma per modifiche già autosalvate. «Fine»/indietro non annullano scritture effettuate.
 
-Se la transazione fallisce, **non** eliminare la bozza e non mostrare successo.
-
-### 7.2 Pseudocodice
-
-```ts
-async function saveLocally(draft: LocalDraft): Promise<void> {
-  const validated = validateForCommit(draft);
-  const mutation = createMutationOnce(validated);
-  await db.transaction(
-    ['products', 'outbox', 'drafts'],
-    'readwrite',
-    async tx => {
-      await tx.products.put(validated);
-      await tx.outbox.put(mutation);
-      await tx.drafts.delete(draft.draftId);
-    }
-  );
-  // Solo ora la UI può indicare «Salvato sul dispositivo».
-}
-```
-
-Pseudocodice illustrativo: la sintassi reale dipende dalla libreria IndexedDB scelta. Una transazione non deve attendere operazioni di rete o lavoro asincrono che la faccia chiudere prematuramente.
+Per ogni mutazione valida: preparare `operationId` e payload fuori transazione, scrivere entità più outbox, attendere commit, avviare sync. Nessuna transazione su `drafts`. All’ack applicare la revisione solo allo snapshot corrispondente, mantenendo le modifiche locali successive in coda; processare serialmente lo stesso record.
 
 ## 8. Coda outbox: struttura e regole
 
@@ -228,11 +206,11 @@ L'outbox è durevole in IndexedDB; non usare soltanto memoria, Redux o localStor
 | Stato | Significato | Transizione tipica |
 |---|---|---|
 | `pending` | Pronta | → `inFlight` |
-| `inFlight` | Inviata, esito non ancora registrato | → `acknowledged`, `failedRetryable`, `blockedByConflict` |
+| `inFlight` | Inviata, esito non ancora registrato | → `acknowledged`, `failedRetryable`, `recoveryRequired` |
 | `acknowledged` | Confermata | → rimozione sicura dall'outbox dopo commit locale |
 | `failedRetryable` | Errore temporaneo | → `pending` dopo backoff |
 | `blockedByDependency` | Aspetta un'entità correlata | → `pending` quando la dipendenza è risolta |
-| `blockedByConflict` | Serve scelta manuale | → risoluzione esplicita |
+| `recoveryRequired` | Update respinto per record cancellato | → recupero esplicito come nuovo elemento |
 | `failedPermanent` | Errore di validazione/compatibilità | → correzione guidata, non retry infinito |
 
 All'avvio, un `inFlight` senza conferma deve essere ritentato **con lo stesso `operationId` e lo stesso payload**.
@@ -281,7 +259,7 @@ Gli UUID e la revisione sono dimostrativi, non dati reali.
 }
 ```
 
-Status possibili proposti: `applied`, `alreadyApplied`, `conflict`, `dependencyPending`, `rejected`, `retryLater`.
+Status possibili proposti: `applied`, `alreadyApplied`, `deleted`, `dependencyPending`, `rejected`, `retryLater`.
 
 ### 9.3 Batch
 
@@ -344,7 +322,7 @@ Per ogni cambio remoto:
 
 Per un nuovo dispositivo, prevedere bootstrap con snapshot dinamico completo per profilo e un cursor coerente con quello snapshot.
 
-Se il server non conserva più la storia richiesta, rispondere con `CURSOR_EXPIRED` e offrire **resync controllato**: prima mettere al sicuro outbox, bozze e conflitti, poi ricostruire la cache remota. Non cancellare dati locali non sincronizzati.
+Se il server non conserva più la storia richiesta, rispondere con `CURSOR_EXPIRED` e offrire **resync controllato**: prima mettere al sicuro outbox, input locali e payload recuperabili, poi ricostruire la cache remota. Non cancellare dati locali non sincronizzati.
 
 ## 11. Sequenza consigliata push/pull
 
@@ -359,54 +337,13 @@ Per una sessione online:
 
 **Non** presumere che «push poi pull» elimini ogni race: revisioni e cursor devono restare corretti anche con scritture concorrenti. Per dispositivi con molte operazioni o foto pendenti, il pull può procedere separatamente, purché non sovrascriva dati locali in attesa.
 
-## 12. Conflitti tra dispositivi
+## 12. LWW per record e protezione delle cancellazioni
 
-### 12.1 Rilevamento
+La policy mobile è **LWW per record nell’ordine di accettazione server**, con revisioni monotone assegnate in transazione. Una revisione di base obsoleta su un record vivo non apre una scelta manuale: l’ultima nuova mutazione valida accettata prevale come record intero, senza merge per campo. Il timestamp del telefono è solo diagnostico. Vincoli di dominio e integrità restano applicati.
 
-Esempio: telefono A e B hanno `revision=5` del medesimo prodotto. A modifica le note e sincronizza: il server passa a `revision=6`. B modifica offline le note partendo da `5`. Quando B invia, il server risponde `conflict` con la versione attuale e la versione inviata.
+Il retry della stessa `operationId` e dello stesso payload restituisce l’esito già registrato, senza diventare una nuova scrittura; stesso ID con hash diverso è errore. Il client serializza le operazioni dello stesso record e non sovrascrive modifiche locali più recenti quando applica una conferma o un pull remoto.
 
-### 12.2 Payload conflitto
-
-```ts
-interface SyncConflict {
-  conflictId: string;
-  profileId: string;
-  eventId?: string;
-  entityType: EntityType;
-  entityId: string;
-  operationId: string;
-  baseRevision: number | null;
-  localVersion: unknown;
-  serverVersion: unknown;
-  serverRevision: number;
-  detectedAt: string;
-  status: 'unresolved' | 'resolved';
-}
-```
-
-### 12.3 Interfaccia di risoluzione
-
-Mostrare:
-
-- identificativo e tipo dell'entità;
-- versione **sul dispositivo** e versione **sul server**;
-- campi differenti con etichette comprensibili;
-- eventuali foto e risposte collegate;
-- azioni esplicite: «Mantieni versione locale», «Mantieni versione server»; eventuale modifica manuale dei campi solo se progettata e testata.
-
-La scelta genera una **nuova mutazione** con `baseRevision` uguale alla revisione server vista durante la risoluzione. Se nel frattempo è cambiata ancora, mostrare un nuovo conflitto: non forzare la sovrascrittura.
-
-### 12.4 Conservazione
-
-Il server e IndexedDB devono mantenere entrambe le versioni finché il conflitto non è risolto. Le foto non devono essere cancellate durante questa fase. Le bozze aperte non devono essere sovrascritte dal pull.
-
-### 12.5 Cosa non è conflitto
-
-Modifiche dello stesso stand da profili differenti sono dati distinti. Anche modifiche a prodotti diversi non sono conflitti solo perché appartengono allo stesso stand.
-
-### 12.6 Politica di merge
-
-Per la v1: **nessun last-write-wins automatico** e nessun merge silenzioso, neppure se le modifiche sembrano su campi distinti. Un eventuale merge assistito richiede decisione esplicita e test dedicati.
+Un update contro una tombstone viene respinto senza resuscitare il record. Conservare payload e riferimenti media necessari al recupero; offrire «Recupera come nuovo elemento», con nuovo ID e dipendenze valide. Nessun dialogo «versione locale/versione server» per i normali aggiornamenti concorrenti. Conservare audit per diagnosi senza promettere recupero automatico di ogni versione storica.
 
 ## 13. Eliminazioni e tombstone
 
@@ -499,7 +436,7 @@ Usare `photoId` stabile e hash SHA-256 per verificare il contenuto; non dedurre 
 
 ### 17.5 Pulizia
 
-Non eliminare il blob locale prima di aver verificato l'esistenza remota e la politica di cache offline. Non cancellare blob necessari a conflitti, bozze o upload pendenti. La strategia di compressione e quota è dettagliata in `21-photo-management.md`.
+Non eliminare il blob locale prima di aver verificato l'esistenza remota e la politica di cache offline. Non cancellare blob necessari a recuperi o upload pendenti. La strategia di compressione e quota è dettagliata in `21-photo-management.md`.
 
 ## 18. Motore di sincronizzazione: scheduling
 
@@ -611,21 +548,18 @@ Non cancellare mai l'outbox come risposta generica a un errore.
 
 ### 22.2 Un prodotto creato offline
 
-1. Compilazione: bozza autosalvata.
-2. Salva: prodotto + outbox, categoria congelata.
-3. UI aggiornata senza aspettare rete.
-4. Al ritorno online, push `create` idempotente.
-5. Server crea record, restituisce revisione.
-6. Client aggiorna revisione locale e stato dell'operazione.
-7. Pull di eventuali altre modifiche.
+1. Ogni campo viene conservato localmente; nessuna creazione all’apertura del modulo.
+2. Al primo insieme valido nome/stand/categoria, transazione automatica prodotto e outbox; categoria/stand bloccati.
+3. UI aggiornata senza attendere rete; le modifiche successive generano nuove mutazioni ordinate.
+4. Al ritorno online, push idempotente, ack/revisione locale e pull; nessun pulsante Salva necessario.
 
 ### 22.3 Cambio di stato offline
 
 Uno stand di interesse passa da `to_visit` a `visited`; la dashboard lo riflette subito. L'operazione entra nell'outbox. Un secondo dispositivo vedrà il cambio soltanto dopo il push del primo e il proprio pull.
 
-### 22.4 Conflitto di note
+### 22.4 Aggiornamenti concorrenti delle descrizioni
 
-A e B partono da revisione 3. A sincronizza revisione 4. B invia un update basato su 3. Il server rifiuta l'update, registra conflitto e restituisce entrambe le versioni. La UI chiede una decisione esplicita.
+A e B partono da revisione 3. A sincronizza e il server assegna 4. B invia un nuovo update valido basato su 3: il record vivo viene aggiornato secondo LWW e riceve revisione 5. Nessuna scelta manuale; il timestamp client non arbitra. Il retry dell’operazione di A restituisce il vecchio esito senza riscrivere il record. Se invece A aveva eliminato il record, l’update B è respinto e conservato per recupero come nuovo elemento.
 
 ### 22.5 Crash dopo push, prima della conferma locale
 
@@ -723,13 +657,13 @@ I limiti numerici (dimensione batch, foto, retry, retention) sono **parametri da
 
 | ID | Scenario | Esito atteso |
 |---|---|---|
-| SYNC-01 | Modifica senza Salva | Solo draft; nessuna richiesta API |
+| SYNC-01 | Modifica senza Salva | Commit automatico locale e outbox per valori validi; sync quando raggiungibile |
 | SYNC-02 | Salva offline | Record + outbox atomici |
-| SYNC-03 | Crash prima del commit locale | Nessun falso successo; draft preservato |
+| SYNC-03 | Crash prima del commit locale | Nessun falso successo; ultime scritture già persistite recuperabili |
 | SYNC-04 | Crash dopo commit locale | Operazione recuperata |
 | SYNC-05 | Quota IndexedDB esaurita | Errore esplicito; nessun falso salvataggio |
 | SYNC-06 | Salva categoria prodotto | Categoria immutabile subito |
-| SYNC-07 | Cambio profilo | Outbox e bozze isolate |
+| SYNC-07 | Cambio profilo | Commit locale completato e outbox/input isolati |
 | SYNC-08 | Due modifiche stesso record offline | Ordine rispettato |
 | SYNC-09 | Dipendenza stand personale | Prodotto inviato solo quando valido |
 | SYNC-10 | Retry con stesso ID/payload | Una sola applicazione |
@@ -747,12 +681,12 @@ I limiti numerici (dimensione batch, foto, retry, retention) sono **parametri da
 | SYNC-17 | Pull paginato | Nessuna modifica saltata |
 | SYNC-18 | Crash prima del commit pull | Cursor non avanzato |
 | SYNC-19 | Ripetizione pagina pull | Applicazione idempotente |
-| SYNC-20 | Cursor scaduto | Resync senza perdere outbox/draft |
+| SYNC-20 | Cursor scaduto | Resync senza perdere outbox/input locali/payload recuperabili |
 | SYNC-21 | Update remoto senza modifiche locali | Applicato |
 | SYNC-22 | Update remoto con operazione locale | Non sovrascrive silenziosamente |
 | SYNC-23 | Due dispositivi stessa revisione | Conflitto al secondo push |
 | SYNC-24 | Due profili stesso stand | Nessun conflitto incrociato |
-| SYNC-25 | Risoluzione manuale | Nuova mutazione revisionata |
+| SYNC-25 | LWW e retry concorrente | Ultima nuova mutazione accettata prevale; replay non riapplica |
 | SYNC-26 | Nuova modifica durante risoluzione | Nuovo conflitto, non force overwrite |
 | SYNC-27 | Delete remoto e update locale | Tombstone/conflitto |
 | SYNC-28 | Client offline molto vecchio | Compatibilità o resync controllato |
@@ -787,12 +721,12 @@ I limiti numerici (dimensione batch, foto, retry, retention) sono **parametri da
 ## 29. Criteri di accettazione
 
 - [ ] Il salvataggio locale non dipende dalla disponibilità della rete.
-- [ ] Le bozze non vengono inviate prima di «Salva».
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 - [ ] Record e outbox sono committati atomicamente.
 - [ ] Nessuna operazione è persa in caso di crash/retry.
 - [ ] Il server garantisce idempotenza per `operationId` e payload.
 - [ ] Le revisioni sono controllate lato server.
-- [ ] Le modifiche concorrenti generano conflitti manuali, senza overwrite silenzioso.
+- Concorrenza mobile LWW per record in ordine di accettazione server; revisioni monotone, idempotenza e protezione delle tombstone.
 - [ ] Le versioni in conflitto rimangono recuperabili.
 - [ ] I cursor di pull avanzano solo con i dati applicati.
 - [ ] Un cursor scaduto non causa cancellazione di dati locali non sincronizzati.
@@ -820,7 +754,7 @@ I limiti numerici (dimensione batch, foto, retry, retention) sono **parametri da
 | Store IndexedDB esatti | Allineare transazioni e nomi | `19-offline-storage.md` |
 | Coordinamento multi-tab | Web Locks + fallback + idempotenza | `19-offline-storage.md` |
 | Cursor e retention tombstone | Cursor opaco, resync se scaduto | `12-database.md` |
-| Risoluzione manuale | Scelta tra versioni, eventuale merge esplicito futuro | `14-frontend-ui.md` |
+| Concorrenza mobile | LWW per record, revisioni server e recupero da tombstone | `27_Specifiche_UI_Mobile.md` |
 | Eliminazione stand personale con prodotti | Bloccare finché esistono prodotti, salvo scelta diversa | `16-stand-management.md` |
 | Upload foto e limiti | Definire dimensioni, compressione, MIME e cache | `21-photo-management.md` |
 | Protezione perimetro | Valutare Cloudflare Access | `25-security.md` |

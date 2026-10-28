@@ -1,78 +1,52 @@
 # 21 — Gestione delle fotografie
 
+## Aggiornamento mobile — risposte A1–A9
+
+**Contratto vigente per il web mobile da fiera:** [specifica UI mobile, risposte A1–A9](27_Specifiche_UI_Mobile.md#10-risposte-di-revisione-recepite). Questo aggiornamento prevale sui paragrafi, diagrammi, pseudocodice e casi di test precedenti incompatibili. In particolare, gli esempi con `drafts`, conferma finale «Salva», dettaglio mobile 08, foto stand o scelta manuale del conflitto descrivono la progettazione precedente e non vanno implementati nel mobile. Le parti compatibili e le funzioni desktop/post-fiera mantengono il proprio ambito.
+
+Solo foto prodotto, nessuna entità foto stand. Originale sempre conservato, anteprime derivate senza sostituirlo; nessun numero massimo arbitrario. Blob/metadati persistiti automaticamente prima di dichiarare successo, upload dopo dipendenze prodotto, senza Salva finale. Principale ed eliminazione autosalvate; conferma distruttiva. Niente Informazioni foto. LWW metadati; hash discordanti sono errori integrità.
+
+
 > **Progetto:** ExpoTrack · **Documento:** `docs/21-photo-management.md` · **Stato:** specifica tecnica proposta, non implementazione  
 > **Documenti correlati:** `08-products-config.md`, `12-database.md`, `13-backend-api.md`, `14-frontend-ui.md`, `16-stand-management.md`, `17-product-management.md`, `19-offline-storage.md`, `20-synchronization.md`.  
 > **Prossimo:** `docs/22-comparison.md`.
 
 ## 1. Scopo e principi
 
-ExpoTrack è una PWA privata, mobile-first e offline-first per documentare stand e prodotti durante fiere come EICMA 2026. Le fotografie sono dati personali del profilo attivo, collegati a uno stand o a un prodotto, e devono poter essere acquisite, visualizzate e conservate anche senza connessione. Dopo il salvataggio locale esplicito, l'app tenta la sincronizzazione verso il server privato Linux/Docker, accessibile attraverso Cloudflare Tunnel.
-
-Questa specifica definisce acquisizione, formati, compressione, miniature, gestione delle bozze, persistenza IndexedDB, caricamenti, download, eliminazioni, sincronizzazione, conflitti, backup, sicurezza, accessibilità e test. Non crea servizi né file JSON reali. Non presuppone alcuna posizione verificata degli stand EICMA.
+Fotografie personali associate esclusivamente a prodotti, nel contesto profilo/evento. L’utente le aggiunge in 05/06; nessuna foto stand, account interno o condivisione pubblica. Gli originali sono conservati; miniature e derivati di visualizzazione non li sostituiscono. Il salvataggio locale è automatico e distinto dal caricamento server.
 
 ### 1.1 Invarianti
 
-1. Una foto appartiene a **un profilo** e a **un evento**; la selezione del profilo non è autenticazione.
-2. Ogni foto è associata a **un solo proprietario logico**: uno stand nel contesto del profilo oppure un prodotto.
-3. Uno stand editoriale condiviso può avere fotografie diverse per `me` e `father`; non diventano automaticamente pubbliche o condivise.
-4. Le fotografie degli stand personali sono visibili soltanto al profilo proprietario nell'interfaccia.
-5. Una foto in una bozza non viene inviata al server prima del comando esplicito **Salva**.
-6. **Salva** conferma localmente metadati e blob, poi crea le operazioni di sincronizzazione; la conferma del server è separata.
-7. La foto salvata localmente rimane disponibile offline finché il browser non elimina i dati, il dispositivo non si guasta o non si verifica un errore di storage: non promettere persistenza assoluta.
-8. Una foto non deve essere duplicata a causa di retry HTTP, riapertura dell'app o ricaricamento della pagina.
-9. Eliminazioni e conflitti non devono causare perdite silenziose.
-10. Il server non deve esporre percorsi filesystem né permettere accesso diretto ai volumi Docker.
-
-### 1.2 Fuori ambito v1
-
-- Nessuna galleria social, condivisione pubblica, riconoscimento facciale, OCR o classificazione AI.
-- Nessuna geolocalizzazione automatica delle fotografie e nessuna mappa.
-- Nessun editing avanzato: filtri, ritocco, annotazioni o disegno sulle immagini.
-- Nessuna sincronizzazione garantita a browser chiuso.
-- Nessuna gestione di video, audio o Live Photos come contenuti animati.
-- Nessun limite rigido di fotografie per stand/prodotto deciso in questa fase: va definito dopo test su dispositivi reali.
+1. Ogni foto ha ID stabile, un prodotto proprietario e profilo/evento coerenti.
+2. Blob e metadati sono salvati localmente subito; nessuna modalità bozza o Salva finale.
+3. Upload automatico solo quando il prodotto valido e le dipendenze sono disponibili sul server.
+4. Retry idempotenti e hash impediscono duplicati e sostituzione silenziosa del binario.
+5. Quota insufficiente non produce falso successo; dati già persistiti non sono cancellati.
+6. Modifica principale ed eliminazione producono operazioni locali; azioni distruttive confermate.
+7. Conservare riferimenti necessari a sync/recupero finché la pulizia non è sicura.
+8. Nessuna sync garantita a PWA chiusa o persistenza assoluta contro cancellazione dei dati del browser.
 
 ## 2. Esperienza utente
 
-### 2.1 Aggiunta foto
+### 2.1 Aggiunta e visualizzazione
 
-L'utente apre lo stand o il prodotto, sceglie **Aggiungi foto**, quindi può usare fotocamera o libreria del dispositivo, secondo le capacità del browser. Il controllo standard `input[type=file]` con `accept="image/*"` è la base affidabile; l'attributo `capture` può suggerire l'uso della fotocamera su smartphone ma **non ne garantisce** l'apertura in tutti i browser.
+Dal prodotto: «Scatta foto» o «Dalla galleria», con fallback compatibile col browser e permessi. Selezione, verifica formato/decodifica, preparazione anteprime, transazione locale blob/metadati/outbox e feedback reale. Non attendere un’azione Salva prodotto. Se il prodotto è ancora incompleto, conservare il blob locale e aspettare dati minimi validi prima di inviare riferimenti server.
 
-Flusso:
+Griglia con principale, viewer accessibile a schermo intero, zoom dove supportato, ritorno all’editor 05. Azioni solo imposta principale ed elimina con conferma; rimuovere «Informazioni». Nessun numero massimo arbitrario. Se si elimina la principale scegliere la prima residua per data di aggiunta, o rimuovere il riferimento se la griglia è vuota.
 
-1. Verificare che profilo, evento e proprietario della foto siano validi.
-2. Consentire la selezione di una o più immagini; mostrare l'anteprima.
-3. Leggere e verificare tipo reale, dimensione e decodificabilità del file.
-4. Correggere orientamento e preparare una versione visualizzabile; non alterare il file originale senza una decisione esplicita.
-5. Salvare la foto come **asset temporaneo di bozza** in IndexedDB, con riferimenti al modulo aperto.
-6. Permettere di rimuovere la foto dalla bozza senza toccare fotografie già confermate.
-7. Alla pressione di **Salva**, trasferire asset e metadati nell'archivio locale confermato e aggiungere le operazioni all'outbox.
-8. Mostrare stato locale/sync distinto e consentire di continuare la visita offline.
+### 2.2 Stati
 
-### 2.2 Interfaccia consigliata
+| Stato | Significato e azione |
+|---|---|
+| `local_saved` | Blob persistito, apribile offline |
+| `upload_pending` | Attesa di rete/dipendenze o turno in coda |
+| `uploading` | Progresso reale, senza bloccare navigazione |
+| `synced` | File e riferimenti confermati dal server |
+| `upload_failed` | File locale conservato; errore e riprova |
+| `recovery_required` | Proprietario cancellato, riferimenti conservati per recupero |
+| `deleted_pending` | Eliminazione locale confermata, tombstone da sincronizzare |
 
-- Griglia di miniature con rapporto d'aspetto coerente e `object-fit: cover` solo nell'anteprima.
-- Apertura della foto completa con zoom e chiusura accessibile.
-- Contatore delle foto per stand/prodotto, senza un limite arbitrario non confermato.
-- Azione **Rimuovi** con conferma se la foto è già salvata; rimozione semplice se è soltanto in bozza.
-- Badge di stato discreto per `Solo sul dispositivo`, `In sincronizzazione`, `Sincronizzata`, `Errore`, `Conflitto`.
-- Messaggi specifici per file non supportato, spazio insufficiente e caricamento fallito.
-- Visualizzazione della foto salvata anche se l'upload è pendente.
-
-### 2.3 Stati dell'interfaccia
-
-| Stato | Significato | Azione disponibile |
-|---|---|---|
-| `draft` | Foto aggiunta a un modulo, non confermata | Rimuovi dalla bozza, Salva modulo |
-| `local_saved` | Foto confermata in IndexedDB | Apri, elimina, sincronizza |
-| `upload_pending` | Foto in attesa della rete o del turno di upload | Apri, sincronizza |
-| `uploading` | Upload attivo | Apri, annulla solo se sicuro |
-| `synced` | Conferma server e riferimento remoto valido | Apri, elimina |
-| `upload_failed` | Upload fallito ma file locale conservato | Riprova |
-| `conflict` | Modifica concorrente non risolta | Confronta versioni |
-| `deleted_pending` | Eliminazione confermata localmente, da propagare | Stato di eliminazione |
-
-**Nota:** lo stato dell'upload non coincide necessariamente con lo stato dell'entità proprietaria. Un prodotto può essere sincronizzato mentre una sua fotografia è ancora in attesa.
+Il contatore foto pendenti è sottoinsieme delle operazioni globali, non un totale da sommare di nuovo. Una foto remota non è disponibile offline finché il file non è realmente scaricato sul dispositivo.
 
 ## 3. Associazione e perimetro dei dati
 
@@ -205,7 +179,7 @@ File selezionato
 
 ### 5.4 EXIF e privacy
 
-Per impostazione predefinita, **non conservare coordinate GPS** nelle immagini derivate. I metadati EXIF possono contenere posizione, data, modello dispositivo e altri dettagli. Decidere esplicitamente se conservare l'originale; in tal caso, documentare che potrebbe includere EXIF. Non usare i dati di geolocalizzazione per costruire mappe o itinerari.
+Per impostazione predefinita, **non conservare coordinate GPS** nelle immagini derivate. I metadati EXIF possono contenere posizione, data, modello dispositivo e altri dettagli. L’originale è conservato e può includere EXIF: documentarlo; le derivate escludono coordinate GPS. Non usare i dati di geolocalizzazione per costruire mappe o itinerari.
 
 ### 5.5 Gestione della qualità
 
@@ -219,44 +193,15 @@ Per impostazione predefinita, **non conservare coordinate GPS** nelle immagini d
 
 ### 6.1 Store
 
-Coerentemente con `19-offline-storage.md`:
+`photo_metadata`, `photo_blobs`, `outbox`, `sync_meta`; nessuno store drafts. Le foto sono collegate soltanto al prodotto nel contesto profilo/evento. Mantenerle recuperabili se il prodotto non è ancora valido o l’upload è bloccato da una dipendenza.
 
-- `photo_metadata`: dati strutturati, proprietario, revisione, stato sync;
-- `photo_blobs`: Blob/File o derivati persistiti localmente;
-- `drafts`: riferimenti alle fotografie non ancora confermate;
-- `outbox`: operazioni di creazione, upload e cancellazione;
-- `sync_meta`: cursori e informazioni operative.
+### 6.2 Persistenza automatica
 
-### 6.2 Separazione bozza/confermato
-
-**Proposta:** ogni blob ha un ID stabile; un record di metadati distingue asset temporanei e confermati. Un asset di bozza non deve essere raccolto da una pulizia automatica finché esiste una bozza che lo referenzia.
+Ogni foto acquisita/selezionata salva automaticamente originale, metadati e operazione locale, senza attendere «Salva prodotto». Stato di upload distinto da salvataggio locale. I metadati si inviano solo con proprietario valido; non scartare blob già acquisiti perché la compilazione prodotto non è ancora completa.
 
 ### 6.3 Atomicità
 
-IndexedDB consente transazioni atomiche sui propri object store, ma la **generazione/compressione dei blob avviene prima** della transazione. Preparare il blob e poi eseguire una transazione breve che conferma record, riferimenti e outbox. Non tenere aperte transazioni IndexedDB durante operazioni asincrone di elaborazione immagini.
-
-Pseudo-flusso:
-
-```ts
-async function commitPhotoLocally(input: PreparedPhoto): Promise<void> {
-  // Pseudocodice: db.transaction rappresenta una libreria IndexedDB.
-  await db.transaction(
-    ["photo_metadata", "photo_blobs", "outbox", "drafts"],
-    "readwrite",
-    async (tx) => {
-      await tx.photo_blobs.put(input.blob, input.photoId);
-      await tx.photo_metadata.put({
-        ...input.metadata,
-        syncState: "upload_pending"
-      });
-      await tx.outbox.put(input.operation);
-      await tx.drafts.delete(input.draftId);
-    }
-  );
-}
-```
-
-L'API concreta della libreria scelta potrà differire; il requisito è la **coerenza transazionale**. Se la transazione fallisce, non mostrare «Salvato» e non cancellare la bozza originale.
+Preparare originale e anteprime fuori transazione; poi transazione breve su metadati, blob e outbox. Solo dopo commit mostrare successo. In caso di quota insufficiente mantenere il contesto e proporre riprova, senza cancellazioni silenziose. «Informazioni» foto non è un’azione prevista. Rimuovendo la principale scegliere la prima residua in ordine di aggiunta o nessuna se griglia vuota.
 
 ### 6.4 Limiti browser
 
@@ -401,22 +346,15 @@ Un job server può rimuovere:
 
 Non eliminare file riferiti da conflitti irrisolti, upload in corso o operazioni ancora recuperabili. La durata della retention resta da definire.
 
-## 10. Conflitti tra dispositivi
+## 10. Concorrenza, integrità e recupero foto
 
-### 10.1 Tipi di conflitto
+La policy mobile è **LWW per record nell’ordine di accettazione server**, con revisioni monotone assegnate in transazione. Una revisione di base obsoleta su un record vivo non apre una scelta manuale: l’ultima nuova mutazione valida accettata prevale come record intero, senza merge per campo. Il timestamp del telefono è solo diagnostico. Vincoli di dominio e integrità restano applicati.
 
-- Dispositivo A elimina una foto mentre B modifica metadati o la riassocia (se consentito).
-- Due dispositivi modificano la stessa foto/metadati.
-- Un prodotto viene eliminato mentre un altro dispositivo carica una sua foto.
-- Due operazioni usano lo stesso `photoId` con hash diversi.
+Il retry della stessa `operationId` e dello stesso payload restituisce l’esito già registrato, senza diventare una nuova scrittura; stesso ID con hash diverso è errore. Il client serializza le operazioni dello stesso record e non sovrascrive modifiche locali più recenti quando applica una conferma o un pull remoto.
 
-### 10.2 Politica
+Un update contro una tombstone viene respinto senza resuscitare il record. Conservare payload e riferimenti media necessari al recupero; offrire «Recupera come nuovo elemento», con nuovo ID e dipendenze valide. Nessun dialogo «versione locale/versione server» per i normali aggiornamenti concorrenti. Conservare audit per diagnosi senza promettere recupero automatico di ogni versione storica.
 
-Usare revisioni e rilevare il conflitto senza sovrascrivere. Conservare le versioni o riferimenti immutabili ai file necessari. Mostrare confronto manuale se esistono due stati validi da scegliere; se il problema è un hash differente per lo stesso ID, trattarlo come errore d'integrità/idempotenza, non come normale conflitto risolvibile con «ultimo vince».
-
-### 10.3 Upload concorrenti
-
-Per il medesimo `photoId`, consentire al massimo un contenuto confermato coerente con hash e revisione. Un secondo dispositivo che vuole aggiungere una foto diversa deve usare un **nuovo UUID**.
+Il binario confermato di una foto è immutabile per `photoId`/hash. File differente con stesso ID è errore di integrità, mai sovrascrittura LWW del blob. Una nuova foto riceve nuovo UUID. Upload su prodotto eliminato non pubblica il file e conserva localmente il riferimento recuperabile.
 
 ## 11. Sicurezza
 
@@ -708,7 +646,7 @@ I target numerici definitivi devono essere scelti dopo le misurazioni: non inven
 
 | Tema | Raccomandazione iniziale | Impatto |
 |---|---|---|
-| Conservazione originali | Preferire derivata leggibile, valutare originale opzionale | Storage, qualità, privacy |
+| Conservazione originali | Confermata: originale sempre conservato, derivate per UI | Storage, qualità, privacy |
 | HEIC/HEIF | Fallback con errore chiaro, conversione solo se testata | Compatibilità iPhone |
 | Formato derivato | JPEG o WebP in base al browser | Compatibilità e dimensioni |
 | Dimensione massima file | Da misurare | Storage e rete |

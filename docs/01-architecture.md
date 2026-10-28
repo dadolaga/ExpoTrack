@@ -1,5 +1,12 @@
 # 01 — Architettura tecnica di ExpoTrack
 
+## Aggiornamento mobile — risposte A1–A9
+
+**Contratto vigente per il web mobile da fiera:** [specifica UI mobile, risposte A1–A9](27_Specifiche_UI_Mobile.md#10-risposte-di-revisione-recepite). Questo aggiornamento prevale sui paragrafi, diagrammi, pseudocodice e casi di test precedenti incompatibili. In particolare, gli esempi con `drafts`, conferma finale «Salva», dettaglio mobile 08, foto stand o scelta manuale del conflitto descrivono la progettazione precedente e non vanno implementati nel mobile. Le parti compatibili e le funzioni desktop/post-fiera mantengono il proprio ambito.
+
+Il repository locale persiste automaticamente input, record validi e outbox. Non introdurre DraftRepository o store drafts; dati invalidi restano recuperabili localmente ma non sono mutazioni server. La sync è automatica, LWW per record in ordine di accettazione server, con idempotenza e tombstone protette.
+
+
 > **Stato:** specifica architetturale per la v1  
 > **Dipende da:** [`../README.md`](../README.md), [`00-overview.md`](00-overview.md)  
 > **Successivo:** [`02-project-structure.md`](02-project-structure.md)  
@@ -20,8 +27,8 @@ Non sostituisce i contratti dettagliati di database, API, sincronizzazione o sch
 - Nessun login o PIN interno nella v1; Cloudflare Access eventualmente in futuro.
 - Cataloghi, profili iniziali, interessi iniziali e questionari definiti in JSON modulari.
 - Dati raccolti dai visitatori personali e dinamici, **non** scritti nei JSON.
-- Bozze autosalvate localmente; solo **Salva** conferma un record e lo mette in coda.
-- Conflitti tra dispositivi risolti manualmente; niente «last write wins».
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
+- Concorrenza mobile LWW per record in ordine di accettazione server; revisioni monotone, idempotenza e protezione delle tombstone.
 - Stand creati nell'app privati del profilo; catalogo JSON comune.
 - Una sola categoria per prodotto, immutabile dopo il primo salvataggio.
 - Questionari solo per combinazione profilo/categoria configurata.
@@ -208,7 +215,7 @@ Questo evita contaminazioni accidentali, **ma non è sicurezza**: in assenza di 
 - snapshot catalogo/configurazioni necessari offline;
 - profili e dati locali utilizzabili;
 - record confermati e relative versioni;
-- bozze non confermate;
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 - coda delle mutazioni da sincronizzare;
 - media e metadati necessari offline, con politica di capacità da definire;
 - informazioni sullo stato dell'ultima sincronizzazione.
@@ -519,7 +526,7 @@ I comandi e il `docker-compose.yml` definitivo saranno documentati in `24-deploy
 
 ### 15.1 Obiettivi qualitativi
 
-- **Affidabilità:** nessuna perdita silenziosa di dati confermati o bozze correttamente persistite.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 - **Usabilità:** i flussi di visita sono pratici su smartphone.
 - **Prestazioni:** elenco stand e prodotti utilizzabile offline senza attese di rete.
 - **Manutenibilità:** moduli separati, contratti tipizzati, validazione JSON e test.
@@ -532,7 +539,7 @@ Non vengono fissati SLA o soglie numeriche inventate: eventuali target misurabil
 ### 15.2 Criteri di accettazione architetturali
 
 - [ ] La UI non richiede una connessione attiva per consultare dati già caricati.
-- [ ] Una bozza autosalvata non genera chiamate di sincronizzazione.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 - [ ] **Salva** registra atomicamente record confermato e operazione pendente.
 - [ ] Le API validano vincoli di dominio e riferimenti, indipendentemente dal client.
 - [ ] I dati personali sono filtrati per profilo ed evento in ogni livello.

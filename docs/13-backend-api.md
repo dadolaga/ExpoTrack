@@ -1,5 +1,12 @@
 # 13 — Backend API di ExpoTrack
 
+## Aggiornamento mobile — risposte A1–A9
+
+**Contratto vigente per il web mobile da fiera:** [specifica UI mobile, risposte A1–A9](27_Specifiche_UI_Mobile.md#10-risposte-di-revisione-recepite). Questo aggiornamento prevale sui paragrafi, diagrammi, pseudocodice e casi di test precedenti incompatibili. In particolare, gli esempi con `drafts`, conferma finale «Salva», dettaglio mobile 08, foto stand o scelta manuale del conflitto descrivono la progettazione precedente e non vanno implementati nel mobile. Le parti compatibili e le funzioni desktop/post-fiera mantengono il proprio ambito.
+
+Le API ricevono mutazioni valide generate automaticamente; nessuna attesa del pulsante Salva. LWW per record in ordine server: baseRevision obsoleta su record vivo non richiede scelta manuale. Update contro tombstone viene respinto e resta recuperabile con nuovo ID. Idempotenza, validazione e hash foto restano vincolanti. Budget e checklist richiedono lettura/mutazione sincronizzabile; nessun endpoint foto stand.
+
+
 > **Documento:** `docs/13-backend-api.md`  
 > **Progetto:** ExpoTrack — PWA privata, multi-fiera, offline-first  
 > **Stato:** specifica tecnica proposta per la v1, **non implementazione**  
@@ -18,12 +25,12 @@ Il progetto è destinato inizialmente a **EICMA 2026**, ma ogni endpoint deve co
 
 - JSON editoriali come fonte delle definizioni condivise; non modificabili attraverso API utente.
 - PostgreSQL come archivio server dei dati dinamici confermati.
-- IndexedDB come archivio locale di record confermati, bozze, media e coda di sincronizzazione.
-- Le bozze non vengono inviate al server finché l'utente non preme **Salva**.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 - Il primo Salva di un prodotto blocca la categoria **anche se offline**.
 - Stand editoriali condivisi; stand creati nell'app privati del profilo creatore.
 - Priorità 1–10, note, cose da vedere, stati di visita e prodotti separati per profilo.
-- Conflitti dello stesso profilo su dispositivi diversi risolti **manualmente**, mantenendo entrambe le versioni.
+- Concorrenza mobile LWW per record in ordine di accettazione server; revisioni monotone, idempotenza e protezione delle tombstone.
 - Retry idempotenti e gestione esplicita delle eliminazioni.
 - Nessun endpoint per mappe, percorsi, importazione dati o acquisti.
 
@@ -698,62 +705,17 @@ Se lo storico delle modifiche è stato compattato, il server deve restituire un 
 
 ---
 
-## 16. Conflitti e risoluzione manuale
+## 16. Concorrenza LWW e risposte di errore
 
-### 16.1 Risposta di conflitto
+La policy mobile è **LWW per record nell’ordine di accettazione server**, con revisioni monotone assegnate in transazione. Una revisione di base obsoleta su un record vivo non apre una scelta manuale: l’ultima nuova mutazione valida accettata prevale come record intero, senza merge per campo. Il timestamp del telefono è solo diagnostico. Vincoli di dominio e integrità restano applicati.
 
-```json
-{
-  "operationId": "0b12d945-1111-4111-8111-111111111111",
-  "status": "conflict",
-  "conflict": {
-    "id": "c47f8c4e-2222-4222-8222-222222222222",
-    "entityType": "product",
-    "entityId": "9ad81ca7-faa5-4a7a-9620-333333333333",
-    "baseRevision": 4,
-    "serverRevision": 5,
-    "localVersion": { "notes": "Nota del dispositivo B" },
-    "serverVersion": { "notes": "Nota del dispositivo A" }
-  }
-}
-```
+Il retry della stessa `operationId` e dello stesso payload restituisce l’esito già registrato, senza diventare una nuova scrittura; stesso ID con hash diverso è errore. Il client serializza le operazioni dello stesso record e non sovrascrive modifiche locali più recenti quando applica una conferma o un pull remoto.
 
-I dati sono illustrativi. Le versioni devono contenere abbastanza informazioni per una scelta consapevole; non ridurre il confronto a una sola proprietà se sono state modificate più proprietà.
+Un update contro una tombstone viene respinto senza resuscitare il record. Conservare payload e riferimenti media necessari al recupero; offrire «Recupera come nuovo elemento», con nuovo ID e dipendenze valide. Nessun dialogo «versione locale/versione server» per i normali aggiornamenti concorrenti. Conservare audit per diagnosi senza promettere recupero automatico di ogni versione storica.
 
-### 16.2 Regole
+Per update valido su record vivo restituire esito applicato con nuova revisione; per retry identico l’esito originale. Per update su tombstone restituire codice stabile `RECORD_DELETED` e riferimento/revisione cancellata, senza applicare la scrittura. Non usare `409`/`REVISION_CONFLICT` come flusso manuale obbligatorio per revisioni obsolete ordinarie. Restano errori espliciti per integrità, categoria/stand immutabili, profilo/riferimenti invalidi e idempotency key riusata con payload diverso.
 
-1. Conservare la versione locale e quella server.
-2. Non scegliere automaticamente quella più recente in base all'orologio.
-3. Mostrare differenze comprensibili nella UI.
-4. Consentire la scelta manuale della versione da mantenere.
-5. Inviare la risoluzione come nuova mutazione con revisione corrente.
-6. Se la revisione cambia ancora prima della risoluzione, richiedere un nuovo confronto.
-7. Non eliminare il conflitto prima della conferma del server.
-
-### 16.3 Endpoint risoluzione
-
-```http
-POST /api/v1/sync/conflicts/<conflictId>/resolve
-```
-
-```json
-{
-  "operationId": "2de9eaa0-3333-4333-8333-333333333333",
-  "expectedServerRevision": 5,
-  "choice": "local"
-}
-```
-
-**Proposta:** `choice` può essere `local` o `server`. Un eventuale merge manuale campo per campo richiede specifica aggiuntiva; non presumerlo nella v1.
-
-### 16.4 Casi difficili
-
-- Eliminazione concorrente con modifica: mostrare la tombstone e la versione locale.
-- Foto aggiunta mentre il prodotto viene eliminato: non perdere il file locale prima della risoluzione.
-- Stand personale eliminato con prodotti: applicare la politica referenziale concordata.
-- Conflitto su preferiti e note dello stesso prodotto: decidere per **versione del record**, non fondere automaticamente senza autorizzazione.
-
----
+Endpoint di budget e checklist devono preservare semantica override seed, appartenenza profilo/categoria per budget e profilo/evento/stand per checklist. La serializzazione HTTP va coordinata con le mutazioni outbox del documento 20.
 
 ## 17. Contratto errori
 
@@ -1013,10 +975,10 @@ Il deploy deve includere backup di **database e file media**, test di ripristino
 - [ ] Prezzo facoltativo, voto generale indipendente e preferiti personali.
 - [ ] Questionari solo se configurati per profilo/categoria, tutte le domande facoltative.
 - [ ] Foto multiple, upload robusti e media non esposti direttamente.
-- [ ] Bozze escluse dalle API fino a Salva.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 - [ ] Push idempotente con revisione e risultati per operazione.
 - [ ] Pull incrementale con tombstone e cursor consistente.
-- [ ] Conflitti risolti manualmente, entrambe le versioni conservate.
+- Concorrenza mobile LWW per record in ordine di accettazione server; revisioni monotone, idempotenza e protezione delle tombstone.
 - [ ] Errori strutturati, niente stack trace o segreti.
 - [ ] PostgreSQL accessibile solo privatamente.
 - [ ] Limiti dell'assenza di autenticazione documentati.

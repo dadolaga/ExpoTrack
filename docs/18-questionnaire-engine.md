@@ -1,5 +1,12 @@
 # ExpoTrack — 18. Motore dei questionari dinamici
 
+## Aggiornamento mobile — risposte A1–A9
+
+**Contratto vigente per il web mobile da fiera:** [specifica UI mobile, risposte A1–A9](27_Specifiche_UI_Mobile.md#10-risposte-di-revisione-recepite). Questo aggiornamento prevale sui paragrafi, diagrammi, pseudocodice e casi di test precedenti incompatibili. In particolare, gli esempi con `drafts`, conferma finale «Salva», dettaglio mobile 08, foto stand o scelta manuale del conflitto descrivono la progettazione precedente e non vanno implementati nel mobile. Le parti compatibili e le funzioni desktop/post-fiera mantengono il proprio ambito.
+
+Ogni risposta modifica direttamente il dato autosalvato e accoda sync quando valida. Nessuna bozza o pulsante Annulla/Salva risposta; ritorno non annulla. Spunta = risposta presente; voto assente distinto da 1. Sei tipi canonici, rating_1_10; alias rating normalizzato in lettura. Risposte dentro editor 05; matching esatto senza fallback generico.
+
+
 > **Percorso previsto:** `docs/18-questionnaire-engine.md`  
 > **Stato:** specifica funzionale e tecnica, **non implementazione**  
 > **Progetto:** ExpoTrack, PWA privata offline-first per fiere; EICMA 2026 è il primo evento.  
@@ -20,10 +27,10 @@ Il motore dei questionari consente di presentare, compilare, salvare e consultar
 - Sei tipi: `text`, `number`, `boolean` (sì/no), `single_choice`, `multiple_choice`, `rating` (1–10).
 - Senza configurazione corrispondente, non mostrare la sezione questionario.
 - La categoria del prodotto è **immutabile dopo il primo Salva**, anche se avvenuto offline.
-- Modifiche al modulo autosalvate come **bozza locale**; soltanto **Salva** conferma e inserisce in coda la sincronizzazione.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 - Le risposte appartengono al prodotto e al profilo, non allo stand condiviso.
 - Un questionario compilato deve rimanere interpretabile se la definizione JSON cambia.
-- Eventuali conflitti fra due dispositivi sullo stesso profilo richiedono risoluzione manuale; non sovrascrivere silenziosamente.
+- Concorrenza mobile LWW per record in ordine di accettazione server; revisioni monotone, idempotenza e protezione delle tombstone.
 
 Questo documento non crea i file `config/questionnaires/me.json` o `father.json`, non impone contenuti specifici delle domande e non avvia lo sviluppo.
 
@@ -375,47 +382,17 @@ Algoritmo proposto:
 
 **Attenzione:** una risposta storica valida per la versione 1 non deve essere invalidata soltanto perché un'opzione è stata rimossa nella versione 2. Validare la risposta storica contro il suo snapshot; usare la definizione nuova solo in un processo esplicito di aggiornamento.
 
-## 10. Stato UI e gestione delle bozze
+## 10. Stato UI e salvataggio automatico delle risposte
 
-Distinguere tre livelli:
+Ogni modifica intenzionale viene persistita automaticamente sul dispositivo. Per dati validi, record e mutazione outbox sono scritti nella stessa transazione; la rete interviene dopo. Non esistono store o modalità bozza né conferma Salva finale. Nome, stand e categoria restano obbligatori per la prima registrazione prodotto: i valori iniziali incompleti sono recuperabili nello stesso record locale, senza essere contati o inviati come prodotto valido. Categoria e stand si bloccano alla prima registrazione locale valida. Un input successivamente invalido resta recuperabile senza sostituire l’ultima versione valida sincronizzabile. Vedere [§5.1 della specifica mobile](27_Specifiche_UI_Mobile.md#51-salvataggio-automatico-validazione-e-recupero).
 
-| Livello | Dove vive | Quando cambia |
-|---|---|---|
-| Stato del modulo | Memoria React | Ad ogni interazione. |
-| Bozza persistente | IndexedDB `drafts` | Autosave durante la modifica. |
-| Risposte confermate | IndexedDB `answer_sets` + outbox | Solo con **Salva**. |
+Dichiarare «Salvato sul dispositivo» solo dopo commit riuscito; errori quota o transazione mantengono l’input e non producono falso successo. Prima di cambio vista/profilo completare la persistenza, senza dialogo di conferma per modifiche già autosalvate. «Fine»/indietro non annullano scritture effettuate.
 
-### 10.1 Flusso di modifica
+Ogni controllo scrive direttamente la risposta valida e accoda la mutazione. Tornare da 05a a 05 non annulla. Rimuovere «Annulla» e «Salva risposta» come commit separato; la spunta indica solo risposta presente. Valore assente distinto da 1 o da No. Nessuna foto nello step domanda e nessun commento aggiuntivo per rating non previsto dal JSON.
 
-1. Aprire un prodotto nel profilo attivo.
-2. Risolvere il questionario applicabile.
-3. Caricare risposte confermate e relativa versione.
-4. Se esiste una bozza per quel prodotto/profilo, offrirne il ripristino o applicare la politica UI definita.
-5. Mostrare i controlli senza selezioni automatiche.
-6. Autosalvare la bozza dopo ogni cambiamento, con gestione errori.
-7. Alla pressione di Salva, validare prodotto e risposte insieme.
-8. Eseguire una transazione IndexedDB atomica: aggiornamento prodotto/answer set, creazione operazione outbox, pulizia bozza.
-9. Mostrare «Salvato sul dispositivo» solo dopo commit riuscito.
-10. Sincronizzare quando possibile; indicare separatamente lo stato server.
+## 11. Prima registrazione valida e categoria
 
-### 10.2 Uscita e navigazione
-
-Se esistono modifiche non confermate, avvisare prima di abbandonare la schermata. **Non cancellare la bozza** per un semplice cambio scheda, refresh o perdita di rete.
-
-### 10.3 Bozze con profili diversi
-
-La chiave della bozza deve includere almeno `(profileId, eventId, productId)` e il tipo di editor. Un passaggio da `me` a `father` non deve mostrare né sovrascrivere le risposte dell'altro profilo.
-
-## 11. Primo Salva di un prodotto
-
-Un nuovo prodotto richiede una categoria prima del primo Salva. Il questionario viene scelto sulla categoria corrente **durante la bozza**. Se l'utente cambia categoria prima di salvare:
-
-- ricalcolare il questionario applicabile;
-- non riutilizzare risposte con ID coincidenti appartenenti a un'altra definizione;
-- preservare temporaneamente eventuali bozze precedenti, se previsto, senza associarle alla nuova categoria;
-- spiegare all'utente che le risposte del vecchio questionario non saranno salvate nel prodotto con la nuova categoria.
-
-Dopo il primo Salva locale, la categoria non è più modificabile, indipendentemente dalla connessione e dall'esito della sync.
+La categoria è scelta manualmente prima della prima registrazione locale valida e poi immutabile. Le risposte sono associate a definizione/versione del questionario della categoria effettiva; non riutilizzare per coincidenza di ID risposte di un’altra definizione. Matching esatto categoria/profilo; nessun fallback generico. Il nome rating canonico è `rating_1_10`; normalizzare in lettura l’alias storico `rating` degli esempi.
 
 ## 12. Persistenza e snapshot storico
 
@@ -534,19 +511,15 @@ Il client deve registrare la versione/hash dello snapshot usato per creare le ri
 
 Non etichettare ogni incompatibilità come conflitto tra dispositivi.
 
-## 16. Conflitti fra dispositivi
+## 16. Concorrenza delle risposte
 
-Esempio:
+La policy mobile è **LWW per record nell’ordine di accettazione server**, con revisioni monotone assegnate in transazione. Una revisione di base obsoleta su un record vivo non apre una scelta manuale: l’ultima nuova mutazione valida accettata prevale come record intero, senza merge per campo. Il timestamp del telefono è solo diagnostico. Vincoli di dominio e integrità restano applicati.
 
-1. A e B caricano le risposte del prodotto con `revision=3`.
-2. A cambia `comfort` da 7 a 8 e sincronizza, ottenendo `revision=4`.
-3. B offline cambia `comfort` da 7 a 9.
-4. B invia la mutazione basata su `revision=3`.
-5. Il server restituisce conflitto; entrambe le versioni vengono conservate.
-6. L'utente sceglie manualmente quale versione mantenere.
-7. La scelta viene inviata come nuova mutazione versionata.
+Il retry della stessa `operationId` e dello stesso payload restituisce l’esito già registrato, senza diventare una nuova scrittura; stesso ID con hash diverso è errore. Il client serializza le operazioni dello stesso record e non sovrascrive modifiche locali più recenti quando applica una conferma o un pull remoto.
 
-Anche se A e B hanno modificato domande differenti, **non applicare automaticamente un merge** senza una regola esplicitamente approvata. La UI può evidenziare le differenze per domanda, ma la risoluzione resta consapevole.
+Un update contro una tombstone viene respinto senza resuscitare il record. Conservare payload e riferimenti media necessari al recupero; offrire «Recupera come nuovo elemento», con nuovo ID e dipendenze valide. Nessun dialogo «versione locale/versione server» per i normali aggiornamenti concorrenti. Conservare audit per diagnosi senza promettere recupero automatico di ogni versione storica.
+
+Un answer set è un record con versione della definizione; LWW non converte automaticamente risposte incompatibili con un nuovo schema.
 
 ## 17. Interfaccia mobile-first
 
@@ -559,7 +532,7 @@ Anche se A e B hanno modificato domande differenti, **non applicare automaticame
 - Indicazione discreta «Facoltativo» a livello di sezione; non ripetere un obbligo inesistente.
 - Nessuna preselezione di radio, sì/no o rating.
 - Feedback puntuale su valori non validi.
-- Stato «Bozza», «Salvato sul dispositivo», «In sincronizzazione», «Sincronizzato» o «Conflitto» secondo lo stato reale.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 
 ### 17.2 Navigazione
 
@@ -737,7 +710,7 @@ Nel JSON esportato preservare gli ID stabili e la versione del questionario; nel
 - [ ] Snapshot editoriale invalido non sostituisce quello valido.
 - [ ] Risposte personali isolate per profilo/prodotto.
 - [ ] Nessuna categoria modificabile dopo primo Salva locale.
-- [ ] Bozze autosalvate senza sincronizzazione prematura.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 - [ ] Salva conferma localmente anche offline.
 - [ ] Operazioni di sync idempotenti e versionate.
 - [ ] Conflitti conservano entrambe le versioni fino alla risoluzione.

@@ -1,5 +1,12 @@
 # 10 — Configurazione dei questionari personali
 
+## Aggiornamento mobile — risposte A1–A9
+
+**Contratto vigente per il web mobile da fiera:** [specifica UI mobile, risposte A1–A9](27_Specifiche_UI_Mobile.md#10-risposte-di-revisione-recepite). Questo aggiornamento prevale sui paragrafi, diagrammi, pseudocodice e casi di test precedenti incompatibili. In particolare, gli esempi con `drafts`, conferma finale «Salva», dettaglio mobile 08, foto stand o scelta manuale del conflitto descrivono la progettazione precedente e non vanno implementati nel mobile. Le parti compatibili e le funzioni desktop/post-fiera mantengono il proprio ambito.
+
+Risposte facoltative autosalvate localmente e sincronizzate senza Salva/bozze. Nome canonico del rating: rating_1_10, con normalizzazione dell’alias storico rating in lettura. Restano sei tipi; nessuna domanda generica o commento accessorio non configurato. Default operativo: matching esatto categoria/profilo, nessuna ereditarietà implicita.
+
+
 > **Progetto:** ExpoTrack · **Documento:** `docs/10-questionnaires-config.md` · **Schema proposto:** v1  
 > **File interessati:** `config/questionnaires/me.json`, `config/questionnaires/father.json` e, in futuro, altri profili  
 > **Dipendenze:** `04-profiles-config.md`, `06-categories-config.md`, `08-products-config.md`, `09-interests-config.md`  
@@ -23,7 +30,7 @@ Questo documento descrive il **contratto editoriale** delle domande. Le risposte
 - Le risposte appartengono al prodotto e al profilo.
 - Il **voto generale 1–10 del prodotto** è distinto dalle domande con risposta 1–10.
 - La categoria del prodotto è **scelta manualmente e immutabile dopo il primo salvataggio locale confermato**.
-- Bozze autosalvate localmente, ma il pulsante **Salva** è necessario per confermare e accodare la sincronizzazione.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 - Aggiornamenti di configurazione non devono cancellare silenziosamente risposte storiche.
 
 ### 1.2 Questione aperta principale
@@ -897,9 +904,9 @@ Il documento fornisce un contratto implementabile, ma **non considera approvate*
 - [ ] I questionari non compaiono senza definizione applicabile.
 - [ ] Le risposte sono dati personali del prodotto, non modifiche al JSON.
 - [ ] La categoria del prodotto resta immutabile dopo il primo Salva.
-- [ ] Le risposte funzionano offline con bozze e salvataggio esplicito.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 - [ ] Le versioni storiche non vengono cancellate silenziosamente.
-- [ ] I conflitti fra dispositivi sono risolti manualmente.
+- Concorrenza mobile LWW per record in ordine di accettazione server; revisioni monotone, idempotenza e protezione delle tombstone.
 - [ ] Il confronto desktop gestisce risposte mancanti e versioni diverse.
 - [ ] L'export PDF dettagliato può mostrare domande e risposte.
 - [ ] I test coprono configurazione, validazione, offline e isolamento profili.

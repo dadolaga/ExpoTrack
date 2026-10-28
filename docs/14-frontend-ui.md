@@ -1,5 +1,12 @@
 # ExpoTrack — 14. Frontend UI e UX
 
+## Aggiornamento mobile — risposte A1–A9
+
+**Contratto vigente per il web mobile da fiera:** [specifica UI mobile, risposte A1–A9](27_Specifiche_UI_Mobile.md#10-risposte-di-revisione-recepite). Questo aggiornamento prevale sui paragrafi, diagrammi, pseudocodice e casi di test precedenti incompatibili. In particolare, gli esempi con `drafts`, conferma finale «Salva», dettaglio mobile 08, foto stand o scelta manuale del conflitto descrivono la progettazione precedente e non vanno implementati nel mobile. Le parti compatibili e le funzioni desktop/post-fiera mantengono il proprio ambito.
+
+Per il mobile prevalgono testo e mockup attivi del documento 27: unico editor 05, 08 sospeso, autosalvataggio senza bozze, quattro tab Home/Stand/Prodotti/Profilo, note e checklist stand, stand personali e budget. Rimossi controlli accessori A6 e opzioni sync superflue. Filtri/scroll si conservano nel ritorno, reset su nuovo ingresso dal tab.
+
+
 > **Percorso previsto:** `docs/14-frontend-ui.md`  
 > **Stato:** specifica progettuale, non implementazione  
 > **Progetto:** ExpoTrack — applicazione privata, mobile-first e offline-first per fiere; primo evento EICMA 2026  
@@ -437,24 +444,11 @@ Prima di salvare, validare nome, stand, categoria e campi numerici. Eseguire una
 
 ---
 
-## 13. Dettaglio e modifica prodotto
+## 13. Editor prodotto unico mobile
 
-La schermata dettaglio deve rendere leggibili:
+Ogni accesso a prodotto nuovo, pianificato o registrato rende l’editor 05. Non implementare il dettaglio 08 o il passaggio «Modifica prodotto». Questionario inline espandibile, descrizione unica dedicata, foto in basso con viewer 06; azioni duplica/elimina nell’editor. Niente cronologia note o condivisione/export mobile.
 
-1. Nome, categoria (bloccata), stand e contesto evento.
-2. Prezzo, voto, preferito e note.
-3. Fotografie con miniature e vista ingrandita.
-4. Questionario applicabile, se presente.
-5. Stato di sincronizzazione e conflitti eventuali.
-6. Azioni Modifica ed Elimina.
-
-Le modifiche ai campi consentiti passano attraverso bozza e **Salva**. L'eliminazione richiede conferma e deve rispettare tombstone e dipendenze fotografiche.
-
-### 13.1 Cambiare stand del prodotto
-
-Non è stato definito come requisito certo. **Proposta conservativa:** trattare lo stand come stabile dopo il primo Salva, analogamente alla categoria, fino a decisione in `17-product-management.md`. Non presentare questa proposta come decisione già approvata.
-
----
+Categoria obbligatoria e stand si bloccano alla prima registrazione locale valida; un errore di assegnazione si corregge creando un nuovo prodotto. La copia di un prodotto ha nuovo ID, description e risposte copiate, nessuna foto, salvataggio automatico immediato.
 
 ## 14. Questionari nella UI
 
@@ -512,88 +506,21 @@ Generare miniature, valutare compressione e non caricare tutte le immagini origi
 
 ---
 
-## 16. Bozze, Salva e feedback
+## 16. Salvataggio automatico e feedback
 
-### 16.1 Stati del form
+Ogni modifica intenzionale viene persistita automaticamente sul dispositivo. Per dati validi, record e mutazione outbox sono scritti nella stessa transazione; la rete interviene dopo. Non esistono store o modalità bozza né conferma Salva finale. Nome, stand e categoria restano obbligatori per la prima registrazione prodotto: i valori iniziali incompleti sono recuperabili nello stesso record locale, senza essere contati o inviati come prodotto valido. Categoria e stand si bloccano alla prima registrazione locale valida. Un input successivamente invalido resta recuperabile senza sostituire l’ultima versione valida sincronizzabile. Vedere [§5.1 della specifica mobile](27_Specifiche_UI_Mobile.md#51-salvataggio-automatico-validazione-e-recupero).
 
-```ts
-type EditorState =
-  | "pristine"
-  | "draft_dirty"
-  | "saving_local"
-  | "saved_local"
-  | "local_error"
-  | "sync_pending"
-  | "syncing"
-  | "synced"
-  | "conflict";
-```
+Dichiarare «Salvato sul dispositivo» solo dopo commit riuscito; errori quota o transazione mantengono l’input e non producono falso successo. Prima di cambio vista/profilo completare la persistenza, senza dialogo di conferma per modifiche già autosalvate. «Fine»/indietro non annullano scritture effettuate.
 
-Questa union è illustrativa: **stato del form** e **stato di sincronizzazione** possono essere due dimensioni indipendenti, per evitare combinazioni impossibili.
+## 17. Sincronizzazione nella UI
 
-### 16.2 Autosalvataggio bozza
+La policy mobile è **LWW per record nell’ordine di accettazione server**, con revisioni monotone assegnate in transazione. Una revisione di base obsoleta su un record vivo non apre una scelta manuale: l’ultima nuova mutazione valida accettata prevale come record intero, senza merge per campo. Il timestamp del telefono è solo diagnostico. Vincoli di dominio e integrità restano applicati.
 
-Ad ogni modifica significativa, persistire la bozza in locale. L'implementazione può usare debounce per ridurre scritture, ma deve prevedere flush in transizioni critiche e recupero dopo crash quando tecnicamente possibile.
+Il retry della stessa `operationId` e dello stesso payload restituisce l’esito già registrato, senza diventare una nuova scrittura; stesso ID con hash diverso è errore. Il client serializza le operazioni dello stesso record e non sovrascrive modifiche locali più recenti quando applica una conferma o un pull remoto.
 
-### 16.3 Pulsante Salva
+Un update contro una tombstone viene respinto senza resuscitare il record. Conservare payload e riferimenti media necessari al recupero; offrire «Recupera come nuovo elemento», con nuovo ID e dipendenze valide. Nessun dialogo «versione locale/versione server» per i normali aggiornamenti concorrenti. Conservare audit per diagnosi senza promettere recupero automatico di ogni versione storica.
 
-- Deve essere riconoscibile e raggiungibile.
-- Deve validare i dati.
-- Deve confermare **prima** la persistenza locale.
-- Deve mettere in coda la sincronizzazione.
-- Deve distinguere «Salvato sul dispositivo» da «Sincronizzato».
-- Non deve eliminare la bozza in caso di errore.
-
-### 16.4 Navigazione con modifiche non confermate
-
-Proposta di dialogo:
-
-> **Hai modifiche non salvate.** Le abbiamo conservate come bozza su questo dispositivo. Vuoi salvarle ora, continuare senza confermarle oppure restare qui?
-
-Il testo deve essere adattato ai limiti reali del browser. Non affermare che un dialogo personalizzato sia garantito alla chiusura della scheda.
-
-### 16.5 Errori
-
-Messaggi specifici: «Impossibile salvare sul dispositivo: spazio insufficiente», «Categoria non valida», «Il prodotto è stato modificato su un altro dispositivo», evitando errori generici quando il motivo è noto.
-
----
-
-## 17. Sincronizzazione e conflitti nella UI
-
-### 17.1 Pagina stato sincronizzazione
-
-Mostrare almeno:
-
-- connessione attuale;
-- numero operazioni in attesa;
-- ultima sincronizzazione riuscita, se nota;
-- errori recenti;
-- conflitti da risolvere;
-- pulsante **Sincronizza ora**.
-
-Il pulsante manuale non deve sostituire la sincronizzazione automatica quando la connessione è disponibile.
-
-### 17.2 Conflitto manuale
-
-Per ogni conflitto mostrare:
-
-| Versione locale | Versione server |
-|---|---|
-| Dati modificati sul dispositivo | Dati già presenti sul server |
-| Revisione di partenza | Revisione corrente |
-| Data/ora informativa | Data/ora informativa |
-
-Consentire la scelta della versione da mantenere, con anteprima delle differenze e conferma. **Non** scegliere automaticamente il più recente in base all'orologio. Le due versioni devono restare disponibili fino alla risoluzione.
-
-### 17.3 Foto e conflitti
-
-Se un conflitto riguarda foto, mostrare miniature di entrambe le versioni quando i file sono disponibili; in caso contrario, rendere visibile la limitazione e non cancellare riferimenti.
-
-### 17.4 App chiusa
-
-Non promettere sincronizzazione in background quando la PWA è chiusa: la disponibilità dipende dal browser e dalla piattaforma.
-
----
+Sync sempre automatica con app aperta e server disponibile, entrambe le reti, più «Sincronizza ora». Nessuna scelta policy, rete o toggle di disattivazione. Indicatore globale su tutte le code del dispositivo, foto incluse una volta; pagina di dettaglio nel contesto profilo/evento attivi. Nessun pulsante Informazioni foto, Pulisci recenti, reset personalizzazioni, descrizione profilo o selettore icone.
 
 ## 18. Esportazione dati
 
@@ -1041,7 +968,7 @@ Le proposte non ancora approvate devono rimanere modificabili prima della scritt
 - [ ] Questionari applicati solo al profilo/categoria pertinente.
 - [ ] Tutte le domande dei questionari facoltative.
 - [ ] Foto disponibili offline dopo salvataggio locale.
-- [ ] Bozze autosalvate ma non sincronizzate prima di Salva.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 - [ ] Salva conferma la transazione locale e accoda la sync.
 - [ ] Conflitti conservano e mostrano entrambe le versioni.
 - [ ] Confronto affiancato disponibile solo desktop.

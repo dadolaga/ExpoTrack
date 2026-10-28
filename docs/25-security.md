@@ -1,5 +1,12 @@
 # ExpoTrack — 25. Sicurezza, privacy e protezione dei dati
 
+## Aggiornamento mobile — risposte A1–A9
+
+**Contratto vigente per il web mobile da fiera:** [specifica UI mobile, risposte A1–A9](27_Specifiche_UI_Mobile.md#10-risposte-di-revisione-recepite). Questo aggiornamento prevale sui paragrafi, diagrammi, pseudocodice e casi di test precedenti incompatibili. In particolare, gli esempi con `drafts`, conferma finale «Salva», dettaglio mobile 08, foto stand o scelta manuale del conflitto descrivono la progettazione precedente e non vanno implementati nel mobile. Le parti compatibili e le funzioni desktop/post-fiera mantengono il proprio ambito.
+
+Validare anche le mutazioni autosalvate: nessuna conferma finale Salva come barriera di sicurezza. Solo foto prodotto, originali conservati e potenzialmente contenenti EXIF; non esporli pubblicamente. LWW non aggira vincoli, autorizzazione logica o integrità hash. Nessun troncamento testo per introdurre un limite UI; limiti tecnici espliciti e recuperabili. Tombstone e recupero con nuovo ID.
+
+
 > **Percorso previsto:** `docs/25-security.md`  
 > **Stato:** specifica tecnica di progettazione, non audit di sicurezza né configurazione già applicata  
 > **Ambiente:** Next.js + React + TypeScript, PostgreSQL, IndexedDB, Docker Compose su Debian/Linux, Cloudflare Tunnel  

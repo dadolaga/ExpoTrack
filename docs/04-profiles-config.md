@@ -1,5 +1,12 @@
 # 04 — Configurazione dei profili (`config/profiles.json`)
 
+## Aggiornamento mobile — risposte A1–A9
+
+**Contratto vigente per il web mobile da fiera:** [specifica UI mobile, risposte A1–A9](27_Specifiche_UI_Mobile.md#10-risposte-di-revisione-recepite). Questo aggiornamento prevale sui paragrafi, diagrammi, pseudocodice e casi di test precedenti incompatibili. In particolare, gli esempi con `drafts`, conferma finale «Salva», dettaglio mobile 08, foto stand o scelta manuale del conflitto descrivono la progettazione precedente e non vanno implementati nel mobile. Le parti compatibili e le funzioni desktop/post-fiera mantengono il proprio ambito.
+
+Nome, colore e avatar dei profili JSON sono in sola lettura; profili personali modificabili per nome/colore con icona utente standard. Eliminare selettore icone, descrizione profilo e reset personalizzazioni. Cambio profilo immediato dopo commit locale. Budget per categoria disponibili a entrambi i tipi di profilo con override persistenti e sincronizzati, non solo come estensione futura.
+
+
 > **Progetto:** ExpoTrack · **Contratto proposto:** versione `1` · **Stato:** specifica tecnica per la v1  
 > **Documenti di riferimento:** [`00-overview.md`](00-overview.md), [`01-architecture.md`](01-architecture.md), [`02-project-structure.md`](02-project-structure.md), [`03-app-config.md`](03-app-config.md)  
 > **Documento successivo:** [`05-pavilions-config.md`](05-pavilions-config.md)
@@ -302,11 +309,11 @@ Abbigliamento
 
 Se esistono budget su «Caschi» e «Integrali», la scelta di quale visualizzare per un casco integrale dipende da una regola di priorità **ancora da specificare**. Proposta ragionevole: budget più specifico, con eventuale fallback al padre, ma **non considerarla approvata**.
 
-### 6.4 Profili dinamici
+### 6.4 Budget nell’uso mobile in fiera
 
-Per i nuovi profili creati nell'app, la gestione di budget personalizzati è una possibile estensione del modulo profili. Il requisito già consolidato riguarda la possibilità di registrare interessi e prodotti; non si deve imporre un form budget durante la creazione.
+Budget disponibili per profili JSON e personali in Profilo → Budget per categoria (11a), senza imporli durante la creazione del profilo. Override per `(profileId, categoryId)`, condivisi tra eventi come nel contratto attuale. Importo non negativo, valuta esplicita, euro con massimo due decimali; nessun budget totale o somma come spesa.
 
----
+Salvataggio automatico locale e sync. Modifica di un seed JSON tramite override, non scrittura del file. Rimuovere override ripristina il seed; per escluderlo usare un override esplicito «Nessun budget». Default mobile: matching esatto categoria, nessuna eredità automatica dal padre. In 05 mostrare budget e differenza rispetto al prezzo quando disponibili. Nessun mockup dedicato necessario per includere la funzione.
 
 ## 7. Selezione e cambio profilo
 

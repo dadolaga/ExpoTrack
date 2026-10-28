@@ -1,5 +1,12 @@
 # 09 — Configurazione degli interessi personali (`config/interests/<profileId>.json`)
 
+## Aggiornamento mobile — risposte A1–A9
+
+**Contratto vigente per il web mobile da fiera:** [specifica UI mobile, risposte A1–A9](27_Specifiche_UI_Mobile.md#10-risposte-di-revisione-recepite). Questo aggiornamento prevale sui paragrafi, diagrammi, pseudocodice e casi di test precedenti incompatibili. In particolare, gli esempi con `drafts`, conferma finale «Salva», dettaglio mobile 08, foto stand o scelta manuale del conflitto descrivono la progettazione precedente e non vanno implementati nel mobile. Le parti compatibili e le funzioni desktop/post-fiera mantengono il proprio ambito.
+
+Stella = interesse, senza flag preferito stand aggiuntivo. Il seed JSON definisce gli interessi iniziali; l’override distingue appartenenza, rimozione esplicita e nessun override. Visita e attività prodotto non cambiano automaticamente interesse. Cose da vedere diventano checklist con ID stabile e completamento personale; modifiche autosalvate e sincronizzate.
+
+
 > **Progetto:** ExpoTrack · **Schema proposto:** v1 · **Stato:** specifica tecnica da confermare  
 > **Riferimenti:** `03-app-config.md`, `04-profiles-config.md`, `06-categories-config.md`, `07-stands-config.md`, `08-products-config.md`  
 > **Successivo:** `10-questionnaires-config.md`
@@ -341,75 +348,11 @@ La chiave completa comprende anche evento e profilo. Gli ID degli stand personal
 
 ---
 
-## 9. Bozze, salvataggio e sincronizzazione
+## 9. Salvataggio automatico degli interessi
 
-### 9.1 Macchina degli stati
+La stella indica solo interesse: seed JSON più override `inherit/include/exclude`. Il tap modifica interesse senza cambiare visita o creare preferiti stand separati. Record override e outbox si salvano automaticamente in transazione locale; sync appena possibile. Spunte checklist, priorità e note seguono lo stesso criterio. Nessuna modalità bozza o conferma finale Salva.
 
-```text
-Visualizzazione seed/override confermato
-            │
-            ▼
-     Modifica dell'utente
-            │
-            ▼
-    Bozza autosalvata locale
-            │
-       [pulsante Salva]
-            │
-            ▼
-  Validazione e transazione IndexedDB
-            │
-            ▼
-  Override personale confermato + operazione sync
-            │
-       Rete disponibile?
-         /         \
-       sì           no
-       │             │
-       ▼             ▼
-  Sincronizza     In attesa
-       │             │
-       ▼             └──► Sincronizza quando online
-  Confermato server
-```
-
-La bozza **non** deve essere sincronizzata. Il pulsante **Salva** deve funzionare offline se IndexedDB è disponibile.
-
-### 9.2 Persistenza di un override
-
-È opportuno memorizzare esplicitamente quali campi sono stati sovrascritti, per esempio:
-
-```json
-{
-  "profileId": "me",
-  "eventId": "eicma-2026",
-  "standRef": { "source": "catalog", "standId": "demo-helmets" },
-  "overrides": {
-    "priority": { "isOverridden": true, "value": null },
-    "whatToSee": { "isOverridden": true, "value": [] }
-  }
-}
-```
-
-Questo è **solo un esempio di modello persistito**, non il formato di `config/interests/me.json`. `null` per la priorità indica una rimozione **esplicita** nel modello dinamico; nei seed la priorità opzionale viene invece omessa.
-
-### 9.3 Atomicità
-
-Il salvataggio locale confermato e l'inserimento dell'operazione nella coda devono essere **atomici** per evitare modifiche salvate ma mai sincronizzabili.
-
-### 9.4 Errori
-
-- Errore di validazione: non confermare, mantenere la bozza.
-- Errore IndexedDB: non dichiarare «salvato», mantenere quanto possibile la bozza.
-- Offline: mostrare «salvato localmente / in attesa di sincronizzazione».
-- Errore server: mantenere override e operazione pendente; consentire retry.
-- Conflitto: preservare entrambe le versioni e chiedere una scelta manuale.
-
-### 9.5 Due dispositivi
-
-Se due dispositivi modificano le preferenze **dello stesso profilo e stand**, non applicare una strategia silenziosa last-write-wins. La risoluzione manuale deve permettere di confrontare le versioni e scegliere quale mantenere. La gestione di un eventuale merge per singolo campo è **da decidere** in `20-synchronization.md`.
-
----
+La semplice consultazione e il salvataggio di prodotti non aggiungono automaticamente uno stand agli interessi. Il nuovo stand personale viene inizializzato di interesse; i tre conteggi Dashboard considerano solo interessi effettivi. Preservare rimozioni esplicite attraverso nuovi seed editoriali e mantenere ID stabili delle voci checklist.
 
 ## 10. Validazione editoriale
 

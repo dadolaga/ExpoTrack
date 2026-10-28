@@ -1,5 +1,12 @@
 # ExpoTrack — 24. Deployment, Docker, Cloudflare Tunnel e operatività
 
+## Aggiornamento mobile — risposte A1–A9
+
+**Contratto vigente per il web mobile da fiera:** [specifica UI mobile, risposte A1–A9](27_Specifiche_UI_Mobile.md#10-risposte-di-revisione-recepite). Questo aggiornamento prevale sui paragrafi, diagrammi, pseudocodice e casi di test precedenti incompatibili. In particolare, gli esempi con `drafts`, conferma finale «Salva», dettaglio mobile 08, foto stand o scelta manuale del conflitto descrivono la progettazione precedente e non vanno implementati nel mobile. Le parti compatibili e le funzioni desktop/post-fiera mantengono il proprio ambito.
+
+Backup coerente PostgreSQL e originali foto prodotto; le dimensioni disco vanno misurate considerando originali conservati. Nessuna dipendenza di deployment da uno store drafts o risolutore manuale conflitti. Outbox durevole e ripresa con app aperta; nessuna garanzia di sync a PWA chiusa. L’aggiornamento non cambia la distribuzione Docker/Cloudflare.
+
+
 > **Percorso previsto:** `docs/24-deployment.md`  
 > **Stato:** specifica tecnica di progettazione, non procedura già eseguita  
 > **Ambiente:** server privato Debian/Linux con Docker Compose; accesso mobile tramite HTTPS e Cloudflare Tunnel  

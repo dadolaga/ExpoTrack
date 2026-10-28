@@ -1,5 +1,12 @@
 # ExpoTrack — 15. Dashboard
 
+## Aggiornamento mobile — risposte A1–A9
+
+**Contratto vigente per il web mobile da fiera:** [specifica UI mobile, risposte A1–A9](27_Specifiche_UI_Mobile.md#10-risposte-di-revisione-recepite). Questo aggiornamento prevale sui paragrafi, diagrammi, pseudocodice e casi di test precedenti incompatibili. In particolare, gli esempi con `drafts`, conferma finale «Salva», dettaglio mobile 08, foto stand o scelta manuale del conflitto descrivono la progettazione precedente e non vanno implementati nel mobile. Le parti compatibili e le funzioni desktop/post-fiera mantengono il proprio ambito.
+
+Esattamente quattro statistiche: stand di interesse da visitare, visitati, da rivedere, prodotti registrati validi. Fino a cinque stand di interesse con priorità e stato to_visit/revisit, ordinati priorità decrescente/nome/ID. Niente cambio evento qui né altre statistiche; budget da Profilo e 05. Contatore sync totale dispositivo, foto comprese una sola volta.
+
+
 > **Documento:** `docs/15-dashboard.md`  
 > **Progetto:** ExpoTrack, PWA privata offline-first per fiere; prima fiera EICMA 2026  
 > **Stato:** specifica funzionale e tecnica proposta, non implementazione  
@@ -101,7 +108,7 @@ Ogni card cliccabile deve avere nome e azione espliciti, ad esempio «12 stand d
 
 ### 4.1 Stand monitorati
 
-Sia `S` l'insieme degli stand **unici, attivi e monitorati** per `(profileId, eventId)`, dopo aver combinato catalogo editoriale, interessi, override e stand personali. Gli stand duplicati fra origini logiche non devono essere contati due volte.
+Sia `S` l’insieme degli stand unici e attivi di interesse effettivo del profilo/evento, dopo seed JSON e override. La presenza di una nota/prodotto/stato non implica interesse; nuovo stand personale inizializzato di interesse. Identificare per origine/evento/ID, senza duplicare.
 
 Per ogni stand `s`, definire:
 
@@ -140,21 +147,11 @@ productsFavorites = count(prodotti attivi con isFavorite = true)
 
 Il voto generale `rating` 1–10 **non** determina il preferito: `isFavorite` è indipendente. Un prodotto con voto 10 può non essere preferito; uno preferito può non avere voto.
 
-Prodotti cancellati (tombstone) sono esclusi. Prodotti salvati solo localmente, con operazione di sync pendente, **sono inclusi**: sono dati confermati. Prodotti presenti esclusivamente in una bozza **non** sono inclusi.
+Prodotti cancellati (tombstone) sono esclusi. Prodotti salvati solo localmente, con operazione di sync pendente, **sono inclusi**: sono dati confermati. Input iniziali incompleti e prodotti pianificati non raccolti **non** sono inclusi.
 
 ### 4.4 Budget
 
-I budget sono **per categoria o sottocategoria**. La Dashboard non deve introdurre un «budget totale» arbitrario né sommare budget di categorie padre/figlia senza una regola esplicita, per evitare doppi conteggi.
-
-Per ogni categoria con budget configurato si può mostrare:
-
-- budget impostato;
-- somma dei prezzi dei prodotti salvati in quella categoria, **se** l'utente vuole usare i prezzi come spesa indicativa;
-- differenza fra budget e somma dei prezzi, etichettata chiaramente come *confronto indicativo*, **non spesa effettivamente sostenuta**.
-
-**Decisione aperta:** il requisito confermato riguarda la presenza di budget per categoria, non la definizione di un consuntivo di acquisti. Per la v1 è più sicuro mostrare solo il budget e, separatamente, il numero di prodotti della categoria; qualsiasi aggregazione dei prezzi va approvata e descritta senza chiamarla «speso».
-
----
+Budget disponibili nell’uso in fiera via Profilo → 11a e nel contesto prodotto 05. Non aggiungere ulteriori statistiche alla Dashboard, che resta di quattro card. Non sommare prezzi osservati come spesa né creare budget totale. Matching categoria esatta; override personali per profilo/categoria condivisi tra eventi.
 
 ## 5. Navigazione dalle statistiche
 
@@ -195,31 +192,9 @@ Una card con valore `0` resta leggibile. Può essere cliccabile per aprire una l
 
 ---
 
-## 6. Priorità alte e prossime cose da vedere
+## 6. Cinque stand prioritari
 
-La Dashboard può offrire una sezione sintetica «Da vedere per primi» basata **solo sugli interessi espliciti del profilo**, non su classifiche arbitrarie degli espositori.
-
-### 6.1 Candidati
-
-- Stand monitorati con stato `to_visit` o `revisit`.
-- Priorità personale valida fra 1 e 10.
-- Stand con dati ancora validi e non eliminati.
-
-### 6.2 Ordinamento
-
-**Proposta:** priorità decrescente (`10` prima di `1`), poi nome stand crescente, poi ID stabile. La scelta se mettere `revisit` prima di `to_visit` a parità di priorità è aperta; non introdurre pesi impliciti non dichiarati.
-
-Gli stand senza priorità possono essere esclusi da questa sezione, ma restano nel conteggio e nella lista Stand.
-
-### 6.3 Contenuto della riga
-
-Nome stand, priorità, stato, categorie e padiglione **solo se verificato e configurato**, massimo 1–2 voci «Cose da vedere», con accesso al dettaglio. Nessuna posizione inventata, nessuna indicazione «vicino a te» e nessun percorso.
-
-### 6.4 Limite
-
-Mostrare inizialmente 3–5 stand, con «Vedi tutti» verso la lista Stand ordinata per priorità. L'elenco completo resta nella pagina dedicata.
-
----
+Candidati: stand di interesse nel contesto attivo, priorità assegnata e stato `to_visit` o `revisit`; escludere visitati e priorità assente. Ordinare priorità decrescente, poi nome e ID. Mostrare al massimo cinque, meno se i candidati sono meno, senza riempitivi. Logo/fallback, nome, posizione verificata o non disponibile, priorità e stato testuali. Tap apre 04.
 
 ## 7. Cose da vedere: semantica
 

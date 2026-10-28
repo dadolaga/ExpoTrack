@@ -1,5 +1,12 @@
 # 08 — Modello dei prodotti osservati (`products`)
 
+## Aggiornamento mobile — risposte A1–A9
+
+**Contratto vigente per il web mobile da fiera:** [specifica UI mobile, risposte A1–A9](27_Specifiche_UI_Mobile.md#10-risposte-di-revisione-recepite). Questo aggiornamento prevale sui paragrafi, diagrammi, pseudocodice e casi di test precedenti incompatibili. In particolare, gli esempi con `drafts`, conferma finale «Salva», dettaglio mobile 08, foto stand o scelta manuale del conflitto descrivono la progettazione precedente e non vanno implementati nel mobile. Le parti compatibili e le funzioni desktop/post-fiera mantengono il proprio ambito.
+
+Unica descrizione personale description, senza cronologia e senza limite funzionale UI. Ogni prodotto apre l’editor 05; nessun dettaglio 08. Autosalvataggio locale e outbox automatica per valori validi, senza bozze o Salva finale. Categoria e riferimento stand bloccati alla prima registrazione valida; voto facoltativo e rimuovibile. Duplicazione salva una copia con nuovo ID e senza foto.
+
+
 > **Progetto:** ExpoTrack · **Versione del contratto proposta:** `1` · **Stato:** specifica funzionale e tecnica v1  
 > **Documenti precedenti:** [`00-overview.md`](00-overview.md), [`01-architecture.md`](01-architecture.md), [`02-project-structure.md`](02-project-structure.md), [`03-app-config.md`](03-app-config.md), [`04-profiles-config.md`](04-profiles-config.md), [`05-pavilions-config.md`](05-pavilions-config.md), [`06-categories-config.md`](06-categories-config.md), [`07-stands-config.md`](07-stands-config.md)  
 > **Documento successivo:** [`09-interests-config.md`](09-interests-config.md)
@@ -29,9 +36,9 @@ Il catalogo degli stand resta editoriale e condiviso; i prodotti non diventano a
 - I prodotti sono visibili nel dettaglio dello stand e in una **lista personale generale**.
 - Ricerca per nome; filtri per categoria, stand e preferiti; ordinamento per prezzo e valutazione.
 - Confronto affiancato di prodotti della **stessa categoria** soltanto su **desktop**, non su smartphone.
-- Funzionamento offline, bozze autosalvate e **pulsante Salva** per confermare.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 - La sincronizzazione automatica parte quando torna la rete; è disponibile anche il comando manuale.
-- Conflitti concorrenti sullo stesso profilo risolti **manualmente scegliendo una versione**, senza perdita silenziosa.
+- Concorrenza mobile LWW per record in ordine di accettazione server; revisioni monotone, idempotenza e protezione delle tombstone.
 
 ### 1.2 Cosa è fuori ambito
 
@@ -707,7 +714,7 @@ Non cancellare la versione perdente prima della risoluzione. I dettagli di API, 
 
 La UI distingue:
 
-- **bozza non salvata**;
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 - **salvato localmente, sync in attesa**;
 - **sincronizzato**;
 - **errore di sync**;
@@ -790,6 +797,9 @@ Se si usa `amountMinor`, verificare che sia un **intero sicuro** (`Number.isSafe
 
 ## 24. Struttura dei moduli consigliata
 
+<details>
+<summary>Esempio della progettazione precedente: gestione bozze superata nel mobile (non implementare)</summary>
+
 ```text
 src/features/products/
 ├── components/
@@ -821,6 +831,8 @@ src/lib/sync/
 ├── sync-queue.ts
 └── conflict-resolution.ts
 ```
+
+</details>
 
 I nomi sono indicativi e vanno armonizzati con `02-project-structure.md`. Non creare file vuoti solo per rispettare questo elenco.
 
@@ -911,9 +923,9 @@ Le proposte non devono essere interpretate come approvazioni automatiche.
 - [ ] Il prodotto compare sia nello stand sia nella lista generale.
 - [ ] Ricerca, filtri e ordinamento funzionano.
 - [ ] Il confronto è disponibile solo su desktop e per stessa categoria.
-- [ ] Le bozze non vengono confuse con record confermati.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 - [ ] Il primo Salva offline è possibile.
-- [ ] La sincronizzazione gestisce errori e conflitti manualmente.
+- Concorrenza mobile LWW per record in ordine di accettazione server; revisioni monotone, idempotenza e protezione delle tombstone.
 - [ ] L'eliminazione richiede conferma.
 - [ ] L'export è per profilo e supporta JSON/PDF, non Excel.
 - [ ] Nessun dato personale viene trasferito ad altri profili per errore.

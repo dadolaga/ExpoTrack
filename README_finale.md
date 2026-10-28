@@ -1,5 +1,10 @@
 # ExpoTrack
 
+## Specifica corrente del web mobile da fiera
+
+La [specifica UI mobile](docs/27_Specifiche_UI_Mobile.md) recepisce le risposte A1–A9 e prevale sui precedenti flussi mobile: editor unico prodotto 05 (08 sospeso), salvataggio automatico locale e poi server, nessuna modalità bozza o conferma Salva finale, LWW per record con revisioni server e protezione delle cancellazioni. Stella stand = interesse; stand personali e budget per categoria inclusi in fiera; fotografie solo prodotto, con originale conservato; descrizione unica senza limite funzionale di testo. Tutti i mockup sono abbinati e le parti superate sono indicate nel documento 27. I documenti tecnici riportano il relativo aggiornamento normativo; esempi precedenti incompatibili non sono istruzioni di implementazione mobile. Desktop, confronto ed export restano fuori dalla revisione grafica corrente.
+
+
 **La tua guida personale alle fiere: stand, prodotti, appunti e fotografie, anche senza connessione.**
 
 > **Stato del progetto:** progettazione e documentazione tecnica completate come *bozza di specifica*.  

@@ -1,5 +1,12 @@
 # 07 — Catalogo degli stand (`config/events/<eventId>-stands.json`)
 
+## Aggiornamento mobile — risposte A1–A9
+
+**Contratto vigente per il web mobile da fiera:** [specifica UI mobile, risposte A1–A9](27_Specifiche_UI_Mobile.md#10-risposte-di-revisione-recepite). Questo aggiornamento prevale sui paragrafi, diagrammi, pseudocodice e casi di test precedenti incompatibili. In particolare, gli esempi con `drafts`, conferma finale «Salva», dettaglio mobile 08, foto stand o scelta manuale del conflitto descrivono la progettazione precedente e non vanno implementati nel mobile. Le parti compatibili e le funzioni desktop/post-fiera mantengono il proprio ambito.
+
+Il catalogo JSON resta condiviso e non modificabile dalla UI. Stand personali inclusi nell’uso in fiera; stato visita personale solo sullo stand e sempre manuale. Nessuna foto stand. La stella indica interesse personale, inizializzato dal JSON interessi e poi modificabile tramite override.
+
+
 > **Progetto:** ExpoTrack · **Contratto proposto:** versione `1` · **Stato:** specifica tecnica per la v1  
 > **Documenti di riferimento:** [`00-overview.md`](00-overview.md), [`01-architecture.md`](01-architecture.md), [`02-project-structure.md`](02-project-structure.md), [`03-app-config.md`](03-app-config.md), [`04-profiles-config.md`](04-profiles-config.md), [`05-pavilions-config.md`](05-pavilions-config.md), [`06-categories-config.md`](06-categories-config.md)  
 > **Documento successivo:** [`08-products-config.md`](08-products-config.md)

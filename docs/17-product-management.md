@@ -1,5 +1,12 @@
 # 17 — Gestione prodotti
 
+## Aggiornamento mobile — risposte A1–A9
+
+**Contratto vigente per il web mobile da fiera:** [specifica UI mobile, risposte A1–A9](27_Specifiche_UI_Mobile.md#10-risposte-di-revisione-recepite). Questo aggiornamento prevale sui paragrafi, diagrammi, pseudocodice e casi di test precedenti incompatibili. In particolare, gli esempi con `drafts`, conferma finale «Salva», dettaglio mobile 08, foto stand o scelta manuale del conflitto descrivono la progettazione precedente e non vanno implementati nel mobile. Le parti compatibili e le funzioni desktop/post-fiera mantengono il proprio ambito.
+
+Editor unico 05, autosalvataggio locale poi server, 08 sospeso. Nessuna bozza/Salva finale. Description unica senza limite UI; categoria e stand bloccati dopo prima registrazione valida; sei tipi questionario; foto originali. Duplica salva subito copia senza foto. Record iniziale incompleto locale e recuperabile, escluso dai conteggi e dalla sync finché invalido.
+
+
 > **ExpoTrack** · Specifica funzionale e tecnica · Versione proposta v1  
 > **File:** `docs/17-product-management.md`  
 > **Prerequisiti:** `07-stands-config.md`, `06-categories-config.md`, `08-products-config.md`, `10-questionnaires-config.md`, `12-database.md`, `13-backend-api.md`, `14-frontend-ui.md`, `16-stand-management.md`  
@@ -20,12 +27,12 @@ Il prodotto è **un'osservazione personale**, non un articolo del catalogo edito
 - La categoria è scelta manualmente e diventa **immutabile dal primo Salva esplicito**, anche offline.
 - Nome obbligatorio; prezzo singolo facoltativo; valutazione generale indipendente facoltativa da 1 a 10; preferito sì/no; note libere; più fotografie.
 - Questionario facoltativo, derivato dal profilo e dalla categoria del prodotto, senza domande comuni o obbligatorie.
-- Autosalvataggio della **bozza locale** a ogni cambiamento; **Salva** conferma il dato localmente e lo inserisce nella coda di sincronizzazione.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 - Modifica di campi consentiti e cancellazione con conferma.
 - Confronto affiancato **solo desktop**, fra prodotti della stessa categoria.
 - Ricerca e filtri; accesso dal dettaglio stand e dalla sezione Prodotti.
 - Foto e record confermati consultabili offline dopo la corretta persistenza locale.
-- Conflitti sullo stesso profilo da dispositivi diversi gestiti manualmente, preservando entrambe le versioni.
+- Concorrenza mobile LWW per record in ordine di accettazione server; revisioni monotone, idempotenza e protezione delle tombstone.
 
 ### 1.2 Fuori ambito
 
@@ -178,26 +185,15 @@ I contatori prodotti e preferiti aprono la lista prodotti con filtro pertinente.
 
 ### 5.4 Indietro e cambio profilo
 
-Se esiste una bozza non confermata, avvisare prima di lasciare il modulo. La bozza rimane associata al profilo/evento/prodotto originari, anche quando si cambia profilo.
+Completare il commit locale prima della navigazione; nessuna richiesta di conferma su modifiche già autosalvate. Input invalidi recuperabili e dati pendenti restano associati al contesto originale.
 
----
+## 6. Flusso di creazione e modifica automatico
 
-## 6. Flusso di creazione
+Ogni modifica intenzionale viene persistita automaticamente sul dispositivo. Per dati validi, record e mutazione outbox sono scritti nella stessa transazione; la rete interviene dopo. Non esistono store o modalità bozza né conferma Salva finale. Nome, stand e categoria restano obbligatori per la prima registrazione prodotto: i valori iniziali incompleti sono recuperabili nello stesso record locale, senza essere contati o inviati come prodotto valido. Categoria e stand si bloccano alla prima registrazione locale valida. Un input successivamente invalido resta recuperabile senza sostituire l’ultima versione valida sincronizzabile. Vedere [§5.1 della specifica mobile](27_Specifiche_UI_Mobile.md#51-salvataggio-automatico-validazione-e-recupero).
 
-1. L'utente seleziona profilo ed evento.
-2. Apre uno stand oppure avvia **Nuovo prodotto** dalla sezione Prodotti.
-3. Il client genera un UUID offline e crea una bozza locale.
-4. L'utente inserisce il nome e seleziona **manualmente** una categoria.
-5. Può aggiungere prezzo, voto, preferito, note, foto e risposte facoltative.
-6. Ogni modifica aggiorna la bozza in IndexedDB.
-7. L'utente preme **Salva**.
-8. Il client valida nome, categoria, stand, valori numerici e riferimenti.
-9. Una transazione IndexedDB conferma prodotto, dati associati e mutazione in outbox secondo il loro ordine di dipendenza.
-10. La UI mostra **Salvato sul dispositivo**; il prodotto compare immediatamente nelle liste.
-11. Se la rete è disponibile, la sync tenta di inviare i dati al server.
-12. Solo dopo conferma server la UI mostra **Sincronizzato**.
+Dichiarare «Salvato sul dispositivo» solo dopo commit riuscito; errori quota o transazione mantengono l’input e non producono falso successo. Prima di cambio vista/profilo completare la persistenza, senza dialogo di conferma per modifiche già autosalvate. «Fine»/indietro non annullano scritture effettuate.
 
-**Non** creare automaticamente un prodotto server quando il modulo viene aperto. La bozza non è un prodotto confermato.
+Aprire un pianificato non crea di per sé un record. La prima modifica intenzionale inizializza l’inserimento personale; al primo insieme valido nome/stand/categoria compare come registrato. Da pianificato già raccolto riaprire il prodotto associato, senza duplicarlo. «Fine» torna allo stand dopo creazione; da modifica esistente ritorna alla vista chiamante. Descrizione, risposte e foto tornano all’editor unico.
 
 ### 6.1 Esempio di prodotto fittizio
 
@@ -305,7 +301,7 @@ Dopo il primo Salva, mostrare la categoria come testo o selettore disabilitato, 
 
 Mostrare in modo comprensibile:
 
-- **Bozza**: modifiche non confermate.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 - **Salvato sul dispositivo**: commit IndexedDB riuscito, sync pendente.
 - **Sincronizzazione in corso**.
 - **Sincronizzato**: conferma server.
@@ -356,28 +352,9 @@ I prodotti con tombstone non compaiono nell'elenco normale, ma la loro eliminazi
 
 ---
 
-## 10. Dettaglio prodotto
+## 10. Editor unico prodotto mobile
 
-Il dettaglio è la fonte UI per consultare tutti i dati confermati:
-
-- nome, categoria, stand ed evento;
-- prezzo, voto generale, preferito e note;
-- galleria fotografica;
-- questionario compilato, se presente;
-- stato di sincronizzazione e possibili conflitti;
-- azioni **Modifica** ed **Elimina**.
-
-Non mostrare risposte inventate quando il questionario non è stato compilato. Se il JSON della categoria non definisce un questionario per il profilo, omettere del tutto la relativa sezione, invece di mostrare un modulo vuoto.
-
-### 10.1 Dati derivati
-
-La UI può mostrare il percorso gerarchico della categoria, ad esempio `Moto › Naked`, ma non deve memorizzarlo come unica fonte della categoria: usare `categoryId`.
-
-### 10.2 Prodotto associato a stand non più disponibile
-
-Mostrare un'indicazione di riferimento storico/non risolto, mantenendo nome prodotto, note e foto. Non eliminare automaticamente il record.
-
----
+La vista prodotto è l’editor 05 per creazione e modifica. Il dettaglio mobile 08 è sospeso; non creare passaggio di sola lettura. Tutte le domande applicabili, incluse non compilate, sono nel questionario inline. Voto generale facoltativo e rimuovibile, descrizione unica `description` senza limite funzionale di caratteri, foto prodotto originali in basso e viewer 06. Le azioni contestuali duplica/elimina sono qui; nessuna condivisione o esportazione mobile.
 
 ## 11. Modifica prodotto
 
@@ -525,7 +502,7 @@ Non generare un «migliore» automaticamente da prezzo e voto: l'utente decide q
 - **Numero prodotti:** conta i prodotti attivi del profilo/evento.
 - **Preferiti:** conta quelli con `favorite=true`.
 - I contatori si aggiornano subito dopo un commit locale riuscito.
-- Le bozze non confermate **non** entrano nei conteggi.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 
 ### 16.2 Budget
 
@@ -597,28 +574,13 @@ Il salvataggio locale funziona senza rete. La sync automatica si tenta quando la
 
 ---
 
-## 19. Conflitti tra dispositivi
+## 19. Scritture concorrenti, LWW e recupero
 
-### 19.1 Esempio
+La policy mobile è **LWW per record nell’ordine di accettazione server**, con revisioni monotone assegnate in transazione. Una revisione di base obsoleta su un record vivo non apre una scelta manuale: l’ultima nuova mutazione valida accettata prevale come record intero, senza merge per campo. Il timestamp del telefono è solo diagnostico. Vincoli di dominio e integrità restano applicati.
 
-- A e B aprono lo stesso prodotto alla revisione 4.
-- A cambia voto da 7 a 8 e sincronizza: revisione 5.
-- B modifica note offline e salva sulla base della revisione 4.
-- Al sync B riceve un conflitto: mostrare entrambe le versioni, non sovrascrivere il voto di A.
+Il retry della stessa `operationId` e dello stesso payload restituisce l’esito già registrato, senza diventare una nuova scrittura; stesso ID con hash diverso è errore. Il client serializza le operazioni dello stesso record e non sovrascrive modifiche locali più recenti quando applica una conferma o un pull remoto.
 
-### 19.2 Risoluzione manuale
-
-Mostrare differenze di nome, prezzo, voto, preferito, note e riferimenti media. L'utente può scegliere una versione o comporre manualmente un risultato **solo se il flusso di risoluzione lo supporta esplicitamente**. La risoluzione è una nuova mutazione basata sulla revisione server corrente.
-
-### 19.3 Conflitti con eliminazioni
-
-Se un dispositivo elimina il prodotto mentre un altro lo modifica, non ricrearlo automaticamente. Presentare il conflitto e preservare la modifica locale finché non viene deciso come procedere.
-
-### 19.4 Foto
-
-Le foto sono entità con ciclo di vita proprio: due upload indipendenti possono essere entrambi validi, ma non introdurre merge automatici non previsti dal protocollo. Gestire l'associazione al prodotto e i tombstone.
-
----
+Un update contro una tombstone viene respinto senza resuscitare il record. Conservare payload e riferimenti media necessari al recupero; offrire «Recupera come nuovo elemento», con nuovo ID e dipendenze valide. Nessun dialogo «versione locale/versione server» per i normali aggiornamenti concorrenti. Conservare audit per diagnosi senza promettere recupero automatico di ogni versione storica.
 
 ## 20. API e validazione server
 
@@ -845,7 +807,7 @@ Non registrare il contenuto completo dei questionari nei log applicativi ordinar
 - [ ] Foto multiple associate e disponibili offline dopo persistenza riuscita.
 - [ ] Questionario mostrato solo se definito per profilo/categoria.
 - [ ] Risposte facoltative e versionate.
-- [ ] Bozze autosalvate, non sincronizzate prima di Salva.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 - [ ] Salva locale atomico con outbox e feedback accurato.
 - [ ] Prodotti visibili immediatamente dopo commit locale.
 - [ ] Lista filtrabile e ordinabile con reset alla riapertura.
@@ -853,7 +815,7 @@ Non registrare il contenuto completo dei questionari nei log applicativi ordinar
 - [ ] Eliminazione confermata, propagata con tombstone.
 - [ ] Nessuna cancellazione a cascata silenziosa.
 - [ ] Sync idempotente e dipendenze rispettate.
-- [ ] Conflitti manuali con versioni preservate.
+- Concorrenza mobile LWW per record in ordine di accettazione server; revisioni monotone, idempotenza e protezione delle tombstone.
 - [ ] Confronto desktop limitato alla stessa categoria.
 - [ ] Export JSON/PDF per profilo con prodotti confermati.
 - [ ] Test funzionali, offline, concorrenza, accessibilità superati.

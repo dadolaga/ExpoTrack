@@ -1,5 +1,15 @@
 # ExpoTrack
 
+## Implementazione a step
+
+Il [piano di implementazione](README_IMPLEMENTAZIONE.md) stabilisce passi piccoli e verificabili, ciascuno con domanda, implementazione e controlli. Si lavora su uno step alla volta, con componenti condivisi in `src/components/`, consegna per revisione e commit gestiti dall’utente. Il passo successivo parte solo su richiesta.
+
+
+## Specifica corrente del web mobile da fiera
+
+La [specifica UI mobile](docs/27_Specifiche_UI_Mobile.md) recepisce le risposte A1–A9 e prevale sui precedenti flussi mobile: editor unico prodotto 05 (08 sospeso), salvataggio automatico locale e poi server, nessuna modalità bozza o conferma Salva finale, LWW per record con revisioni server e protezione delle cancellazioni. Stella stand = interesse; stand personali e budget per categoria inclusi in fiera; fotografie solo prodotto, con originale conservato; descrizione unica senza limite funzionale di testo. Tutti i mockup sono abbinati e le parti superate sono indicate nel documento 27. I documenti tecnici riportano il relativo aggiornamento normativo; esempi precedenti incompatibili non sono istruzioni di implementazione mobile. Desktop, confronto ed export restano fuori dalla revisione grafica corrente.
+
+
 > Applicazione privata, mobile-first e offline-first per pianificare e documentare visite a fiere, esposizioni ed eventi.  
 > **Evento pilota:** EICMA 2026. **Stato:** base Next.js e devcontainer con PostgreSQL disponibili; funzionalità applicative da implementare.
 
@@ -30,8 +40,8 @@ Il progetto è destinato a un gruppo ristretto di persone, su un server privato.
 2. **Profili indipendenti:** note, fotografie, prodotti registrati, preferiti, stati di visita e risposte sono separati per profilo.
 3. **Catalogo condiviso, scoperte private:** gli stand importati dai JSON sono visibili a tutti; gli stand creati da un profilo nell'app restano visibili solo a quel profilo.
 4. **Offline-first:** consultazione e raccolta dati devono funzionare senza rete, dopo la necessaria preparazione/cache iniziale.
-5. **Salvataggio esplicito:** le modifiche in corso vengono conservate come bozze locali; solo il pulsante **Salva** conferma i dati e li mette in coda per la sincronizzazione.
-6. **Nessuna perdita silenziosa:** gli aggiornamenti del config sui campi non personalizzati si applicano automaticamente. Le modifiche personali sono preservate; solo cambiamenti incompatibili sullo stesso campo richiedono una scelta, conservando tutte le versioni necessarie. I conflitti di revisione tra dispositivi restano soggetti a risoluzione manuale.
+5. **Salvataggio automatico mobile:** ogni modifica è persistita prima sul dispositivo; i valori validi sono accodati automaticamente alla sync, senza bozze e senza conferma finale Salva. Gli input iniziali incompleti restano recuperabili localmente finché corretti.
+6. **Nessuna perdita silenziosa:** gli aggiornamenti del config sui campi non personalizzati si applicano automaticamente. Le modifiche personali sono preservate; solo cambiamenti incompatibili sullo stesso campo richiedono una scelta, conservando tutte le versioni necessarie. Nel mobile le scritture concorrenti sullo stesso record seguono LWW in ordine di accettazione server, con retry idempotenti, tombstone protette e recupero degli aggiornamenti respinti come nuovi elementi.
 7. **Un prodotto, una categoria:** la categoria/sottocategoria viene scelta manualmente e non è modificabile dopo il primo salvataggio.
 8. **Questionari solo se configurati:** nessuna domanda comune obbligatoria e nessun questionario creato automaticamente.
 9. **Nessun percorso interno:** l'app non calcola itinerari o percorsi tra stand.
@@ -61,7 +71,7 @@ L'implementazione di ORM, validazione degli schemi, gestione delle immagini, ver
 - Ogni stand del catalogo può appartenere a più categorie e possiede un identificativo stabile.
 - I dati descrittivi comuni (nome, categorie, padiglione, posizione, descrizione) sono definiti nel catalogo JSON dell'evento e importati in PostgreSQL; le API distribuiscono la versione pubblicata e il client la conserva offline.
 - La priorità personale è un intero da **1 a 10**, assegnato allo **stand** e non alla singola categoria.
-- Per ciascun profilo, uno stand ha stato **da visitare**, **visitato** o **da rivedere**; note e fotografie dello stand sono facoltative.
+- Per ciascun profilo, uno stand ha stato **da visitare**, **visitato** o **da rivedere**; note dello stand facoltative; nessuna fotografia stand nel mobile corrente.
 - Ricerca e filtri: nome, categoria, padiglione, priorità e stato di visita. Ordinamento per priorità, nome e padiglione, crescente/decrescente.
 - I filtri e gli ordinamenti **si azzerano alla riapertura** dell'app.
 - Gli stand aggiunti dall'interfaccia sono privati al profilo creatore e modificabili/eliminabili, con conferma prima dell'eliminazione.

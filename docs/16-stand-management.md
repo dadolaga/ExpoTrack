@@ -1,5 +1,12 @@
 # 16 — Gestione degli stand
 
+## Aggiornamento mobile — risposte A1–A9
+
+**Contratto vigente per il web mobile da fiera:** [specifica UI mobile, risposte A1–A9](27_Specifiche_UI_Mobile.md#10-risposte-di-revisione-recepite). Questo aggiornamento prevale sui paragrafi, diagrammi, pseudocodice e casi di test precedenti incompatibili. In particolare, gli esempi con `drafts`, conferma finale «Salva», dettaglio mobile 08, foto stand o scelta manuale del conflitto descrivono la progettazione precedente e non vanno implementati nel mobile. Le parti compatibili e le funzioni desktop/post-fiera mantengono il proprio ambito.
+
+Checklist richiesta e persistita per profilo/evento/stand con ID stabili. Note dedicate autosalvate; niente foto stand/mappe. Stella = interesse, stato visita manuale. Stand personali creabili/modificabili durante la fiera; nuovo stand personale incluso negli interessi, eliminazione bloccata con prodotti collegati. Tutti i prodotti aprono 05.
+
+
 > **ExpoTrack** · Specifica funzionale e tecnica · `docs/16-stand-management.md`  
 > **Stato:** proposta di progettazione v1, senza implementazione · **Fiera pilota:** EICMA 2026  
 > **Dipendenze:** `03-app-config.md`, `04-profiles-config.md`, `05-pavilions-config.md`, `06-categories-config.md`, `07-stands-config.md`, `09-interests-config.md`, `11-visit-statuses-config.md`, `12-database.md`, `13-backend-api.md`, `14-frontend-ui.md`, `15-dashboard.md`  
@@ -29,7 +36,7 @@ La gestione stand è il punto di incontro tra:
 - Uno stand personale è visibile soltanto al profilo proprietario e può essere modificato o eliminato, con conferma e protezione dei dati collegati.
 - Il valore `to_visit` è lo stato effettivo predefinito quando non esiste uno stato salvato; ciò **non** aggiunge automaticamente lo stand agli interessi.
 - L'assenza di connessione non deve impedire le modifiche dopo il bootstrap offline.
-- La bozza è autosalvata localmente, ma soltanto il comando **Salva** conferma e accoda la sincronizzazione.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 - Non inventare padiglioni, numeri stand o collocazioni EICMA 2026.
 
 ---
@@ -348,15 +355,9 @@ L'esempio è illustrativo, non un record di configurazione EICMA ufficiale.
 
 Ogni voce deve essere una stringa non vuota dopo `trim`. Non creare automaticamente una domanda di questionario a partire da un obiettivo.
 
-### 10.4 Checklist: decisione aperta
+### 10.4 Checklist richiesta
 
-I requisiti attuali chiedono una **lista di cose da vedere**, non confermano la possibilità di segnare ogni voce come completata. Non introdurre `completed` come campo persistente senza una decisione esplicita. Una futura checklist richiederebbe ID stabili per singola voce e sincronizzazione del completamento.
-
-### 10.5 Differenza rispetto ai questionari
-
-`whatToSee` guida la visita allo stand. I questionari registrano risposte strutturate per **prodotto e categoria**. Le due funzioni devono restare separate.
-
----
+La lista «Cose da vedere» è una checklist personale per profilo/evento/stand. Ogni voce ha ID stabile, testo e booleano completato. Le stringhe del JSON restano seed editoriali; assegnare ID stabili nella normalizzazione dello snapshot e conservare override e spunte attraverso gli aggiornamenti, senza riusare il solo indice come identità. Aggiunta, modifica, rimozione e tap sulla spunta salvano automaticamente. Non cambiano stato visita. Contatore calcolato dai dati effettivi, non dai numeri dimostrativi del mockup.
 
 ## 11. Stato di visita
 
@@ -407,7 +408,7 @@ Stato modificato in bozza → Salva locale → outbox → sincronizzazione. Gli 
 - Testo libero, facoltativo, modificabile.
 - Associato a `profileId`, `eventId` e `StandRef`.
 - Distinto dalle note dei singoli prodotti.
-- Supporta bozza autosalvata e conferma esplicita.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 
 ### 12.2 UI
 
@@ -423,31 +424,9 @@ Le note stand sono dati personali esportabili nel JSON del profilo e, quando pre
 
 ---
 
-## 13. Fotografie dello stand
+## 13. Note stand e fotografie
 
-### 13.1 Funzioni
-
-- Acquisire una foto da fotocamera o selezionarla dalla galleria.
-- Associare più fotografie allo stesso stand.
-- Visualizzare miniature e aprire l'immagine.
-- Rimuovere una foto con conferma adeguata.
-- Conservare l'accessibilità offline dopo il salvataggio locale.
-
-### 13.2 Isolamento
-
-Una foto di stand appartiene al profilo attivo. Non mostrarla ad altri profili e non confonderla con una foto associata a un prodotto.
-
-### 13.3 Upload
-
-La creazione dei metadati e il caricamento del binario devono essere coordinati dalla coda offline. Il record non deve apparire «sincronizzato» finché il media necessario non è disponibile lato server.
-
-### 13.4 Errori
-
-Gestire file non supportato, immagine danneggiata, quota locale insufficiente, upload interrotto, media remoto mancante e tentativi ripetuti.
-
-**Specifiche approfondite:** `21-photo-management.md`.
-
----
+Note stand in vista dedicata 04a: campo unico facoltativo, autosalvataggio locale poi server, senza limite funzionale di caratteri né cronologia. Non confondere con description del prodotto. Nessuna fotografia stand come entità autonoma nel mobile; rimuovere la CTA Foto. Le sole foto raccolte appartengono ai prodotti e usano 06. Mappe e indicazioni escluse.
 
 ## 14. Prodotti collegati allo stand
 
@@ -606,37 +585,13 @@ Non confondere un indicatore di rete «online» con la prova che tutti i dati si
 
 ---
 
-## 19. Bozze e salvataggio
+## 19. Salvataggio automatico degli stand
 
-### 19.1 Ciclo di vita
+Ogni modifica intenzionale viene persistita automaticamente sul dispositivo. Per dati validi, record e mutazione outbox sono scritti nella stessa transazione; la rete interviene dopo. Non esistono store o modalità bozza né conferma Salva finale. Nome, stand e categoria restano obbligatori per la prima registrazione prodotto: i valori iniziali incompleti sono recuperabili nello stesso record locale, senza essere contati o inviati come prodotto valido. Categoria e stand si bloccano alla prima registrazione locale valida. Un input successivamente invalido resta recuperabile senza sostituire l’ultima versione valida sincronizzabile. Vedere [§5.1 della specifica mobile](27_Specifiche_UI_Mobile.md#51-salvataggio-automatico-validazione-e-recupero).
 
-```text
-Visualizzazione record
-    ↓ modifica campo
-Bozza autosalvata in IndexedDB
-    ↓ Salva esplicito
-Validazione dei campi
-    ↓ transazione locale atomica
-Record confermato + outbox
-    ↓ quando online
-API backend → PostgreSQL
-    ↓
-Ack / errore / conflitto
-```
+Dichiarare «Salvato sul dispositivo» solo dopo commit riuscito; errori quota o transazione mantengono l’input e non producono falso successo. Prima di cambio vista/profilo completare la persistenza, senza dialogo di conferma per modifiche già autosalvate. «Fine»/indietro non annullano scritture effettuate.
 
-### 19.2 Transazione atomica
-
-Il commit locale deve aggiornare insieme il record confermato, la coda di sincronizzazione e lo stato della bozza. Se la transazione fallisce, mantenere la bozza e mostrare l'errore.
-
-### 19.3 Navigazione
-
-Quando l'utente prova a lasciare una scheda con modifiche non confermate, mostrare un avviso e conservare la bozza. Non promettere un dialogo personalizzato in tutti i casi di chiusura forzata del browser.
-
-### 19.4 Multi-modulo
-
-**Decisione da fissare:** un singolo Salva per priorità, stato, `whatToSee` e note oppure pulsanti indipendenti per sezioni. La raccomandazione è un **Salva coerente per la scheda «La mia visita»**, con foto e prodotti gestiti come entità separate. In ogni caso l'utente deve sapere cosa è stato confermato.
-
----
+Per lo stand personale il dato minimo è il nome; categorie, padiglione e posizione sono facoltativi. Nuovo stand personale: interesse attivo e stato to_visit; elenco e note sempre filtrati per proprietario/evento. Eliminazione bloccata con prodotti collegati, senza cascade implicita.
 
 ## 20. Sincronizzazione e concorrenza
 
@@ -923,7 +878,7 @@ Non mostrare dettagli SQL, percorsi di storage o stack trace all'utente finale.
 
 ### 27.4 Integrazione con sincronizzazione
 
-- Nessuna bozza viene inviata prima di Salva.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 - Un errore di rete non elimina la coda.
 - L'operazione duplicata è idempotente.
 - Un conflitto mantiene le due versioni.
@@ -952,10 +907,10 @@ Non mostrare dettagli SQL, percorsi di storage o stack trace all'utente finale.
 - [ ] Creazione e modifica di stand personali anche offline.
 - [ ] Nessuna modifica o eliminazione di stand editoriali dalla UI.
 - [ ] Eliminazione stand personale protetta da conferma e controllo dipendenze.
-- [ ] Bozze autosalvate ma non sincronizzate prima di Salva.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 - [ ] Commit locale atomico e feedback corretto.
 - [ ] Coda di sincronizzazione idempotente e dipendenze rispettate.
-- [ ] Conflitti manuali senza sovrascrittura silenziosa.
+- Concorrenza mobile LWW per record in ordine di accettazione server; revisioni monotone, idempotenza e protezione delle tombstone.
 - [ ] Nessuna posizione EICMA inventata.
 - [ ] Accessibilità mobile e desktop verificata.
 

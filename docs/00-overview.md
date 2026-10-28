@@ -1,5 +1,12 @@
 # 00 — Panoramica funzionale di ExpoTrack
 
+## Aggiornamento mobile — risposte A1–A9
+
+**Contratto vigente per il web mobile da fiera:** [specifica UI mobile, risposte A1–A9](27_Specifiche_UI_Mobile.md#10-risposte-di-revisione-recepite). Questo aggiornamento prevale sui paragrafi, diagrammi, pseudocodice e casi di test precedenti incompatibili. In particolare, gli esempi con `drafts`, conferma finale «Salva», dettaglio mobile 08, foto stand o scelta manuale del conflitto descrivono la progettazione precedente e non vanno implementati nel mobile. Le parti compatibili e le funzioni desktop/post-fiera mantengono il proprio ambito.
+
+Editor prodotto unico 05 anche per registrati; 08 sospeso. Nessuna modalità bozza o conferma Salva finale. Stand personali e budget per categoria sono inclusi durante la fiera. Dashboard con quattro statistiche e fino a cinque stand di interesse; nessuna fotografia stand.
+
+
 > **Tipo:** specifica funzionale generale  
 > **Stato:** base di progetto per la versione 1  
 > **Documento principale:** [`../README.md`](../README.md)  
@@ -36,7 +43,7 @@ ExpoTrack è una web app installabile (PWA) per:
 - **Semplicità:** nessun login o PIN interno nella prima versione.
 - **Separazione dei profili:** nessuna mescolanza involontaria di prodotti, risposte e note.
 - **Configurabilità:** cataloghi e questionari definiti da JSON modulari.
-- **Salvataggio consapevole:** una bozza non equivale a un record confermato.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 - **Tracciabilità dei conflitti:** niente sovrascritture silenziose.
 
 ---
@@ -346,7 +353,7 @@ La modifica di un campo produce una **bozza locale** conservata automaticamente.
 
 Finché l'utente non preme **Salva**:
 
-- la bozza non è considerata un record confermato;
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 - non deve essere sincronizzata con PostgreSQL;
 - deve rimanere recuperabile localmente;
 - se l'utente lascia la schermata con modifiche non salvate, deve essere avvisato.
@@ -582,7 +589,7 @@ Una prima versione di ExpoTrack è funzionalmente accettabile quando:
 - [ ] Ogni prodotto appare sia nello stand sia nella lista personale.
 - [ ] I questionari appaiono solo se definiti per profilo e categoria pertinente.
 - [ ] Tutte le domande del questionario sono facoltative.
-- [ ] Le bozze vengono conservate localmente e non sono sincronizzate senza **Salva**.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 - [ ] L'app continua a registrare dati offline dopo il caricamento iniziale.
 - [ ] I record confermati offline vengono sincronizzati automaticamente quando torna la rete.
 - [ ] Esiste una sincronizzazione manuale e un indicatore sempre visibile.
@@ -611,7 +618,7 @@ Sono **vincolanti** per la prima versione:
 - una categoria per prodotto, immutabile dopo il primo salvataggio;
 - questionari JSON soltanto per profilo e categoria/sottocategoria;
 - salvataggio esplicito e sincronizzazione automatica/manuale;
-- conflitti risolti manualmente;
+- Concorrenza mobile LWW per record in ordine di accettazione server; revisioni monotone, idempotenza e protezione delle tombstone.
 - dashboard interattiva, confronto solo desktop;
 - export JSON e PDF, senza import JSON né Excel.
 

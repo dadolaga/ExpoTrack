@@ -1,5 +1,12 @@
 # 11 — Stati di visita degli stand (`visit-statuses`)
 
+## Aggiornamento mobile — risposte A1–A9
+
+**Contratto vigente per il web mobile da fiera:** [specifica UI mobile, risposte A1–A9](27_Specifiche_UI_Mobile.md#10-risposte-di-revisione-recepite). Questo aggiornamento prevale sui paragrafi, diagrammi, pseudocodice e casi di test precedenti incompatibili. In particolare, gli esempi con `drafts`, conferma finale «Salva», dettaglio mobile 08, foto stand o scelta manuale del conflitto descrivono la progettazione precedente e non vanno implementati nel mobile. Le parti compatibili e le funzioni desktop/post-fiera mantengono il proprio ambito.
+
+Stati soltanto to_visit, visited, revisit e sempre sullo stand nel contesto profilo/evento. Non interessato è assenza di interesse, non quarto stato. Cambi manuali autosalvati; prodotto/checklist non marcano visitato automaticamente. I tre conteggi Dashboard riguardano gli stand di interesse; top 5 esclude visitati e priorità assente.
+
+
 > **ExpoTrack · Specifica tecnica v1 · Contratto proposto, non implementazione**  
 > **Documenti collegati:** `04-profiles-config.md`, `07-stands-config.md`, `09-interests-config.md`, `12-database.md`, `13-backend-api.md`, `15-dashboard.md`, `16-stand-management.md`, `19-offline-storage.md`, `20-synchronization.md`.  
 > **Prossimo documento:** `12-database.md`.

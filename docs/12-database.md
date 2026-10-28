@@ -1,5 +1,12 @@
 # 12 — Database PostgreSQL e persistenza locale IndexedDB
 
+## Aggiornamento mobile — risposte A1–A9
+
+**Contratto vigente per il web mobile da fiera:** [specifica UI mobile, risposte A1–A9](27_Specifiche_UI_Mobile.md#10-risposte-di-revisione-recepite). Questo aggiornamento prevale sui paragrafi, diagrammi, pseudocodice e casi di test precedenti incompatibili. In particolare, gli esempi con `drafts`, conferma finale «Salva», dettaglio mobile 08, foto stand o scelta manuale del conflitto descrivono la progettazione precedente e non vanno implementati nel mobile. Le parti compatibili e le funzioni desktop/post-fiera mantengono il proprio ambito.
+
+Non implementare store/tabelle bozze. Persistenza locale automatica con input da validare sul record locale e outbox soltanto per payload validi; PostgreSQL mantiene vincoli obbligatori. Prodotti con description unica, categoria/stand stabili; checklist con ID e completed; interesse effettivo seed più override; budget profilo/categoria inclusi. LWW con revisioni server e tombstone, non risoluzione manuale.
+
+
 > **Progetto:** ExpoTrack · **Stato:** specifica architetturale proposta per v1 · **Documento:** `docs/12-database.md`  
 > **Precedenti:** `00-overview.md` → `11-visit-statuses-config.md`  
 > **Successivo:** [`13-backend-api.md`](13-backend-api.md)  
@@ -31,8 +38,8 @@ Non creare un database SQL per duplicare automaticamente ogni file JSON editoria
 - Stato visita `to_visit` predefinito, `visited`, `revisit`.
 - Prodotti personali collegati a uno stand; una sola categoria immutabile dal primo salvataggio; prezzo facoltativo, voto 1–10, preferiti, note, foto e questionari.
 - Questionari definiti per profilo e categoria; domande tutte facoltative; nessun questionario di fallback.
-- Bozze autosalvate localmente; **Salva** conferma e mette in coda la sync.
-- Conflitti tra dispositivi sullo stesso profilo **risolti manualmente**; conservare entrambe le versioni.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
+- Concorrenza mobile LWW per record in ordine di accettazione server; revisioni monotone, idempotenza e protezione delle tombstone.
 - Eliminazioni esplicite con conferma, senza perdita silenziosa di dati collegati.
 
 ### 1.2 Decisioni di progetto proposte, non ancora approvate
@@ -209,10 +216,11 @@ Gli interessi iniziali vengono dal JSON per profilo. La tabella conserva **solta
 | `event_id` | `text` | Evento |
 | `stand_source` | `text` | Origine stand |
 | `stand_id` | `text` | Riferimento |
+| `interest_mode` | `text` | `inherit`, `include`, `exclude`: stella = interesse effettivo |
 | `priority_mode` | `text` | `inherit`, `set`, `clear` |
 | `priority_value` | `smallint` | 1–10 solo se `set` |
 | `what_to_see_mode` | `text` | `inherit`, `replace`, `clear` |
-| `what_to_see_items` | `jsonb` | Lista di stringhe, anche vuota |
+| `what_to_see_items` | `jsonb` | Checklist con `id`, `text`, `completed`, anche vuota; seed JSON normalizzato senza modificare le stringhe editoriali |
 | `revision` | `bigint` | Concorrenza |
 | `updated_at` | `timestamptz` | Ultima modifica |
 | `deleted_at` | `timestamptz` | Tombstone |
@@ -236,7 +244,7 @@ Questa modellazione **distingue chiaramente** «nessun override» da «ho cancel
 | `price_currency` | `char(3)` | `EUR` se prezzo presente |
 | `rating` | `smallint` | Nullable, 1–10 |
 | `is_favorite` | `boolean` | Default false |
-| `notes` | `text` | Facoltative |
+| `description` | `text` | Unica descrizione facoltativa, senza limite UI arbitrario |
 | `created_at`, `updated_at` | `timestamptz` | Non null |
 | `revision` | `bigint` | Concorrenza |
 | `deleted_at` | `timestamptz` | Tombstone |
@@ -294,21 +302,22 @@ Le foto possono essere associate a **uno stand personale/editoriale nel contesto
 
 La foto deve restare accessibile offline **dopo il salvataggio locale**: la cache binaria non può essere soltanto un URL remoto.
 
-### 5.9 Tabella `profile_budget_overrides` (opzionale)
+### 5.9 Tabella `profile_budget_overrides` (inclusa nel mobile)
 
-Se l'app consentirà modifiche ai budget configurati nel JSON:
+Il mobile consente modifiche ai budget mediante override, senza modificare il JSON:
 
 | Colonna | Tipo | Significato |
 |---|---|---|
 | `id` | `uuid` | PK |
 | `profile_id` | `text` | Profilo |
 | `category_id` | `text` | Categoria/sottocategoria |
-| `amount_minor` | `bigint` | Importo non negativo |
+| `mode` | `text` | `set` / `clear`: esclusione esplicita distinta da rimozione override |
+| `amount_minor` | `bigint` | Non negativo se `set`, NULL se `clear` |
 | `currency` | `char(3)` | `EUR` |
 | `revision` | `bigint` | Concorrenza |
 | `updated_at` | `timestamptz` | Modifica |
 
-Non introdurre un budget totale: il requisito è **budget per categoria/sottocategoria**. L'ereditarietà tra categoria padre e figlia è ancora da decidere.
+Non introdurre un budget totale: il requisito è **budget per categoria/sottocategoria**. Nel mobile usare corrispondenza esatta della categoria, senza ereditarietà implicita.
 
 ---
 
@@ -332,7 +341,7 @@ CREATE TABLE products (
     rating smallint
         CHECK (rating IS NULL OR rating BETWEEN 1 AND 10),
     is_favorite boolean NOT NULL DEFAULT false,
-    notes text,
+    description text,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
     revision bigint NOT NULL DEFAULT 1 CHECK (revision >= 1),
@@ -490,7 +499,7 @@ Nome proposto: `expotrack-local`, con **versione dello schema IndexedDB** indipe
 | `answer_sets` | `id` | Risposte confermate |
 | `photo_metadata` | `id` | Metadati e stato upload |
 | `photo_blobs` | `id` | Blob foto disponibili offline |
-| `drafts` | `draftId` | Bozze autosalvate |
+| Input locali | Chiave del record entità | Campi pendenti di validazione, non inviati al server |
 | `outbox` | `operationId` | Mutazioni da sincronizzare |
 | `conflicts` | `conflictId` | Versioni da confrontare |
 | `sync_meta` | `key` | Cursor, snapshot, ultimi esiti |
@@ -507,7 +516,7 @@ Indicizzare almeno:
 - `personal_stands` per `(ownerProfileId, eventId)`;
 - `stand_states` per `(profileId, eventId)`;
 - `outbox` per stato e ordine di invio;
-- `drafts` per `(profileId, eventId, entityType, entityId)`.
+- Input di validazione conservati nel record locale, isolati per profilo/evento/entità.
 
 La ricerca per nome può avvenire in memoria dopo aver caricato l'insieme limitato di record del profilo/evento.
 
@@ -519,64 +528,13 @@ Cambiare profilo deve invalidare la vista corrente e ricaricare i dati nel nuovo
 
 ---
 
-## 10. Bozze e pulsante Salva
+## 10. Persistenza automatica e confine locale/server
 
-### 10.1 Regola essenziale
+Ogni modifica intenzionale viene persistita automaticamente sul dispositivo. Per dati validi, record e mutazione outbox sono scritti nella stessa transazione; la rete interviene dopo. Non esistono store o modalità bozza né conferma Salva finale. Nome, stand e categoria restano obbligatori per la prima registrazione prodotto: i valori iniziali incompleti sono recuperabili nello stesso record locale, senza essere contati o inviati come prodotto valido. Categoria e stand si bloccano alla prima registrazione locale valida. Un input successivamente invalido resta recuperabile senza sostituire l’ultima versione valida sincronizzabile. Vedere [§5.1 della specifica mobile](27_Specifiche_UI_Mobile.md#51-salvataggio-automatico-validazione-e-recupero).
 
-**Autosave della bozza ≠ salvataggio confermato ≠ sincronizzazione.**
+Dichiarare «Salvato sul dispositivo» solo dopo commit riuscito; errori quota o transazione mantengono l’input e non producono falso successo. Prima di cambio vista/profilo completare la persistenza, senza dialogo di conferma per modifiche già autosalvate. «Fine»/indietro non annullano scritture effettuate.
 
-Le modifiche a un modulo devono essere persistite localmente nella store `drafts`, ma **non** entrare in `outbox` finché l'utente non preme **Salva**.
-
-### 10.2 Modello di bozza proposto
-
-```ts
-interface LocalDraft {
-  draftId: string;
-  profileId: string;
-  eventId: string;
-  entityType: "product" | "stand" | "standState" | "interest";
-  entityId: string;
-  baseRevision: string | null;
-  payload: unknown;
-  updatedAt: string;
-}
-```
-
-La bozza può contenere modifiche incomplete (per esempio prodotto senza nome) e **non deve essere validata con le stesse regole del record confermato** fino a Salva.
-
-### 10.3 Commit locale atomico
-
-Alla pressione di Salva:
-
-1. validare il record;
-2. verificare l'eventuale immutabilità di categoria;
-3. aprire una transazione IndexedDB su record + outbox + drafts;
-4. salvare la nuova versione locale confermata;
-5. aggiungere l'operazione all'outbox;
-6. rimuovere o archiviare la bozza;
-7. chiudere la transazione;
-8. mostrare «Salvato sul dispositivo»;
-9. tentare la sincronizzazione se online.
-
-**Non** mostrare successo prima che la transazione locale sia completata.
-
-### 10.4 Uscita con bozza
-
-Mostrare un avviso di modifiche non confermate, ma conservare la bozza. Se il browser non permette un prompt personalizzato in chiusura, non promettere che comparirà sempre.
-
-### 10.5 Quota storage
-
-IndexedDB e Cache Storage possono essere soggetti a limiti e cancellazioni da parte del browser. Prevedere:
-
-- monitoraggio quota;
-- messaggi quando il salvataggio fallisce;
-- richiesta di storage persistente quando supportata;
-- compressione foto ragionevole;
-- strategia di backup server una volta sincronizzati.
-
-**Offline non equivale a garanzia assoluta contro la perdita fisica del dispositivo.**
-
----
+Nessuna tabella/server o object store drafts. I metadati di validazione e i campi input parziali sono solo locali; lo schema PostgreSQL riceve record conformi ai vincoli. Le transazioni server applicano mutazione, revisione, change log e idempotenza atomicamente.
 
 ## 11. Outbox e operazioni idempotenti
 
@@ -628,52 +586,13 @@ Se il client ritenta lo **stesso** `operationId` con lo **stesso** payload, il s
 
 ---
 
-## 12. Revisioni e risoluzione manuale dei conflitti
+## 12. Revisioni server, LWW e tombstone
 
-### 12.1 Perché i timestamp non bastano
+La policy mobile è **LWW per record nell’ordine di accettazione server**, con revisioni monotone assegnate in transazione. Una revisione di base obsoleta su un record vivo non apre una scelta manuale: l’ultima nuova mutazione valida accettata prevale come record intero, senza merge per campo. Il timestamp del telefono è solo diagnostico. Vincoli di dominio e integrità restano applicati.
 
-Due dispositivi possono avere orologi diversi e lavorare offline. Non decidere automaticamente quale modifica vince usando `updated_at`.
+Il retry della stessa `operationId` e dello stesso payload restituisce l’esito già registrato, senza diventare una nuova scrittura; stesso ID con hash diverso è errore. Il client serializza le operazioni dello stesso record e non sovrascrive modifiche locali più recenti quando applica una conferma o un pull remoto.
 
-### 12.2 Optimistic concurrency
-
-Ogni record server ha `revision`. Il client invia la revisione da cui è partita la modifica.
-
-- Revisione uguale: modifica accettata, `revision + 1`.
-- Revisione diversa: conflitto, nessuna sovrascrittura automatica.
-- Record eliminato nel frattempo: conflitto con tombstone o errore specifico, non ricreazione implicita.
-
-### 12.3 Tabella `sync_conflicts`
-
-| Colonna | Significato |
-|---|---|
-| `id` UUID PK | ID conflitto |
-| `profile_id`, `event_id` | Perimetro |
-| `entity_type`, `entity_id` | Oggetto |
-| `operation_id` | Mutazione coinvolta |
-| `base_revision` | Revisione usata dal client |
-| `local_payload` JSONB | Versione proposta dal dispositivo |
-| `server_payload` JSONB | Versione attuale server |
-| `status` | `unresolved`, `resolved` |
-| `resolution` JSONB | Scelta/risultato |
-| `created_at`, `resolved_at` | Audit |
-
-Per foto e payload voluminosi, memorizzare **riferimenti immutabili ai media**, non blob nel JSON del conflitto.
-
-### 12.4 Risoluzione
-
-L'utente confronta entrambe le versioni e sceglie quale conservare. La risoluzione deve essere una **nuova mutazione versionata**, così un terzo dispositivo non può essere sovrascritto in modo inconsapevole.
-
-Non cancellare versioni non risolte e non applicare merge automatici non richiesti.
-
-### 12.5 Casi speciali
-
-- Due dispositivi cambiano lo stato visita dello stesso stand.
-- Due dispositivi modificano note dello stesso prodotto.
-- Un dispositivo elimina un prodotto mentre l'altro aggiunge una foto.
-- Una modifica viene fatta a un profilo diverso: **non è un conflitto**, sono perimetri distinti.
-- Una modifica locale riguarda un ID editoriale rimosso: **errore di compatibilità**, da distinguere da un conflitto di revisione.
-
----
+Un update contro una tombstone viene respinto senza resuscitare il record. Conservare payload e riferimenti media necessari al recupero; offrire «Recupera come nuovo elemento», con nuovo ID e dipendenze valide. Nessun dialogo «versione locale/versione server» per i normali aggiornamenti concorrenti. Conservare audit per diagnosi senza promettere recupero automatico di ogni versione storica.
 
 ## 13. Eliminazioni e tombstone
 
@@ -997,7 +916,7 @@ Le decisioni ancora aperte **non devono essere trasformate in vincoli irreversib
 - [ ] Voto generale facoltativo e separato dal questionario.
 - [ ] Questionari storici restano interpretabili.
 - [ ] Foto salvate offline e referenziate correttamente.
-- [ ] Bozze mai sincronizzate prima di Salva.
+- Salvataggio mobile automatico locale e outbox per valori validi, senza modalità bozza o conferma Salva finale; input invalidi conservati localmente secondo §5.1 del documento 27.
 - [ ] Commit locale di record + outbox atomico.
 - [ ] Retry idempotenti.
 - [ ] Conflitti concorrenti conservano entrambe le versioni.

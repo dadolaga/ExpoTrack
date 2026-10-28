@@ -1,5 +1,12 @@
 # 03 — Configurazione generale (`config/app.json`)
 
+## Aggiornamento mobile — risposte A1–A9
+
+**Contratto vigente per il web mobile da fiera:** [specifica UI mobile, risposte A1–A9](27_Specifiche_UI_Mobile.md#10-risposte-di-revisione-recepite). Questo aggiornamento prevale sui paragrafi, diagrammi, pseudocodice e casi di test precedenti incompatibili. In particolare, gli esempi con `drafts`, conferma finale «Salva», dettaglio mobile 08, foto stand o scelta manuale del conflitto descrivono la progettazione precedente e non vanno implementati nel mobile. Le parti compatibili e le funzioni desktop/post-fiera mantengono il proprio ambito.
+
+Per il mobile sync sempre automatica più comando manuale, foto su Wi-Fi e rete mobile e LWW fisso: non esporre toggle di disattivazione, scelta rete o policy conflitti. Tema automatico/chiaro/scuro; cambio evento esclusivamente nelle impostazioni. Nessun limite funzionale di caratteri per la descrizione prodotto.
+
+
 > **Progetto:** ExpoTrack · **Versione del contratto:** `1` · **Stato:** specifica proposta per l'implementazione v1  
 > **Documenti precedenti:** [`00-overview.md`](00-overview.md), [`01-architecture.md`](01-architecture.md), [`02-project-structure.md`](02-project-structure.md)  
 > **Documento successivo:** [`04-profiles-config.md`](04-profiles-config.md)

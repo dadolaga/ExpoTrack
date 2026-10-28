@@ -1,5 +1,12 @@
 # 02 — Struttura del progetto ExpoTrack
 
+## Aggiornamento mobile — risposte A1–A9
+
+**Contratto vigente per il web mobile da fiera:** [specifica UI mobile, risposte A1–A9](27_Specifiche_UI_Mobile.md#10-risposte-di-revisione-recepite). Questo aggiornamento prevale sui paragrafi, diagrammi, pseudocodice e casi di test precedenti incompatibili. In particolare, gli esempi con `drafts`, conferma finale «Salva», dettaglio mobile 08, foto stand o scelta manuale del conflitto descrivono la progettazione precedente e non vanno implementati nel mobile. Le parti compatibili e le funzioni desktop/post-fiera mantengono il proprio ambito.
+
+Le pagine prodotto nuove/esistenti rendono lo stesso editor 05; nessun percorso di dettaglio mobile 08 o pagina gestione bozze. Prevedere note stand, creazione/modifica stand personali, budget per categoria e viewer foto prodotto. I nomi di file/cartelle draft negli alberi precedenti non sono moduli da creare.
+
+
 > **Stato:** specifica tecnica della struttura del repository (v1).  
 > **Documenti di riferimento:** [README principale](../README.md), [00 — Overview](00-overview.md), [01 — Architecture](01-architecture.md).  
 > **Documento successivo:** [03 — App Config](03-app-config.md).
@@ -282,6 +289,9 @@ Il commit del record confermato e l'inserimento nella coda locale devono avvenir
 
 ### 7.2 Moduli offline proposti
 
+<details>
+<summary>Esempio della progettazione precedente: gestione bozze superata nel mobile (non implementare)</summary>
+
 ```text
 src/lib/offline/
 ├── database.ts
@@ -299,6 +309,8 @@ src/lib/sync/
 ├── retry-policy.ts
 └── sync-status.ts
 ```
+
+</details>
 
 Questi nomi sono indicativi. I contratti saranno definiti in `19-offline-storage.md` e `20-synchronization.md`.
 
