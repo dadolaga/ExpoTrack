@@ -2,7 +2,7 @@
 
 Questo README definisce **come lavoriamo**, un passo alla volta, sulla parte web mobile da fiera. Ogni step parte da una domanda concreta, produce un’implementazione circoscritta e termina con un risultato verificabile. Non autorizza a implementare l’intera applicazione in un’unica sessione.
 
-**Base iniziale:** il progetto contiene la base Next.js e le specifiche. Lo step 00 è stato eseguito e accettato dall’utente; gli step successivi non sono iniziati. Le cartelle indicate qui sono destinazioni da creare quando servono, non funzionalità già presenti. Gli esiti sono riportati nel registro della singola consegna.
+**Stato corrente:** step 00 e 01 accettati dall’utente. Gli step dal 02 in avanti non sono iniziati. Le cartelle indicate qui sono destinazioni da creare quando servono, non funzionalità già presenti. Gli esiti sono riportati nel registro della singola consegna.
 
 ## Riferimenti e priorità
 
@@ -93,7 +93,7 @@ L’ordine è intenzionale: prima fondamenta e funzioni locali verificabili, poi
 | Step | Risultato | Stato |
 |---|---|---|
 | 00 | Base di lavoro e controlli iniziali | Accettato |
-| 01 | Token grafici e tipografia | Da iniziare |
+| 01 | Token grafici e tipografia | Accettato |
 | 02 | Componenti UI di base | Da iniziare |
 | 03 | Shell mobile, navigazione e tema | Da iniziare |
 | 04 | Contratti dati e dataset dimostrativo | Da iniziare |
@@ -349,3 +349,50 @@ Riscontro dell’utente / correzioni: ...
 **Punto di commit:** unico file `README_IMPLEMENTAZIONE.md`; titolo suggerito `docs: record step 00 baseline verification`. Nessun commit o push effettuato.
 
 **Riscontro dell’utente / correzioni:** l’utente conferma «funziona» e richiede commit in inglese; step accettato. Lo step 01 parte soltanto su richiesta.
+
+### Consegna step 01 — Token grafici e tipografia
+
+- **Data:** 28 ottobre 2026.
+- **Stato:** Accettato.
+- **Domanda:** Quali colori, spaziature e caratteri userà tutta l’app?
+- **Risultato:** token semantici globali per colori, tipografia, spaziature, raggi, target touch e focus. Tema automatico tramite `prefers-color-scheme`, con override CSS `data-theme="light"` / `data-theme="dark"` su `<html>`. La pagina iniziale usa questi token per verificare il risultato. Nessuna schermata funzionale, selettore tema o persistenza introdotta.
+- **File dello step:** `src/app/globals.css`, `src/app/page.tsx`, `README_IMPLEMENTAZIONE.md`. Repository pulito all’inizio di questo step; nessuna modifica a dipendenze, lockfile o layout.
+- **Componenti riusati / introdotti:** nessun nuovo componente React; aggiornata la pagina iniziale esistente. I componenti condivisi arriveranno nello step 02.
+
+**Uso dei token:**
+
+- Colori tramite `var(--bg)`, `var(--surface)`, `var(--text)`, `var(--primary)` e gli altri nomi della specifica. Le utility Tailwind (`bg-surface`, `text-primary`, `text-text-muted`, `border-border`, ecc.) risolvono agli stessi token. `--on-primary` definisce il testo leggibile sul blu nei due temi.
+- Font: `Inter` se installato sul dispositivo, altrimenti `system-ui`, `-apple-system`, `BlinkMacSystemFont`, `Segoe UI`, `sans-serif`. Nessun font remoto o nuovo asset scaricato dall’app; il fallback di sistema è intenzionale. Titoli pagina 24 px/700, sezioni 18 px/650, corpo 16 px, label 14 px, caption 13 px alla dimensione testo standard. Le dimensioni dei caratteri sono in `rem` per consentire l’ingrandimento.
+- Spaziature `--space-1/2/3/4/6/8`: 4/8/12/16/24/32 CSS px; margine pagina 16 px (`p-page`), distanza di sezione 24 px (`p-section`, `gap-section`). Le utility numeriche Tailwind usano la stessa base da 4 px. Gli spazi restano stabili quando aumenta solo il testo. Raggi input/card/dialog 12/16/20 px; target touch disponibile da 48 px (`min-h-touch`, `min-w-touch`).
+- `h1`, `h2` e `h3` applicano la tipografia globale; sono disponibili anche `text-page-title`, `text-section-title`, `text-body`, `text-label`, `text-caption`. Focus visibile globale con contorno blu da 2 px e distacco di 3 px. La pagina attuale non contiene controlli interattivi o animazioni.
+
+**Adeguamenti alla palette proposta:** per raggiungere almeno 4,5:1 anche sullo sfondo `--surface-muted`, nel tema chiaro `--text-muted` passa da `#64748B` a `#5F6F85`, `--success` da `#15803D` a `#147D3C`, `--warning` da `#B45309` a `#B05209`, `--danger` da `#DC2626` a `#D62525`. Gli altri colori della proposta restano invariati. L’arancione `--brand-accent` è usato solo come decorazione; il bordo tenue è un divisore, non l’unico indicatore di un controllo o di uno stato.
+
+**Verifiche eseguite:**
+
+| Comando / controllo | Esito |
+|---|---|
+| `npm run lint` | Superato, nessun warning. |
+| `npm run typecheck` | Superato. |
+| `npm run build` | Superato con Turbopack; nessun dev server attivo durante la build. |
+| `npm run start` e Chromium headless sulla build di produzione | HTTP 200; sei combinazioni tra preferenza di sistema e override esplicito verificate. |
+| Layout e tipografia calcolati nel browser | Dodici combinazioni: larghezze 320/390/1280 px, entrambi i temi, testo normale e al 200%. Nessuno scorrimento orizzontale; margini pagina 16 px, padding del riquadro 24 px, raggio 16 px; corpo/titolo 16/24 px oppure 32/48 px con testo ingrandito. |
+| Contrasto dei token | Minimo 4,53:1 per testo principale, secondario, blu operativo, successo, attesa ed errore su sfondo pagina e sulle due superfici, nei due temi. Verificato anche il testo su blu. Questo controllo non costituisce un audit WCAG completo. |
+| Focus e rete | Focus da tastiera con contorno 2 px verificato su un link temporaneo inserito solo nel DOM del browser e poi rimosso; nessun errore JavaScript, richiesta esterna o caricamento font. |
+| Anteprime | Ispezionate le schermate a 320 px nei due temi, con testo normale e ingrandito al 200%. Il titolo può andare a capo tra «Expo» e «Track». |
+
+Playwright, Chromium e le librerie necessarie alla verifica sono stati preparati esclusivamente in `/tmp/expotrack-ui-check`; non fanno parte del progetto. Il primo tentativo del browser non partiva per librerie condivise mancanti, poi recuperate nella stessa directory temporanea. La build ha richiesto i permessi aggiuntivi per le porte locali già necessari nello step 00. Il server di produzione è stato arrestato al termine dei controlli.
+
+**Come provarlo:**
+
+1. Eseguire `npm run dev` dalla root e aprire [http://localhost:3000](http://localhost:3000). La pagina resta un segnaposto, ora con tipografia comune, riquadro e colori ExpoTrack.
+2. Cambiare la preferenza chiaro/scuro del sistema oppure emulare `prefers-color-scheme` nel pannello Rendering degli strumenti di sviluppo: la pagina si adegua automaticamente.
+3. Per forzare il tema dalla console del browser eseguire `document.documentElement.dataset.theme = "dark"`, poi `document.documentElement.dataset.theme = "light"`. Tornare al tema automatico con `delete document.documentElement.dataset.theme`. Gli override di verifica non sono persistiti e si azzerano al refresh.
+4. Impostare una viewport da 320 px. Per ingrandire soltanto il testo eseguire `document.documentElement.style.fontSize = "200%"`; verificare che tutto resti leggibile e raggiungibile scorrendo in verticale. Ripristinare con `document.documentElement.style.fontSize = ""`.
+5. Arrestare il server con `Ctrl+C`. Per provare la build di produzione, usare `npm run build` e poi `npm run start`, senza dev server contemporaneo.
+
+**Controlli non eseguiti / limiti:** restano il riscontro dell’utente e la prova su telefono reale e altri browser. Il font effettivo dipende dai font installati sul dispositivo. Il selettore tema persistito, la barra inferiore e la shell mobile appartengono allo step 03; non sono ancora presenti. Non sono state aggiunte funzionalità offline, dati o sincronizzazione.
+
+**Punto di commit:** solo i tre file dello step elencati sopra; titolo suggerito `feat: add design tokens and shared typography`. Nessun commit o push effettuato.
+
+**Riscontro dell’utente / correzioni:** l’utente conferma «fatto e funziona»; step accettato. Lo step 02 parte soltanto su richiesta.

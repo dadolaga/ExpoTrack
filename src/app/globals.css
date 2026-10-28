@@ -2,11 +2,142 @@
 
 :root {
   color-scheme: light;
+
+  /* Semantic colors; the orange accent is decorative, not small body text. */
+  --bg: #f7f9fc;
+  --surface: #ffffff;
+  --surface-muted: #edf3fa;
+  --text: #142236;
+  --text-muted: #5f6f85;
+  --border: #dfe6ee;
+  --primary: #0866e8;
+  --on-primary: #ffffff;
+  --brand-accent: #f97316;
+  --success: #147d3c;
+  --warning: #b05209;
+  --danger: #d62525;
+
+  /* Inter is used if installed; the system fallback requires no download. */
+  --font-body: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  --font-size-page-title: 1.5rem;
+  --font-size-section-title: 1.125rem;
+  --font-size-body: 1rem;
+  --font-size-label: 0.875rem;
+  --font-size-caption: 0.8125rem;
+  --font-weight-body: 400;
+  --font-weight-label: 500;
+  --font-weight-section-title: 650;
+  --font-weight-page-title: 700;
+  --line-height-body: 1.5;
+  --line-height-heading: 1.25;
+
+  /* Keep layout spacing stable when users increase text size. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --touch-target: 48px;
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 3px;
 }
 
-body {
-  margin: 0;
-  background: #f8fafc;
-  color: #0f172a;
-  font-family: Arial, Helvetica, sans-serif;
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #07111f;
+    --surface: #0d1b2b;
+    --surface-muted: #14283c;
+    --text: #f4f7fb;
+    --text-muted: #a7b7c9;
+    --border: #26394d;
+    --primary: #4b95ff;
+    --on-primary: #07111f;
+    --brand-accent: #fb923c;
+    --success: #4ade80;
+    --warning: #fbbf24;
+    --danger: #f87171;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #07111f;
+  --surface: #0d1b2b;
+  --surface-muted: #14283c;
+  --text: #f4f7fb;
+  --text-muted: #a7b7c9;
+  --border: #26394d;
+  --primary: #4b95ff;
+  --on-primary: #07111f;
+  --brand-accent: #fb923c;
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --danger: #f87171;
+}
+
+/* Tailwind utilities resolve to the same tokens used by base styles. */
+@theme static {
+  --radius-input: 12px;
+  --radius-card: 16px;
+  --radius-dialog: 20px;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-brand-accent: var(--brand-accent);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-body);
+  --font-weight-medium: var(--font-weight-label);
+  --text-page-title: var(--font-size-page-title);
+  --text-section-title: var(--font-size-section-title);
+  --text-body: var(--font-size-body);
+  --text-label: var(--font-size-label);
+  --text-caption: var(--font-size-caption);
+  --spacing: var(--space-1);
+  --spacing-page: var(--space-4);
+  --spacing-section: var(--space-6);
+  --spacing-touch: var(--touch-target);
+}
+
+@layer base {
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: var(--font-size-body);
+    font-weight: var(--font-weight-body);
+    line-height: var(--line-height-body);
+    overflow-wrap: break-word;
+  }
+
+  h1 {
+    font-size: var(--font-size-page-title);
+    font-weight: var(--font-weight-page-title);
+    line-height: var(--line-height-heading);
+  }
+
+  h2,
+  h3 {
+    font-size: var(--font-size-section-title);
+    font-weight: var(--font-weight-section-title);
+    line-height: var(--line-height-heading);
+  }
+
+  :focus-visible {
+    outline: var(--focus-ring-width) solid var(--primary);
+    outline-offset: var(--focus-ring-offset);
+  }
 }
