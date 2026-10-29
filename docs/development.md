@@ -2,8 +2,11 @@
 
 La base implementata comprende Next.js con App Router in `src/app`, React,
 TypeScript in modalità strict, Tailwind CSS, ESLint e PostgreSQL 17 in Docker.
-L'alias `@/*` punta a `src/*`. La pagina iniziale è un segnaposto; le funzionalità descritte nelle
-specifiche verranno implementate nelle fasi successive.
+L'alias `@/*` punta a `src/*`. La shell mobile offre Home (`/`), Stand (`/stands`),
+Prodotti (`/products`) e Profilo (`/profile`), con contenuti iniziali vuoti.
+In Profilo si sceglie il tema Automatico/Chiaro/Scuro, ricordato nel browser.
+La dimostrazione dei componenti di base è in `/examples/components`.
+Catalogo, dati personali e sincronizzazione verranno implementati nelle fasi successive.
 
 ## Avvio con devcontainer
 

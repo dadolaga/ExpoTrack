@@ -1,9 +1,10 @@
-# Componenti di base
+# Componenti condivisi
 
 I componenti condivisi vivono in questa cartella. Importare direttamente dal file,
 per esempio `@/components/ui/Button`. Colori, spaziature, raggi e dimensioni touch
 usano i token di `src/app/globals.css` nei temi chiaro, scuro e di sistema.
-Il focus visibile è quello globale. Nessuna dipendenza da dati ExpoTrack, rete o storage.
+Il focus visibile è quello globale. I componenti di base non dipendono da dati
+ExpoTrack, rete o storage; il selettore tema usa solo la preferenza locale del browser.
 
 | Componente | Proprietà e impiego |
 |---|---|
@@ -16,7 +17,21 @@ Il focus visibile è quello globale. Nessuna dipendenza da dati ExpoTrack, rete 
 `TextField` è un Client Component perché usa `useId`. Gli altri componenti di base
 non richiedono una direttiva client. Event handler e stato si definiscono in un
 Client Component chiamante; pagine e layout possono restare Server Components.
-Nessun componente decide quando salvare, quale validazione eseguire o dove navigare.
+I componenti di base non decidono quando salvare, quale validazione eseguire o dove navigare.
+
+## Shell mobile e tema
+
+| Componente | Proprietà e impiego |
+|---|---|
+| `layout/AppShell` | `children` contiene le pagine Server Component. Header, area principale scorrevole e barra inferiore occupano tre righe del viewport dinamico: la barra rimane visibile e il suo ingombro reale non copre i contenuti, anche con testo ingrandito. Safe area sui quattro lati e collegamento «Vai al contenuto». |
+| `layout/TopBar` | Titolo derivato dalla destinazione corrente; `title` e `subtitle` possono sostituirlo. `onBack` facoltativo mostra un vero pulsante Indietro soltanto quando il chiamante fornisce il ritorno previsto; `actions` accoglie azioni contestuali. Nei quattro tab principali il ritorno è gestito dalla cronologia del browser. |
+| `layout/BottomNav` | Quattro link Next.js stabili: `/`, `/stands`, `/products`, `/profile`. Icone SVG locali e label visibili; destinazione attiva con `aria-current="page"`, sfondo pieno e testo rinforzato. I percorsi delle sottoviste mantengono attivo il tab del proprio ambito. |
+| `forms/ThemeSelector` | Gruppo radio nativo Automatico/Chiaro/Scuro, utilizzato in Profilo. Usa i token esistenti; Automatico segue il sistema senza un override su `html`. Preferenza locale `expotrack.theme`, sincronizzata fra schede. Se la scrittura fallisce, applica il tema alla sessione e mostra errore e pulsante per ritentare. |
+| `layout/ThemeController` | Componente senza UI montato nel layout radice. Ripristina la preferenza dopo il remount di sviluppo e ascolta le modifiche fra schede. Lo script statico in `head` applica il tema prima del primo rendering; `suppressHydrationWarning` è limitato a `html`, il cui attributo è modificato dallo script come previsto dalla guida Next.js installata. |
+
+Pagine e shell restano Server Components; solo navigazione, titolo legato al percorso
+e preferenza tema richiedono componenti client. Le destinazioni iniziali sono stati
+vuoti espliciti: catalogo, profili, contatori e sincronizzazione arriveranno nei loro step.
 
 Esempio in un componente client (il form gestisce `name`, `error` e `onSubmit`):
 
@@ -39,9 +54,9 @@ Esempio in un componente client (il form gestisce `name`, `error` e `onSubmit`):
 
 ## Pagina di verifica
 
-`examples/ComponentPreview` è la dimostrazione interattiva usata dalla pagina `/`.
+`examples/ComponentPreview` è la dimostrazione interattiva alla pagina `/examples/components`.
 Non è un editor dell’app e non persiste dati. Eseguire `npm run dev` e aprire
-[http://localhost:3000](http://localhost:3000).
+[http://localhost:3000/examples/components](http://localhost:3000/examples/components).
 
 1. Premere **Verifica campo** sul campo vuoto (o contenente soltanto spazi):
    messaggio vicino al campo, `aria-invalid`, focus riportato sull’input e stato di errore.
@@ -51,10 +66,8 @@ Non è un editor dell’app e non persiste dati. Eseguire `npm run dev` e aprire
 4. Controllare con Tab/Shift+Tab e Invio: focus visibile e campi/pulsanti disabilitati
    esclusi dalla navigazione. Un clic sulla label attiva il campo associato.
 5. Ripetere con tema di sistema chiaro/scuro, viewport stretta e zoom testo.
-   Per forzare il tema dalla console del browser:
-   `document.documentElement.dataset.theme = "dark"` oppure `"light"`.
-   Ripristinare con `delete document.documentElement.dataset.theme`.
+   Per scegliere e ricordare il tema, usare **Profilo → Aspetto** e tornare alla prova.
 
 Le verifiche visive restano manuali; non aggiungere snapshot o test di classi,
-colori o struttura esatta del DOM. Nessun selettore tema persistente è introdotto
-in questo step: appartiene allo step 03.
+colori o struttura esatta del DOM. La dimostrazione resta separata dalle quattro
+destinazioni dell’app e non salva i dati dei campi.

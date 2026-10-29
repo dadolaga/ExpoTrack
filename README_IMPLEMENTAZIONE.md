@@ -2,7 +2,7 @@
 
 Questo README definisce **come lavoriamo**, un passo alla volta, sulla parte web mobile da fiera. Ogni step parte da una domanda concreta, produce un’implementazione circoscritta e termina con un risultato verificabile. Non autorizza a implementare l’intera applicazione in un’unica sessione.
 
-**Stato corrente:** step 00, 01 e 02 accettati dall’utente. Gli step dal 03 in avanti non sono iniziati. Le cartelle indicate qui sono destinazioni da creare quando servono, non funzionalità già presenti. Gli esiti sono riportati nel registro della singola consegna.
+**Stato corrente:** step 00, 01, 02 e 03 accettati dall’utente. Gli step dal 04 in avanti non sono iniziati. Le cartelle indicate qui sono destinazioni da creare quando servono, non funzionalità già presenti. Gli esiti sono riportati nel registro della singola consegna.
 
 ## Riferimenti e priorità
 
@@ -108,7 +108,7 @@ L’ordine è intenzionale: prima fondamenta e funzioni locali verificabili, poi
 | 00 | Base di lavoro e controlli iniziali | Accettato |
 | 01 | Token grafici e tipografia | Accettato |
 | 02 | Componenti UI di base | Accettato |
-| 03 | Shell mobile, navigazione e tema | Da iniziare |
+| 03 | Shell mobile, navigazione e tema | Accettato |
 | 04 | Contratti dati e dataset dimostrativo | Da iniziare |
 | 05 | Persistenza locale e outbox | Da iniziare |
 | 06 | Selezione e cambio profilo | Da iniziare |
@@ -467,3 +467,40 @@ L’avvio dev nell’ambiente limitato ha restituito `listen EPERM` sulla porta 
 **Punto di commit:** soltanto i nove file elencati sopra; titolo suggerito `feat: add reusable base UI components and local preview`. Nessun commit o push effettuato.
 
 **Riscontro dell’utente / correzioni:** su richiesta dell’utente, i chip hanno ora sfondo pieno colorato in tutte le varianti, con testo adattato al tema chiaro/scuro. Dopo la correzione, `npm run lint` e `npm run typecheck` sono stati eseguiti con esito positivo. Il 29 ottobre 2026 l’utente richiede «Segna lo step 2 chiuso»: step accettato e chiuso. Lo step 03 non è stato avviato.
+
+### Consegna step 03 — Shell mobile, navigazione e tema
+
+- **Data:** 29 ottobre 2026.
+- **Stato:** Accettato.
+- **Domanda:** Come ci muoviamo nell’app su telefono?
+- **Risultato implementato:** shell mobile condivisa con intestazione, quattro destinazioni Home/Stand/Prodotti/Profilo e area principale scorrevole. Header e barra inferiore restano visibili in righe separate: l’altezza reale della barra non copre i contenuti, anche quando il testo aumenta. Safe area sui quattro lati, viewport dinamico e zoom consentito. Link Next.js reali con cronologia indietro/avanti; tab corrente riconoscibile tramite sfondo pieno, testo e `aria-current`. Pagine iniziali con stati vuoti espliciti. In Profilo, scelta Automatico/Chiaro/Scuro ricordata localmente, applicata all’avvio prima del rendering e aggiornata fra schede; valori non validi tornano ad Automatico. Se lo storage fallisce, il tema resta utilizzabile nella sessione con messaggio e possibilità di ritentare. Selettore attivo dopo l’idratazione per evitare interazioni senza persistenza. La demo dello step 02 è ora separata in `/examples/components`.
+- **Stato Git iniziale:** working tree pulito; step 02 già chiuso e registrato dall’utente.
+- **File dello step:** `src/app/layout.tsx`, `src/app/globals.css`, rimozione di `src/app/page.tsx` a favore di `src/app/(app)/page.tsx`, `src/app/(app)/layout.tsx`, `src/app/(app)/stands/page.tsx`, `src/app/(app)/products/page.tsx`, `src/app/(app)/profile/page.tsx`, `src/app/examples/components/page.tsx`, `src/components/layout/AppShell.tsx`, `src/components/layout/TopBar.tsx`, `src/components/layout/BottomNav.tsx`, `src/components/layout/NavigationIcon.tsx`, `src/components/layout/navigation.ts`, `src/components/layout/ThemeController.tsx`, `src/components/forms/ThemeSelector.tsx`, `src/lib/theme.ts`, `next.config.ts`, `src/components/README.md`, `docs/development.md`, `README_IMPLEMENTAZIONE.md`.
+- **Componenti riusati / introdotti:** riusati `Card`, `EmptyState`, `Button`, `ComponentPreview` e token esistenti; introdotti i componenti della shell, icone SVG locali e selettore tema. Pagine e shell restano Server Components; client soltanto per percorso corrente e preferenza tema. Indicatore di sviluppo Next.js spostato in alto a destra perché in basso intercettava il link Home. Nessuna nuova dipendenza.
+
+**Verifiche eseguite:**
+
+| Comando / controllo | Esito |
+|---|---|
+| `npm run lint:fix` | Superato; nessuna regola disabilitata o indebolita. |
+| `npm run lint` | Superato, codice 0, nessun warning. |
+| `npm run typecheck` | Superato, codice 0, anche dopo la rimozione della copia temporanea. Rigenerati i tipi; rimosso il solo validatore generato obsoleto che puntava alla pagina spostata. |
+| `git diff --check` | Superato. |
+| Chromium / Playwright, prova funzionale temporanea | Superata con codice 0: quattro destinazioni, link corrente, indietro/avanti, tre preferenze persistite dopo refresh e cambio pagina, aggiornamento fra schede e rimozione della preferenza, valore invalido, quota simulata e ritenta, storage completamente negato, radio da tastiera e salto al contenuto. Verificata anche la demo spostata con validazione del campo e ritorno a Home. Nessun errore JavaScript o console rilevato. |
+| Ispezione manuale delle anteprime browser | Viewport 320 px nei due temi, testo normale e al 200%, Automatico con cambio tema del sistema. Contenuti scorrevoli fino al fondo, barra visibile e separata; le label dei tab vanno a capo con testo ingrandito. Nessuna asserzione grafica o snapshot introdotto. |
+
+La verifica browser è stata eseguita su una copia temporanea dei sorgenti in `.next/step03-preview`, con Turbopack e cache separata, senza copiare file ambiente o dati. Il server già attivo sulla porta 3000 restituiva ancora la vecchia pagina e non è stato arrestato. Il server temporaneo ha usato la porta 3103 ed è stato arrestato al termine; copia e cache temporanee rimosse. Chromium, librerie, script di prova e anteprime sono temporanei in `/tmp/expotrack-ui-check` e `/tmp/expotrack-step03-*`; non sono dipendenze o suite del progetto e non costituiscono evidenza completa per lo step 28. Nessun database o media applicativo toccato.
+
+**Come provarlo:**
+
+1. Eseguire `npm run dev` e aprire [http://localhost:3000](http://localhost:3000). Se un server avviato prima dello spostamento delle route mostra ancora la demo, riavviarlo per ricaricare la struttura delle pagine.
+2. Toccare Home, Stand, Prodotti e Profilo: URL, titolo e tab attivo cambiano; indietro/avanti del browser ripercorrono le destinazioni. Le quattro pagine dichiarano correttamente l’assenza dei dati.
+3. In **Profilo → Aspetto**, scegliere Scuro o Chiaro, cambiare pagina e aggiornare: la scelta viene mantenuta. Automatico segue il tema del sistema anche quando quest’ultimo cambia con la pagina aperta. Due schede dello stesso browser condividono la scelta.
+4. Usare Tab/Shift+Tab, frecce sui radio e il collegamento **Vai al contenuto**. Provare viewport stretta, testo al 200% e scorrimento fino all’ultimo contenuto: la barra resta visibile senza coprirlo.
+5. La verifica dei componenti precedenti resta disponibile in [http://localhost:3000/examples/components](http://localhost:3000/examples/components).
+
+**Controlli non eseguiti / limiti:** nessuna build eseguita, come richiesto; la prova funzionale usa un server di sviluppo, non certifica la build di produzione o una PWA offline. Restano la prova su telefono reale, safe area fisiche, tastiera virtuale e altri browser. Nessun catalogo, selezione profilo/evento, statistica, CRUD, sincronizzazione o installabilità anticipati. Le suite applicative e i collegamenti a `validation/final-evidence.json` arriveranno negli step pertinenti; nessuna nuova suite persistente introdotta qui. La validazione finale completa resta a carico dell’assistente nello step 28.
+
+**Punto di commit:** soltanto i file dello step elencati sopra; titolo suggerito `feat: add mobile app shell, navigation and persistent theme`. Nessun commit o push effettuato.
+
+**Riscontro dell’utente / correzioni:** l’utente conferma «Va bene, accetto le modifiche»; step 03 accettato e chiuso. Lo step 04 non è stato avviato.
