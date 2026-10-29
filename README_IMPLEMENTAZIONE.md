@@ -70,7 +70,7 @@ Regole da rispettare in ogni implementazione:
 
 ## Come verifichiamo e consegniamo
 
-Per ogni step di codice eseguire `npm run lint` e `npm run typecheck`. Eseguire `npm run build` quando cambiano route, layout, confini client/server, dipendenze, API, manifest/cache PWA e nel collaudo finale. Non eseguire build e dev server contemporaneamente sulla stessa directory di output.
+Alla fine di ogni step eseguire `npm run lint` e `npm run typecheck`, correggere eventuali errori e riportare gli esiti prima della consegna. Su richiesta dell’utente, non eseguire la build come controllo di fine step. Restano i test funzionali pertinenti e la procedura di validazione finale descritta sotto.
 
 I comandi di test automatici dell’app non sono ancora configurati: introdurre l’attrezzatura minima nel primo step che ne ha bisogno e documentare il comando reale. I test dell’app devono coprire rischi concreti: isolamento profili/eventi, transazioni, recupero dati, validazione, conteggi e sincronizzazione. Non aggiungere test che si limitano a ripetere il markup o l’implementazione di un pulsante.
 

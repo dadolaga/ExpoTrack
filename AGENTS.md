@@ -10,9 +10,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Verifiche obbligatorie a fine step
 
-Alla fine di ogni step, **l’assistente deve eseguire `npm run lint` e `npm run build`** sul codice aggiornato, leggere gli esiti e correggere eventuali errori prima di dichiarare lo step completato o pronto per la verifica dell’utente. Entrambi i comandi devono terminare con successo; non delegare questi controlli all’utente e non dichiararli superati senza averli eseguiti. Dopo le correzioni, ripetere i controlli necessari e riportare nella consegna l’esito effettivo di lint e build. Se un impedimento ne preclude l’esecuzione o il completamento, dichiararlo esplicitamente senza presentare lo step come verificato.
+Alla fine di ogni step, **l’assistente deve eseguire `npm run lint` e `npm run typecheck`** sul codice aggiornato, leggere gli esiti e correggere eventuali errori prima di dichiarare lo step completato o pronto per la verifica dell’utente. Entrambi i comandi devono terminare con successo; non delegare questi controlli all’utente e non dichiararli superati senza averli eseguiti. Dopo le correzioni, ripetere i controlli necessari e riportare nella consegna l’esito effettivo di lint e typecheck. Se un impedimento ne preclude l’esecuzione o il completamento, dichiararlo esplicitamente senza presentare lo step come verificato.
 
-La build è obbligatoria a ogni step, anche quando non cambiano route, layout o dipendenze. Non eseguire build e dev server contemporaneamente sulla stessa directory di output. Questi controlli si aggiungono alle altre verifiche previste per lo step.
+Su richiesta dell’utente, non eseguire la build come controllo di fine step: i comandi obbligatori sono soltanto lint e typecheck. Restano i test funzionali pertinenti allo step e la procedura di validazione finale descritta sotto.
 
 ## Validazione finale dell’implementazione
 
