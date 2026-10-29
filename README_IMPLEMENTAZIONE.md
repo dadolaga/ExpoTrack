@@ -63,6 +63,7 @@ Regole da rispettare in ogni implementazione:
 - Componenti visivi senza chiamate dirette al database, alla rete o a IndexedDB. Ricevono dati e callback; repository e hook gestiscono persistenza e coordinamento.
 - Funzioni pure per filtri, conteggi e validazione. Una sola implementazione della regola, richiamata dalle diverse schermate.
 - TypeScript rigoroso, nomi espliciti, niente `any` per aggirare errori e niente soppressioni di controlli senza motivazione.
+- Rispettare lo [standard del codice](docs/code-style.md), applicato da `eslint.config.mjs` e `.editorconfig`; usare `npm run lint:fix` per le correzioni automatiche, senza disabilitare le regole per aggirare gli errori.
 - Token semantici per colori e spaziature; niente palette duplicate nelle pagine. HTML semantico, etichette accessibili, focus visibile e target touch adeguati.
 - Separare codice browser e server secondo le guide Next.js installate; non rendere tutta l’app client per comodità e non introdurre dipendenze server nei componenti condivisi.
 - Nessuna nuova libreria se il codice nativo o una dipendenza già presente risolvono il problema con chiarezza. Documentare la scelta quando una dipendenza è utile.
@@ -421,3 +422,13 @@ Playwright, Chromium e le librerie necessarie alla verifica sono stati preparati
 - **Esecuzione finale:** a carico dell’assistente nello step 28, come registrato anche in `AGENTS.md`; correggere gli errori e ripetere i controlli prima della consegna finale.
 - **Commit suggerito:** `chore: add final implementation validation runner`. Nessun commit o push effettuato.
 - **Riscontro dell’utente / correzioni:** l’utente richiede di mantenere lo script per eseguire i comandi e rimuovere i test dello script stesso; rimossi il file di test, il comando npm dedicato e i relativi riferimenti.
+
+### Consegna trasversale — Standard del codice
+
+- **Richiesta:** definire uno standard moderno di formattazione e qualità, applicarlo al codice esistente e documentare tutte le regole.
+- **Stato:** Da verificare dall’utente; nessun avanzamento dello step 02.
+- **Risultato:** estesa la configurazione ESLint esistente con ESLint Stylistic, regole JavaScript e controlli TypeScript basati sui tipi; aggiunti `npm run lint:fix`, `.editorconfig` e il catalogo completo in [docs/code-style.md](docs/code-style.md). Standard richiamato anche in `AGENTS.md`.
+- **File:** `eslint.config.mjs`, `.editorconfig`, `package.json`, `package-lock.json`, `scripts/validate-final.mjs`, `src/app/layout.tsx`, `src/app/page.tsx`, `docs/code-style.md`, `AGENTS.md`, `README_IMPLEMENTAZIONE.md`.
+- **Verifiche:** `npm run lint` e `npm run typecheck` superati. Verifica diretta tramite API ESLint di rilevamento delle violazioni di stile, rilevamento di `any` e Promise non gestite, e stabilità dell’autocorrezione alla seconda applicazione. Nessun file di test aggiunto. `git diff --check` superato.
+- **Come provarlo:** `npm run lint:fix` applica le correzioni automatiche; `npm run lint` e `npm run typecheck` devono terminare senza errori. La build non è stata eseguita, come richiesto.
+- **Commit suggerito:** `chore: enforce code style and typed lint rules`. Nessun commit o push effettuato.

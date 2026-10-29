@@ -8,6 +8,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Standard del codice
+
+Rispettare le regole di `eslint.config.mjs` e le impostazioni di `.editorconfig`, documentate in `docs/code-style.md`. Usare `npm run lint:fix` per applicare le correzioni automatiche e correggere manualmente gli errori rimanenti. Non disabilitare o indebolire le regole per far passare il lint; eventuali eccezioni devono avere una motivazione concreta e circoscritta.
+
+Le graffe di apertura devono stare sulla stessa riga di `if`, funzioni, `try` e degli altri costrutti, precedute da uno spazio (stile 1TBS). Il contenuto del blocco va a capo; `else` e `catch` seguono la chiusura sulla stessa riga.
+
 ## Verifiche obbligatorie a fine step
 
 Alla fine di ogni step, **l’assistente deve eseguire `npm run lint` e `npm run typecheck`** sul codice aggiornato, leggere gli esiti e correggere eventuali errori prima di dichiarare lo step completato o pronto per la verifica dell’utente. Entrambi i comandi devono terminare con successo; non delegare questi controlli all’utente e non dichiararli superati senza averli eseguiti. Dopo le correzioni, ripetere i controlli necessari e riportare nella consegna l’esito effettivo di lint e typecheck. Se un impedimento ne preclude l’esecuzione o il completamento, dichiararlo esplicitamente senza presentare lo step come verificato.
