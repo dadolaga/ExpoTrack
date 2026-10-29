@@ -14,6 +14,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "validate:config": "node scripts/run-config-tools.mjs validate",
     "test:unit": "node scripts/run-config-tools.mjs test",
+    "test:integration": "node scripts/run-config-tools.mjs integration",
     "validate:final": "node scripts/validate-final.mjs"
   },
   "dependencies": {
@@ -30,6 +31,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
+    "fake-indexeddb": "6.2.6",
     "tailwindcss": "4.3.3",
     "typescript": "^5",
     "typescript-eslint": "8.72.1"

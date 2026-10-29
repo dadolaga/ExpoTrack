@@ -2,7 +2,7 @@
 
 Questo README definisce **come lavoriamo**, un passo alla volta, sulla parte web mobile da fiera. Ogni step parte da una domanda concreta, produce un’implementazione circoscritta e termina con un risultato verificabile. Non autorizza a implementare l’intera applicazione in un’unica sessione.
 
-**Stato corrente:** step 00, 01, 02, 03 e 04 accettati dall’utente. Gli step dal 05 in avanti non sono iniziati. Le cartelle indicate qui sono destinazioni da creare quando servono, non funzionalità già presenti. Gli esiti sono riportati nel registro della singola consegna.
+**Stato corrente:** step 00, 01, 02, 03, 04 e 05 accettati dall’utente. Gli step dal 06 in avanti non sono iniziati. Le cartelle indicate qui sono destinazioni da creare quando servono, non funzionalità già presenti. Gli esiti sono riportati nel registro della singola consegna.
 
 ## Riferimenti e priorità
 
@@ -73,7 +73,7 @@ Regole da rispettare in ogni implementazione:
 
 Alla fine di ogni step eseguire `npm run lint` e `npm run typecheck`, correggere eventuali errori e riportare gli esiti prima della consegna. Su richiesta dell’utente, non eseguire la build come controllo di fine step. Restano i test funzionali pertinenti e la procedura di validazione finale descritta sotto.
 
-Il comando `test:unit`, introdotto nello step 04, verifica contratti e loader su fixture fittizie isolate. Aggiungere i comandi di integrazione ed E2E negli step pertinenti e documentarne l’impiego reale. I test dell’app devono coprire rischi concreti: isolamento profili/eventi, transazioni, recupero dati, validazione, conteggi e sincronizzazione. Non aggiungere test che si limitano a ripetere il markup o l’implementazione di un pulsante.
+Il comando `test:unit`, introdotto nello step 04, verifica contratti e loader su fixture fittizie isolate; `test:integration`, dallo step 05, verifica repository e transazioni locali con IndexedDB emulato. Ampliare l’integrazione ad API/PostgreSQL e aggiungere E2E negli step pertinenti, documentandone l’impiego reale. I test dell’app devono coprire rischi concreti: isolamento profili/eventi, transazioni, recupero dati, validazione, conteggi e sincronizzazione. Non aggiungere test che si limitano a ripetere il markup o l’implementazione di un pulsante.
 
 **Test mirati e stabili, su richiesta dell’utente:** non creare uno unit test per ogni funzione, componente o singolo dettaglio e non inseguire il 100% di copertura. Scegliere pochi casi significativi per regole di dominio, errori e integrità dei dati; usare test di integrazione quando verificano meglio un comportamento completo, evitando di ripetere gli stessi controlli a ogni livello.
 
@@ -110,7 +110,7 @@ L’ordine è intenzionale: prima fondamenta e funzioni locali verificabili, poi
 | 02 | Componenti UI di base | Accettato |
 | 03 | Shell mobile, navigazione e tema | Accettato |
 | 04 | Contratti dati e dataset dimostrativo | Accettato |
-| 05 | Persistenza locale e outbox | Da iniziare |
+| 05 | Persistenza locale e outbox | Accettato |
 | 06 | Selezione e cambio profilo | Da iniziare |
 | 07 | Lista stand e interessi | Da iniziare |
 | 08 | Dettaglio stand e checklist | Da iniziare |
@@ -543,3 +543,45 @@ I test esercitano lo stesso loader della CLI con copie temporanee della fixture 
 **Punto di commit:** soltanto i file dello step elencati sopra; titolo suggerito `feat: add validated demo catalog and shared data contracts`. Nessun commit o push effettuato.
 
 **Riscontro dell’utente / correzioni:** l’utente conferma «Va bene»; step 04 accettato e chiuso. Lo step 05 non è stato avviato.
+
+### Consegna step 05 — Persistenza locale e outbox
+
+- **Data:** 29 ottobre 2026.
+- **Stato:** Accettato.
+- **Domanda:** Come salviamo sul dispositivo senza perdere o mescolare dati?
+- **Risultato implementato:** archivio IndexedDB nativo `expotrack-local`, versione 1, dietro un repository con letture esplicitamente isolate per profilo/evento. Snapshot editoriale e puntatore attivo si aggiornano atomicamente. Lo store prodotti conserva input corrente, errori e ultima versione valida nello stesso record, senza store `drafts`. Un inserimento incompleto sopravvive alla riapertura senza essere registrato o accodato; il primo minimo valido produce record e mutazione nella stessa transazione e blocca categoria/stand. Un nome temporaneamente invalido resta recuperabile senza alterare l’ultimo valore valido; altre modifiche valide possono avanzare. La Promise si risolve soltanto dopo commit reale; quota e abort provocano rollback, senza falso successo. Outbox persistente con ID UUID, contesto, sequenza e dipendenze per entità, stato `pending` e revisione server iniziale `null`. Nessun motore di rete.
+- **Stato Git iniziale:** working tree pulito; step 04 accettato e chiuso.
+- **File dello step:** `src/types/offline.ts`; `src/lib/offline/database.ts`, `identity.ts`, `product-input.ts`, `repository.ts`, `README.md`; `tests/integration/local-persistence.test.ts`; `scripts/run-config-tools.mjs`, `tsconfig.config-tools.json`, `package.json`, `package-lock.json`; `validation/final-evidence.json`, `docs/development.md`, `docs/final-validation.md`, `README_IMPLEMENTAZIONE.md`.
+- **Componenti riusati / introdotti:** riusati i contratti e la validazione dei riferimenti del catalogo. Nessun nuovo componente React necessario: il repository verrà collegato alle schermate nei rispettivi step. Per la prova della persistenza si usa il contratto minimo prodotto (nome, categoria, stand, descrizione); gli altri ambiti di dominio verranno aggiunti quando necessari. Nessuna regola di lint modificata. Unica nuova dipendenza: `fake-indexeddb` 6.2.6, fissata e limitata allo sviluppo; il codice dell’app usa IndexedDB nativo.
+
+**Decisioni operative:** chiavi personali composte come array `[profileId, eventId, id]`; patch applicate al record riletto nella transazione per conservare modifiche concorrenti di altri campi. Nessun record viene creato leggendo o aprendo una schermata; la scrittura richiede una modifica intenzionale. Mutazioni valide append-only, con dipendenza dall’operazione precedente della stessa entità; i timestamp non decidono l’ordine. Snapshot precedenti, record personali e code non vengono cancellati durante un aggiornamento editoriale. Un riferimento rimosso blocca nuove mutazioni invalide ma conserva input e ultima versione valida. UUID v4 generati con `crypto.getRandomValues`, utilizzabile anche nelle prove HTTP locali. API, contratti e confine di commit documentati in [src/lib/offline/README.md](src/lib/offline/README.md).
+
+**Verifiche eseguite:**
+
+| Comando / controllo | Esito |
+|---|---|
+| `npm run lint:fix` | Superato, codice 0; nessuna regola disabilitata o indebolita. |
+| `npm run lint` | Superato, codice 0, nessun warning. |
+| `npm run typecheck` | Superato, codice 0; tipi route e TypeScript senza errori. |
+| `npm run test:integration` | Superato, codice 0; otto scenari sul repository con IndexedDB emulato: recupero input, aggiornamenti validi/invalidi e immutabilità, isolamento fra due profili e due eventi, quota simulata e retry, abort dopo successo delle richieste, concorrenza e dipendenze, snapshot atomico, riferimenti rimossi e ripristinati. Eseguito anche il file compilato direttamente per leggere gli esiti dei singoli scenari: 8 passati, 0 falliti, 0 saltati. |
+| `npm run test:unit` | Superato, codice 0; suite del catalogo ancora funzionante con gli strumenti aggiornati. |
+| `npm run validate:config` | Superato con gli strumenti aggiornati, codice 0; dataset dimostrativo ancora valido. |
+| Chromium / IndexedDB reale, prova temporanea | Superata, codice 0: input parziali dopo refresh, prima registrazione valida, input invalido conservato con altri campi validi accodati, scritture con rete disattivata, separazione di due profili, secondo refresh con record e ID delle operazioni invariati, abort tardivo con rollback di record/outbox. Origine HTTP fittizia; nessun errore JavaScript rilevato. |
+| `git diff --check` | Superato anche sul registro finale. |
+
+La suite usa esclusivamente `tests/fixtures/catalog`, factory separate e database `expotrack-test-*` chiusi/eliminati al termine; non legge dati personali o cataloghi di sviluppo. Gli errori di quota/abort sono iniettati al confine dell’API di storage, senza riempire disco o memoria. `test:integration` riusa TypeScript e `node:test`, compilando in directory temporanee; non richiede PostgreSQL o un browser. La prova browser è stata eseguita sui medesimi moduli compilati in ES module in `/tmp/expotrack-step05-browser`, caricati tramite richieste intercettate su `http://expotrack-offline.test/`, in un contesto Chromium pulito con database dedicato. Nessun server dell’app avviato o arrestato e nessun dato reale modificato. Script e output temporanei restano esclusi dal commit.
+
+Le aree `local-persistence` e `profile-event-isolation` sono collegate al test reale in `validation/final-evidence.json`. Il collegamento non certifica le parti ancora da implementare: altri record personali, API/PostgreSQL, allegati, sincronizzazione, browser dell’app completa e prove fisiche restano da coprire. Nessuna validazione finale completa dichiarata.
+
+**Come provarlo:**
+
+1. Dalla root eseguire `npm run test:integration`: deve terminare con codice 0; copre anche fallimenti, rollback e riapertura. Non serve un database server o un dev server.
+2. Eseguire `npm run test:unit` e `npm run validate:config`: catalogo e strumenti dello step 04 devono restare validi.
+3. Per integrare una futura schermata client, aprire `openLocalRepository()`, caricare un `CatalogSnapshot` validato con `saveCatalog` e salvare soltanto i campi modificati con `await saveProduct(context, id, patch)`. Annunciare il salvataggio o navigare dopo la risoluzione; su errore conservare l’input in memoria e ritentare. API completa in [src/lib/offline/README.md](src/lib/offline/README.md).
+4. Recuperare gli input con `getProduct`, le sole versioni registrate con `listRegisteredProducts` e le operazioni pendenti del contesto con `listOutbox`. `close()` seguito da una nuova apertura conserva i dati.
+
+**Controlli non eseguiti / limiti:** nessuna build Next.js eseguita, come richiesto. La prova Chromium riguarda il repository con IndexedDB reale, non la PWA installata o una build di produzione. Non è garantito il refresh dell’intera app senza rete prima dello step 27; la prova di scrittura offline avviene dopo aver caricato il codice. Quote fisiche, espulsione dei dati, Galaxy S25 e altri browser restano da verificare. Nessuna UI di editing, selezione profilo, API, schema PostgreSQL, gestione media, CRUD completo o sync anticipati. Le integrazioni server e gli E2E saranno ampliati negli step pertinenti; validazione finale completa prevista nello step 28.
+
+**Punto di commit:** soltanto i file dello step elencati sopra; titolo suggerito `feat: add atomic IndexedDB persistence and local outbox`. Nessun commit o push effettuato.
+
+**Riscontro dell’utente / correzioni:** l’utente conferma «Verificato»; step 05 accettato e chiuso. Lo step 06 non è stato avviato.

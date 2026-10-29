@@ -9,14 +9,19 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 const require = createRequire(import.meta.url);
 const [mode, ...args] = process.argv.slice(2);
 
-if (mode !== "validate" && mode !== "test") {
-  throw new Error("Specificare validate oppure test.");
+if (mode !== "validate" && mode !== "test" && mode !== "integration") {
+  throw new Error("Specificare validate, test oppure integration.");
 }
 
 function run(arguments_) {
   const result = spawnSync(process.execPath, arguments_, {
     cwd: root,
     stdio: "inherit",
+    env: {
+      ...process.env,
+      NODE_PATH: [path.join(root, "node_modules"), process.env.NODE_PATH]
+        .filter(Boolean).join(path.delimiter),
+    },
   });
 
   if (result.error !== undefined) {
@@ -42,16 +47,17 @@ try {
   } else if (mode === "validate") {
     process.exitCode = run([path.join(output, "scripts/validate-config.js"), ...args]);
   } else {
-    const files = (await readdir(path.join(root, "tests/unit")))
+    const directory = mode === "integration" ? "tests/integration" : "tests/unit";
+    const files = (await readdir(path.join(root, directory)))
       .filter((file) => file.endsWith(".test.ts"))
       .sort();
 
     if (files.length === 0) {
-      throw new Error("Nessun test unitario trovato.");
+      throw new Error(`Nessun test trovato in ${directory}.`);
     }
     process.exitCode = run([
       "--test",
-      ...files.map((file) => path.join(output, "tests/unit", file.replace(/\.ts$/, ".js"))),
+      ...files.map((file) => path.join(output, directory, file.replace(/\.ts$/, ".js"))),
       ...args,
     ]);
   }

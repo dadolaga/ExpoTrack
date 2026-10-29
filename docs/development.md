@@ -12,6 +12,10 @@ Il dataset dimostrativo e il loader di configurazione sono disponibili dallo ste
 separati dalla UI. Tutti i dati sono fittizi; le pagine iniziali restano vuote.
 Contratti effettivi e struttura dei file: [config/README.md](../config/README.md).
 
+Dallo step 05 è disponibile il [repository IndexedDB](../src/lib/offline/README.md),
+con input recuperabili, ultima versione valida e outbox atomica. È verificabile
+tramite test: il collegamento alle schermate avverrà nei rispettivi step funzionali.
+
 ## Avvio con devcontainer
 
 Prerequisiti: Docker Desktop avviato (container Linux, Docker Compose v2), Visual Studio Code e
@@ -129,6 +133,7 @@ npm run lint
 npm run typecheck
 npm run validate:config
 npm run test:unit
+npm run test:integration
 ```
 
 `typecheck` genera prima i tipi delle route Next.js. Per provare la build di
@@ -141,8 +146,12 @@ si passa con `npm run validate:config -- /percorso/directory-config`.
 `test:unit` esegue i test dei contratti e del loader con `node:test`, usando copie
 temporanee isolate del dataset. Gli strumenti compilano TypeScript in `/tmp`
 (o nella directory temporanea del sistema) e ripuliscono l’output a fine esecuzione.
-Non richiedono database, browser o nuove dipendenze. Le suite di integrazione/E2E
-saranno aggiunte quando verranno implementati i rispettivi comportamenti.
+Non richiedono un database server o un browser. `test:integration` usa la dipendenza
+di sviluppo `fake-indexeddb` per i test della persistenza locale, con factory e nomi
+database isolati; include rollback e riapertura delle connessioni. `NODE_PATH` dei
+processi di test punta alle dipendenze del progetto per eseguire il codice compilato
+nella directory temporanea. Le prove su browser reale, API/PostgreSQL ed E2E della
+PWA saranno ampliate quando verranno implementati i rispettivi comportamenti.
 
 La [validazione finale](final-validation.md) si esegue con `npm run validate:final`:
 l’assistente la eseguirà al termine dello step 28. Raccoglie i controlli statici,
