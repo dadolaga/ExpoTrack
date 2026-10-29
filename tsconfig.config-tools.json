@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "noEmit": false,
+    "noEmitOnError": true,
+    "incremental": false,
+    "rootDir": "."
+  },
+  "include": [
+    "src/types/catalog.ts",
+    "src/lib/config/**/*.ts",
+    "scripts/validate-config.ts",
+    "tests/unit/**/*.test.ts"
+  ],
+  "exclude": ["node_modules", ".next"]
+}

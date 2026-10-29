@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "pavilions": [
+    {
+      "eventId": "fiera-demo-2026",
+      "id": "demo-hall",
+      "name": "Padiglione dimostrativo",
+      "code": "DEMO"
+    }
+  ]
+}

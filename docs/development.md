@@ -6,7 +6,11 @@ L'alias `@/*` punta a `src/*`. La shell mobile offre Home (`/`), Stand (`/stands
 Prodotti (`/products`) e Profilo (`/profile`), con contenuti iniziali vuoti.
 In Profilo si sceglie il tema Automatico/Chiaro/Scuro, ricordato nel browser.
 La dimostrazione dei componenti di base è in `/examples/components`.
-Catalogo, dati personali e sincronizzazione verranno implementati nelle fasi successive.
+Visualizzazione del catalogo, dati personali e sincronizzazione verranno implementati nelle fasi successive.
+
+Il dataset dimostrativo e il loader di configurazione sono disponibili dallo step 04,
+separati dalla UI. Tutti i dati sono fittizi; le pagine iniziali restano vuote.
+Contratti effettivi e struttura dei file: [config/README.md](../config/README.md).
 
 ## Avvio con devcontainer
 
@@ -123,12 +127,22 @@ iniziale attuale funziona anche senza database.
 ```bash
 npm run lint
 npm run typecheck
-npm run build
+npm run validate:config
+npm run test:unit
 ```
 
 `typecheck` genera prima i tipi delle route Next.js. Per provare la build di
-produzione in locale, eseguire `npm run start` dopo `npm run build`, arrestando
+produzione in locale, eseguire separatamente `npm run build` e `npm run start`, arrestando
 prima l'eventuale server di sviluppo sulla stessa porta.
+
+I controlli obbligatori di fine step sono lint e typecheck; la build non ne fa parte.
+`validate:config` legge i JSON da `config/` senza scrivere dati. Un percorso alternativo
+si passa con `npm run validate:config -- /percorso/directory-config`.
+`test:unit` esegue i test dei contratti e del loader con `node:test`, usando copie
+temporanee isolate del dataset. Gli strumenti compilano TypeScript in `/tmp`
+(o nella directory temporanea del sistema) e ripuliscono l’output a fine esecuzione.
+Non richiedono database, browser o nuove dipendenze. Le suite di integrazione/E2E
+saranno aggiunte quando verranno implementati i rispettivi comportamenti.
 
 La [validazione finale](final-validation.md) si esegue con `npm run validate:final`:
 l’assistente la eseguirà al termine dello step 28. Raccoglie i controlli statici,

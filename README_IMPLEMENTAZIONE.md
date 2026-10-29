@@ -2,7 +2,7 @@
 
 Questo README definisce **come lavoriamo**, un passo alla volta, sulla parte web mobile da fiera. Ogni step parte da una domanda concreta, produce un’implementazione circoscritta e termina con un risultato verificabile. Non autorizza a implementare l’intera applicazione in un’unica sessione.
 
-**Stato corrente:** step 00, 01, 02 e 03 accettati dall’utente. Gli step dal 04 in avanti non sono iniziati. Le cartelle indicate qui sono destinazioni da creare quando servono, non funzionalità già presenti. Gli esiti sono riportati nel registro della singola consegna.
+**Stato corrente:** step 00, 01, 02, 03 e 04 accettati dall’utente. Gli step dal 05 in avanti non sono iniziati. Le cartelle indicate qui sono destinazioni da creare quando servono, non funzionalità già presenti. Gli esiti sono riportati nel registro della singola consegna.
 
 ## Riferimenti e priorità
 
@@ -73,7 +73,7 @@ Regole da rispettare in ogni implementazione:
 
 Alla fine di ogni step eseguire `npm run lint` e `npm run typecheck`, correggere eventuali errori e riportare gli esiti prima della consegna. Su richiesta dell’utente, non eseguire la build come controllo di fine step. Restano i test funzionali pertinenti e la procedura di validazione finale descritta sotto.
 
-I comandi di test automatici dell’app non sono ancora configurati: introdurre l’attrezzatura minima nel primo step che ne ha bisogno e documentare il comando reale. I test dell’app devono coprire rischi concreti: isolamento profili/eventi, transazioni, recupero dati, validazione, conteggi e sincronizzazione. Non aggiungere test che si limitano a ripetere il markup o l’implementazione di un pulsante.
+Il comando `test:unit`, introdotto nello step 04, verifica contratti e loader su fixture fittizie isolate. Aggiungere i comandi di integrazione ed E2E negli step pertinenti e documentarne l’impiego reale. I test dell’app devono coprire rischi concreti: isolamento profili/eventi, transazioni, recupero dati, validazione, conteggi e sincronizzazione. Non aggiungere test che si limitano a ripetere il markup o l’implementazione di un pulsante.
 
 **Test mirati e stabili, su richiesta dell’utente:** non creare uno unit test per ogni funzione, componente o singolo dettaglio e non inseguire il 100% di copertura. Scegliere pochi casi significativi per regole di dominio, errori e integrità dei dati; usare test di integrazione quando verificano meglio un comportamento completo, evitando di ripetere gli stessi controlli a ogni livello.
 
@@ -109,7 +109,7 @@ L’ordine è intenzionale: prima fondamenta e funzioni locali verificabili, poi
 | 01 | Token grafici e tipografia | Accettato |
 | 02 | Componenti UI di base | Accettato |
 | 03 | Shell mobile, navigazione e tema | Accettato |
-| 04 | Contratti dati e dataset dimostrativo | Da iniziare |
+| 04 | Contratti dati e dataset dimostrativo | Accettato |
 | 05 | Persistenza locale e outbox | Da iniziare |
 | 06 | Selezione e cambio profilo | Da iniziare |
 | 07 | Lista stand e interessi | Da iniziare |
@@ -504,3 +504,42 @@ La verifica browser è stata eseguita su una copia temporanea dei sorgenti in `.
 **Punto di commit:** soltanto i file dello step elencati sopra; titolo suggerito `feat: add mobile app shell, navigation and persistent theme`. Nessun commit o push effettuato.
 
 **Riscontro dell’utente / correzioni:** l’utente conferma «Va bene, accetto le modifiche»; step 03 accettato e chiuso. Lo step 04 non è stato avviato.
+
+### Consegna step 04 — Contratti dati e dataset dimostrativo
+
+- **Data:** 29 ottobre 2026.
+- **Stato:** Accettato.
+- **Domanda:** Con quali dati verificabili costruiamo le funzioni?
+- **Risultato implementato:** contratti condivisi per configurazione, eventi, profili configurati, categorie, padiglioni, stand, interessi, checklist, pianificati e definizioni questionario. Dataset esplicitamente fittizio con una fiera, due profili, tre categorie gerarchiche, un padiglione, due stand (uno senza ubicazione), tre interessi personali, un pianificato e due questionari diversi sulla stessa categoria. Il primo contiene i sei tipi di domanda. Loader Node.js di sola lettura con validazione strutturale, semantica e dei riferimenti; rifiuto completo delle configurazioni incoerenti con messaggio file/campo. Nessuna generazione di dati mancanti o ID da etichette.
+- **Stato Git iniziale:** working tree pulito; step 03 accettato e chiuso.
+- **File dello step:** `src/types/catalog.ts`; `src/lib/config/load-catalog.ts`, `parse-catalog.ts`, `parse-questionnaires.ts`, `validate-references.ts`, `validation.ts`; `config/README.md` e i nove JSON di `config/`; `scripts/run-config-tools.mjs`, `scripts/validate-config.ts`, `tsconfig.config-tools.json`; `tests/unit/catalog.test.ts`, `tests/fixtures/README.md` e i nove JSON di `tests/fixtures/catalog/`; `package.json`, `validation/final-evidence.json`, `docs/development.md`, `docs/final-validation.md`, `README_IMPLEMENTAZIONE.md`.
+- **Componenti riusati / introdotti:** nessun nuovo componente React necessario. Dati editoriali e loader sono separati dalla UI; le quattro pagine mantengono gli stati vuoti dello step 03. Nessuna nuova dipendenza o modifica alle regole di lint.
+
+**Scelte di contratto documentate:** ogni file usa `schemaVersion: 1`, con proprietà sconosciute rifiutate. Stand/padiglioni identificati nell’evento; interessi e pianificati includono profilo e riferimento stand completo. La presenza del seed indica interesse anche senza priorità. `whatToSee` richiede oggetti `id`/`text`, secondo il requisito corrente di identità stabile; completamenti e stato visita saranno dati personali persistiti. `plannedProducts` è una lista facoltativa nello stand degli interessi, esposta separatamente nello snapshot e mai trasformata automaticamente in una registrazione. Questionari specifici per profilo/categoria esatta, versionati, facoltativi e senza fallback; alias storico `rating` normalizzato in `rating_1_10`. Budget per profilo/categoria senza evento, EUR e massimo due decimali. Contratto effettivo ed esempi in [config/README.md](config/README.md).
+
+**Verifiche eseguite:**
+
+| Comando / controllo | Esito |
+|---|---|
+| `npm run lint:fix` | Superato, codice 0. Nessuna regola indebolita o disabilitata. |
+| `npm run lint` | Superato sul codice finale, codice 0, nessun warning. |
+| `npm run typecheck` | Superato sul codice finale, codice 0; tipi route e TypeScript senza errori. |
+| `npm run validate:config` | Superato, codice 0: 1 evento, 2 profili, 3 categorie, 1 padiglione, 2 stand, 3 interessi, 1 pianificato e 2 questionari. |
+| `npm run test:unit` | Superato sul codice finale e sulla fixture separata, codice 0, nessun test fallito o saltato. Copre caricamento valido, riferimenti/cicli/duplicati, scope dei seed e dei riferimenti fra eventi, tipi delle domande, vincoli numerici, stabilità degli ID, assenza dei seed opzionali, alias rating, JSON malformato e percorsi esterni. |
+| CLI su copia temporanea invalida | Rifiuto atteso con codice 1: `events/fiera-demo-2026-stands.json (stand demo-bags).hall: riferimento inesistente: padiglione-inesistente`. Dataset distribuito non modificato. |
+| `git diff --check` | Superato anche sul registro finale. |
+
+I test esercitano lo stesso loader della CLI con copie temporanee della fixture fittizia separata in `tests/fixtures/catalog/`. Non leggono i cataloghi reali o i dati personali e non modificano `config/`, database o media. TypeScript e `node:test` sono già disponibili: i comandi compilano soltanto gli strumenti in una directory temporanea e la eliminano al termine. Nessuna build Next.js eseguita. I test sono collegati a `catalog-and-domain` nel manifest finale: la copertura è parziale, perché importazione persistente, override, filtri, contatori e validazione delle risposte arriveranno nei rispettivi step. Nessuna altra area o prova fisica dichiarata completata.
+
+**Come provarlo:**
+
+1. Dalla root eseguire `npm run validate:config`: deve stampare «Configurazione valida» e il riepilogo riportato sopra. Non serve un dev server o un database.
+2. Eseguire `npm run test:unit`: tutti gli scenari devono terminare senza errori, usando esclusivamente directory temporanee.
+3. Per una prova manuale negativa, copiare `config/` in una directory temporanea, cambiare `hall` di `demo-bags` in un ID inesistente ed eseguire `npm run validate:config -- /percorso/della/copia`: deve fallire indicando il file e il campo `hall`.
+4. Per i passi successivi importare `loadCatalog` solo nel codice Node/server e usare `CatalogSnapshot` come contratto serializzabile. Lo snapshot espone `config`, `profiles`, `categories`, `pavilions`, `stands`, `interests`, `plannedProducts` e `questionnaires`.
+
+**Controlli non eseguiti / limiti:** nessuna build o verifica browser necessaria a questo step dati. La validazione non importa né persiste i seed, non applica override personali, non valida risposte compilate e non sceglie profilo/evento attivi. Non sono stati anticipati IndexedDB, API, database, statistiche, CRUD, sincronizzazione o dataset EICMA reali. Nessuna suite di integrazione/E2E introdotta: quelle aree e le prove su dispositivo restano pendenti. Validazione finale completa prevista nello step 28.
+
+**Punto di commit:** soltanto i file dello step elencati sopra; titolo suggerito `feat: add validated demo catalog and shared data contracts`. Nessun commit o push effettuato.
+
+**Riscontro dell’utente / correzioni:** l’utente conferma «Va bene»; step 04 accettato e chiuso. Lo step 05 non è stato avviato.

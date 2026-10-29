@@ -6,7 +6,7 @@ Il comando unico è:
 npm run validate:final
 ```
 
-**Responsabile: l’assistente.** Lo eseguirà al termine dell’intera implementazione nello step 28, correggerà gli errori e riporterà gli esiti. Preparare lo script ora non completa né avvia gli step applicativi successivi. Al momento le suite dell’app non esistono: lo script deve segnalare `not-ready`, non dichiarare validata la pagina segnaposto.
+**Responsabile: l’assistente.** Lo eseguirà al termine dell’intera implementazione nello step 28, correggerà gli errori e riporterà gli esiti. Preparare lo script ora non completa né avvia gli step applicativi successivi. Dallo step 04 `test:unit` copre i contratti e il loader di configurazione; integrazione ed E2E non sono ancora disponibili. I prerequisiti incompleti devono produrre `not-ready`, senza dichiarare validata l’app.
 
 La fonte dei requisiti è [la specifica mobile corrente, §§6–7](27_Specifiche_UI_Mobile.md#6-accessibilità-prestazioni-e-verifiche). Le indicazioni precedenti su bozze, conferma Salva, pagina 08, foto stand o conflitti manuali non sono criteri di accettazione attivi.
 
@@ -38,6 +38,15 @@ La fonte dei requisiti è [la specifica mobile corrente, §§6–7](27_Specifich
 | `accessibility-and-mobile-scope` | `test:e2e` | Due temi e preferenza persistita, viewport stretto, testo ingrandito, contrasto, label/focus/tastiera/target touch; contenuti non coperti dalla barra; stati vuoti/errori; assenza dei flussi e controlli mobili esplicitamente esclusi dalla specifica. |
 
 Questa mappa va completata con test effettivi man mano che si sviluppa l’app. Non aggiungere fin d’ora test fittizi che passano senza esercitare le funzioni.
+
+**Copertura introdotta nello step 04:** `tests/unit/catalog.test.ts`, eseguito da
+`npm run test:unit`, è collegato a `catalog-and-domain`. Copre caricamento valido,
+schema/riferimenti invalidi, categorie cicliche, identità stabili, separazione dei seed
+e dei riferimenti fra profili/eventi, definizioni dei sei tipi di domanda e alias rating,
+letture fallite e file opzionali assenti. Questo collegamento è **parziale**: non prova
+ancora importazione nel database, override persistenti, filtri, contatori o validazione
+delle risposte. Questi casi devono essere aggiunti negli step pertinenti prima dello
+step 28. Tutte le altre aree e le prove fisiche restano pendenti.
 
 ## Prove su dispositivo
 

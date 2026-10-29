@@ -12,6 +12,8 @@
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix --max-warnings=0",
     "typecheck": "next typegen && tsc --noEmit",
+    "validate:config": "node scripts/run-config-tools.mjs validate",
+    "test:unit": "node scripts/run-config-tools.mjs test",
     "validate:final": "node scripts/validate-final.mjs"
   },
   "dependencies": {

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "profileId": "father",
+  "questionnaires": [
+    {
+      "id": "father-bags",
+      "categoryId": "bags",
+      "version": 1,
+      "title": "Prova personale borsa · demo",
+      "questions": [
+        {
+          "id": "easy_opening",
+          "label": "L’apertura è comoda?",
+          "type": "boolean"
+        },
+        {
+          "id": "material_notes",
+          "label": "Impressioni sul materiale",
+          "type": "text"
+        }
+      ]
+    }
+  ]
+}

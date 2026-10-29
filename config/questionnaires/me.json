@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "profileId": "me",
+  "questionnaires": [
+    {
+      "id": "me-bags",
+      "categoryId": "bags",
+      "version": 1,
+      "title": "Prova borsa · demo",
+      "questions": [
+        {
+          "id": "impression",
+          "label": "Prime impressioni",
+          "type": "text",
+          "placeholder": "Annotazioni facoltative"
+        },
+        {
+          "id": "capacity_litres",
+          "label": "Capienza dichiarata in litri",
+          "type": "number",
+          "min": 0,
+          "step": 0.5
+        },
+        {
+          "id": "waterproof",
+          "label": "È impermeabile?",
+          "type": "boolean"
+        },
+        {
+          "id": "carrying",
+          "label": "Modalità di trasporto preferita",
+          "type": "single_choice",
+          "options": [
+            { "id": "shoulder", "label": "A spalla" },
+            { "id": "hand", "label": "A mano" }
+          ]
+        },
+        {
+          "id": "features",
+          "label": "Caratteristiche utili",
+          "type": "multiple_choice",
+          "options": [
+            { "id": "pockets", "label": "Tasche" },
+            { "id": "padding", "label": "Imbottitura" }
+          ]
+        },
+        {
+          "id": "comfort",
+          "label": "Comfort durante la prova",
+          "type": "rating_1_10"
+        }
+      ]
+    }
+  ]
+}

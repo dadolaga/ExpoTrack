@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "profileId": "me",
+  "events": [
+    {
+      "eventId": "fiera-demo-2026",
+      "stands": [
+        {
+          "standId": "demo-bags",
+          "priority": 9,
+          "whatToSee": [
+            {
+              "id": "check-capacity",
+              "text": "Verificare la capienza del modello dimostrativo"
+            }
+          ],
+          "plannedProducts": [
+            {
+              "id": "demo-day-bag",
+              "name": "Borsa giornaliera · demo",
+              "categoryId": "bags",
+              "description": "Prodotto fittizio da vedere: non è un prodotto registrato."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

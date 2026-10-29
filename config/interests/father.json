@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "profileId": "father",
+  "events": [
+    {
+      "eventId": "fiera-demo-2026",
+      "stands": [
+        {
+          "standId": "demo-bags",
+          "priority": 4,
+          "whatToSee": [
+            {
+              "id": "check-material",
+              "text": "Valutare il materiale del modello dimostrativo"
+            }
+          ]
+        },
+        {
+          "standId": "demo-lights",
+          "priority": 8,
+          "whatToSee": []
+        }
+      ]
+    }
+  ]
+}

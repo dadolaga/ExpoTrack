@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "stands": [
+    {
+      "id": "demo-bags",
+      "name": "Borse Demo",
+      "description": "Espositore e ubicazione inventati esclusivamente per la prova.",
+      "hall": "demo-hall",
+      "booth": "DEMO-01",
+      "categories": ["bags", "equipment"]
+    },
+    {
+      "id": "demo-lights",
+      "name": "Luci Demo",
+      "description": "Espositore fittizio senza ubicazione disponibile.",
+      "categories": ["lights"]
+    }
+  ]
+}

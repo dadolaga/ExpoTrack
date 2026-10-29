@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "app": {
+    "name": "ExpoTrack",
+    "defaultLocale": "it-IT",
+    "defaultEventId": "fiera-demo-2026"
+  },
+  "configFiles": {
+    "profiles": "profiles.json",
+    "pavilions": "pavilions.json",
+    "categories": "categories.json"
+  },
+  "events": [
+    {
+      "id": "fiera-demo-2026",
+      "name": "Fiera dimostrativa — dati fittizi",
+      "standsFile": "events/fiera-demo-2026-stands.json",
+      "enabled": true
+    }
+  ]
+}

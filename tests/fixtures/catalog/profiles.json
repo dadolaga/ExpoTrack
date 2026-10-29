@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "profiles": [
+    {
+      "id": "me",
+      "name": "Io · demo",
+      "color": "#0866E8",
+      "icon": "user-round",
+      "enabled": true,
+      "budgets": [
+        {
+          "categoryId": "bags",
+          "amount": 120,
+          "currency": "EUR"
+        }
+      ]
+    },
+    {
+      "id": "father",
+      "name": "Papà · demo",
+      "color": "#147D3C",
+      "icon": "user-round",
+      "enabled": true,
+      "budgets": []
+    }
+  ]
+}

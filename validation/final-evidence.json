@@ -1,6 +1,6 @@
 {
   "automated": {
-    "catalog-and-domain": [],
+    "catalog-and-domain": ["tests/unit/catalog.test.ts"],
     "profile-event-isolation": [],
     "local-persistence": [],
     "server-contracts": [],
