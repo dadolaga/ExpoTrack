@@ -1,21 +1,32 @@
+import { ComponentPreview } from "@/components/examples/ComponentPreview";
+import { Card } from "@/components/ui/Card";
+
 export default function HomePage() {
   return (
-    <main className="flex min-h-dvh items-center justify-center p-page">
-      <div className="w-full max-w-xl rounded-card border border-border bg-surface p-section">
-        <p className="mb-3 text-label font-medium text-primary">
+    <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col gap-6 p-page">
+      <Card>
+        <p className="text-label font-medium text-primary">
           Fiere, esposizioni ed eventi
         </p>
         <h1 className="border-l-4 border-brand-accent pl-3">
           Expo<wbr />Track
         </h1>
-        <p className="mt-4 text-body">
+        <p>
           Il punto di partenza per organizzare le tue visite e raccogliere le tue
           scoperte.
         </p>
-        <p className="mt-6 border-t border-border pt-4 text-caption text-text-muted">
+        <p className="text-caption text-text-muted">
           Applicazione in fase di sviluppo.
         </p>
-      </div>
+      </Card>
+      <header className="flex flex-col gap-2">
+        <h2>Componenti di base · Step 02</h2>
+        <p className="text-text-muted">
+          Pagina di verifica locale: le azioni provano soltanto l’interfaccia.
+          Nessun dato viene salvato. Il tema segue le impostazioni di sistema.
+        </p>
+      </header>
+      <ComponentPreview />
     </main>
   );
 }

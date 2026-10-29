@@ -2,7 +2,7 @@
 
 Questo README definisce **come lavoriamo**, un passo alla volta, sulla parte web mobile da fiera. Ogni step parte da una domanda concreta, produce un’implementazione circoscritta e termina con un risultato verificabile. Non autorizza a implementare l’intera applicazione in un’unica sessione.
 
-**Stato corrente:** step 00 e 01 accettati dall’utente. Gli step dal 02 in avanti non sono iniziati. Le cartelle indicate qui sono destinazioni da creare quando servono, non funzionalità già presenti. Gli esiti sono riportati nel registro della singola consegna.
+**Stato corrente:** step 00, 01 e 02 accettati dall’utente. Gli step dal 03 in avanti non sono iniziati. Le cartelle indicate qui sono destinazioni da creare quando servono, non funzionalità già presenti. Gli esiti sono riportati nel registro della singola consegna.
 
 ## Riferimenti e priorità
 
@@ -107,7 +107,7 @@ L’ordine è intenzionale: prima fondamenta e funzioni locali verificabili, poi
 |---|---|---|
 | 00 | Base di lavoro e controlli iniziali | Accettato |
 | 01 | Token grafici e tipografia | Accettato |
-| 02 | Componenti UI di base | Da iniziare |
+| 02 | Componenti UI di base | Accettato |
 | 03 | Shell mobile, navigazione e tema | Da iniziare |
 | 04 | Contratti dati e dataset dimostrativo | Da iniziare |
 | 05 | Persistenza locale e outbox | Da iniziare |
@@ -432,3 +432,38 @@ Playwright, Chromium e le librerie necessarie alla verifica sono stati preparati
 - **Verifiche:** `npm run lint` e `npm run typecheck` superati. Verifica diretta tramite API ESLint di rilevamento delle violazioni di stile, rilevamento di `any` e Promise non gestite, e stabilità dell’autocorrezione alla seconda applicazione. Nessun file di test aggiunto. `git diff --check` superato.
 - **Come provarlo:** `npm run lint:fix` applica le correzioni automatiche; `npm run lint` e `npm run typecheck` devono terminare senza errori. La build non è stata eseguita, come richiesto.
 - **Commit suggerito:** `chore: enforce code style and typed lint rules`. Nessun commit o push effettuato.
+
+### Consegna step 02 — Componenti UI di base
+
+- **Data:** 29 ottobre 2026.
+- **Stato:** Accettato.
+- **Domanda:** Quali elementi possiamo riusare in tutte le schermate?
+- **Risultato implementato:** pulsanti primario/secondario, card, campo testuale con label/hint/errore, stato vuoto con azione facoltativa e indicatore di stato testuale. Componenti indipendenti dai dati ExpoTrack, basati sui token dello step 01. Pagina iniziale composta con questi elementi e dimostrazione interattiva di errore, validazione, azzeramento e compilazione del campo. Stati disabilitati nativi con spiegazione; label associate, descrizioni accessibili, errore testuale e ritorno del focus al campo invalido. Nessun salvataggio o stato di sincronizzazione simulato.
+- **Stato Git iniziale:** working tree pulito; nessuna modifica preesistente da separare.
+- **File dello step:** `src/app/page.tsx`, `src/components/ui/Button.tsx`, `src/components/ui/Card.tsx`, `src/components/ui/StatusChip.tsx`, `src/components/forms/TextField.tsx`, `src/components/feedback/EmptyState.tsx`, `src/components/examples/ComponentPreview.tsx`, `src/components/README.md`, `README_IMPLEMENTAZIONE.md`.
+- **Componenti riusati / introdotti:** riusati i token e il focus globale esistenti; introdotti `Button`, `Card`, `TextField`, `EmptyState`, `StatusChip` e la dimostrazione `ComponentPreview`. Proprietà e impiego documentati in [src/components/README.md](src/components/README.md). Nessuna nuova dipendenza o modifica alle regole di lint.
+
+**Verifiche eseguite:**
+
+| Comando / controllo | Esito |
+|---|---|
+| `npm run lint:fix` | Superato; applicata la formattazione automatica senza disabilitare regole. |
+| `npm run lint` | Superato, codice 0, nessun warning. |
+| `npm run typecheck` | Superato, codice 0; generazione tipi route e TypeScript senza errori. |
+| `npm run dev` e richiesta HTTP a `http://localhost:3000/` | HTTP 200; pagina compilata e servita senza errori. Nell’HTML restituito verificati titolo, label e descrizioni associate agli input, stati disabilitati nativi e tipi dei pulsanti. Server arrestato dopo la prova. |
+| `git diff --check` | Superato. |
+
+L’avvio dev nell’ambiente limitato ha restituito `listen EPERM` sulla porta 3000; avvio e richiesta HTTP locale con permessi aggiuntivi sono riusciti. La verifica dell’HTML è una prova temporanea, senza aggiungere suite di test o snapshot da mantenere.
+
+**Come provarlo:**
+
+1. Eseguire `npm run dev` e aprire [http://localhost:3000](http://localhost:3000). La pagina contiene l’introduzione e la verifica dei componenti dello step 02.
+2. Premere **Verifica campo** senza testo o con soli spazi: appare un errore vicino al campo, il focus torna all’input e l’esito indica l’errore. Scrivere testo e verificare nuovamente: compare l’esito positivo della sola prova locale.
+3. Premere **Azzera la prova**: testo, errore ed esito vengono rimossi. L’azione **Compila il campo di prova** nello stato vuoto riempie il campo e vi porta il focus. Campo e pulsante disabilitati non accettano interazione.
+4. Provare Tab/Shift+Tab e Invio, clic sulla label, zoom testo e viewport stretta. Ripetere nei temi chiaro/scuro del sistema; in alternativa, dalla console impostare `document.documentElement.dataset.theme = "dark"` o `"light"` e ripristinare con `delete document.documentElement.dataset.theme`.
+
+**Controlli non eseguiti / limiti:** nessun browser disponibile nell’ambiente: interazioni dopo l’idratazione, resa visiva dei due temi, focus visibile, zoom e prova su telefono restano da verificare manualmente. La prova HTTP non li certifica. Nessun test grafico automatico introdotto. Build non eseguita, come richiesto; validazione finale prevista allo step 28. Il selettore tema persistente e la navigazione appartengono allo step 03; dialoghi, textarea e componenti specifici arriveranno al primo utilizzo. Nessuna persistenza o funzionalità di dominio anticipata.
+
+**Punto di commit:** soltanto i nove file elencati sopra; titolo suggerito `feat: add reusable base UI components and local preview`. Nessun commit o push effettuato.
+
+**Riscontro dell’utente / correzioni:** su richiesta dell’utente, i chip hanno ora sfondo pieno colorato in tutte le varianti, con testo adattato al tema chiaro/scuro. Dopo la correzione, `npm run lint` e `npm run typecheck` sono stati eseguiti con esito positivo. Il 29 ottobre 2026 l’utente richiede «Segna lo step 2 chiuso»: step accettato e chiuso. Lo step 03 non è stato avviato.
