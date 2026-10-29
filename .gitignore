@@ -6,6 +6,7 @@
 /.next/
 /out/
 /build/
+/validation-results/
 *.tsbuildinfo
 next-env.d.ts
 

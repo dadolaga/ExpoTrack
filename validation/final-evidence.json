@@ -1,0 +1,30 @@
+{
+  "automated": {
+    "catalog-and-domain": [],
+    "profile-event-isolation": [],
+    "local-persistence": [],
+    "server-contracts": [],
+    "sync-integrity": [],
+    "media-integrity": [],
+    "profiles-and-dashboard": [],
+    "stands": [],
+    "products-and-questionnaires": [],
+    "photo-workflow": [],
+    "offline-pwa-multidevice": [],
+    "accessibility-and-mobile-scope": []
+  },
+  "manual": {
+    "android-pwa": {
+      "status": "pending",
+      "evidence": []
+    },
+    "camera-and-storage": {
+      "status": "pending",
+      "evidence": []
+    },
+    "mobile-usability": {
+      "status": "pending",
+      "evidence": []
+    }
+  }
+}

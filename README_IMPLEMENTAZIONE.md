@@ -72,9 +72,15 @@ Regole da rispettare in ogni implementazione:
 
 Per ogni step di codice eseguire `npm run lint` e `npm run typecheck`. Eseguire `npm run build` quando cambiano route, layout, confini client/server, dipendenze, API, manifest/cache PWA e nel collaudo finale. Non eseguire build e dev server contemporaneamente sulla stessa directory di output.
 
-I comandi di test automatici non sono ancora configurati: introdurre l’attrezzatura minima nel primo step che ne ha bisogno e documentare il comando reale. I test devono coprire rischi concreti: isolamento profili/eventi, transazioni, recupero dati, validazione, conteggi e sincronizzazione. Non aggiungere test che si limitano a ripetere il markup o l’implementazione di un pulsante.
+I comandi di test automatici dell’app non sono ancora configurati: introdurre l’attrezzatura minima nel primo step che ne ha bisogno e documentare il comando reale. I test dell’app devono coprire rischi concreti: isolamento profili/eventi, transazioni, recupero dati, validazione, conteggi e sincronizzazione. Non aggiungere test che si limitano a ripetere il markup o l’implementazione di un pulsante.
 
-Per la UI il controllo comprende almeno viewport mobile stretto, tema chiaro/scuro, tastiera/focus e assenza di contenuti coperti dalla barra inferiore. Quando si introduce persistenza, aggiungere refresh e riapertura; quando si introduce sync, rete assente/intermittente e riavvio. Prima dello step PWA il refresh senza rete dell’intera app **non è ancora una funzionalità garantita**: distinguere storage locale e cache della shell.
+**Test mirati e stabili, su richiesta dell’utente:** non creare uno unit test per ogni funzione, componente o singolo dettaglio e non inseguire il 100% di copertura. Scegliere pochi casi significativi per regole di dominio, errori e integrità dei dati; usare test di integrazione quando verificano meglio un comportamento completo, evitando di ripetere gli stessi controlli a ogni livello.
+
+Verificare risultati osservabili e contratti stabili, senza legare i test alla struttura interna del codice, alle chiamate fra funzioni private o all’ordine di operazioni equivalente. Modifiche di formattazione, punteggiatura dei testi, rinominazioni interne, spostamenti di codice e refactoring che conservano il comportamento non devono provocare fallimenti a cascata o richiedere la riscrittura sistematica dei test. Usare import condivisi o punti di accesso stabili quando utili; aggiornare i test quando cambia il comportamento richiesto, non per inseguire ogni dettaglio dell’implementazione.
+
+**La parte grafica è esclusa dai test automatici**, inclusa la validazione finale: niente snapshot del markup o degli screenshot, confronti di pixel o asserzioni su colori, font, spaziature, dimensioni, classi CSS e struttura esatta del DOM. Non fissare nei test testi editoriali o punteggiatura, salvo contenuti che costituiscono un requisito funzionale. Gli eventuali test dei flussi UI verificano azioni ed effetti funzionali con selettori semantici stabili. Eventuali verifiche visive su viewport, temi e disposizione degli elementi restano manuali, senza introdurre test grafici da mantenere. Queste regole valgono per tutti gli step e per la procedura di validazione finale.
+
+Quando si introduce persistenza, verificare refresh e riapertura; quando si introduce sync, rete assente/intermittente e riavvio. Prima dello step PWA il refresh senza rete dell’intera app **non è ancora una funzionalità garantita**: distinguere storage locale e cache della shell.
 
 Ogni consegna deve indicare:
 
@@ -85,6 +91,12 @@ Ogni consegna deve indicare:
 - **Punto di commit:** elenco dei soli file dello step e titolo suggerito, senza effettuare il commit.
 
 Stati: `Da iniziare` → `In corso` → `Da verificare dall’utente` → `Accettato`. In caso di correzioni si torna `In corso`; `Bloccato` richiede una ragione concreta. «Accettato» si registra soltanto dopo il tuo riscontro, non automaticamente dopo i test. Un tuo «avanti» sul risultato consegnato vale come accettazione dello step precedente.
+
+### Validazione finale a carico dell’assistente
+
+Su richiesta dell’utente, al termine dell’intera implementazione nello **step 28 eseguirò io `npm run validate:final`**, leggerò il report, correggerò gli errori e ripeterò le verifiche necessarie prima della consegna finale. La procedura è in [docs/final-validation.md](docs/final-validation.md) ed è richiamata anche in `AGENTS.md` per le sessioni successive.
+
+Durante gli step pertinenti collegare i test reali alle aree obbligatorie di `validation/final-evidence.json` e introdurre i comandi `test:unit`, `test:integration`, `test:e2e` quando servono. Il runner non considera sufficiente una build riuscita: suite o copertura mancanti impediscono la validazione; prove fisiche ancora pendenti mantengono l’esito incompleto. Non anticipare funzioni applicative solo per far passare il runner. I report generati sono in `validation-results/`, esclusi da Git.
 
 ## Registro degli step
 
@@ -396,3 +408,16 @@ Playwright, Chromium e le librerie necessarie alla verifica sono stati preparati
 **Punto di commit:** solo i tre file dello step elencati sopra; titolo suggerito `feat: add design tokens and shared typography`. Nessun commit o push effettuato.
 
 **Riscontro dell’utente / correzioni:** l’utente conferma «fatto e funziona»; step accettato. Lo step 02 parte soltanto su richiesta.
+
+### Consegna trasversale — Script di validazione finale
+
+- **Richiesta:** predisporre ora uno script che l’assistente eseguirà al termine dell’intera implementazione per verificare il risultato effettivo.
+- **Stato:** Da verificare dall’utente; nessun avanzamento dello step 02.
+- **Risultato:** comando `npm run validate:final`, con prerequisiti obbligatori, suite reali da collegare durante gli step pertinenti, build prima degli E2E, database di test distinto, report JSON ed esiti separati per successo, errore e prove su dispositivo pendenti. Nessuna dipendenza aggiunta.
+- **File:** `scripts/validate-final.mjs`, `validation/final-evidence.json`, `docs/final-validation.md`, `package.json`, `.gitignore`, `AGENTS.md`, `docs/development.md`, `README_IMPLEMENTAZIONE.md`.
+- **Verifiche:** lint e typecheck superati nella consegna iniziale. `npm run validate:final -- --preflight` termina con codice 1 e stato `not-ready`: attualmente mancano il database di test configurato, le tre suite dell’app e i relativi collegamenti ai casi obbligatori. Nessun controllo applicativo viene spacciato per eseguito.
+- **Come provarlo:** `npm run validate:final -- --preflight` deve elencare i prerequisiti ancora da implementare. I report vengono scritti in `validation-results/`, esclusi da Git. Procedura e mappa dei comportamenti in [docs/final-validation.md](docs/final-validation.md).
+- **Limiti:** nessuna validazione finale dell’app eseguita ora e nessun nuovo test applicativo fittizio. La build non è stata ripetuta per questa attività: non cambiano codice app, route, layout o dipendenze. Le prove fisiche non disponibili rimarranno pendenti, senza dichiararle superate.
+- **Esecuzione finale:** a carico dell’assistente nello step 28, come registrato anche in `AGENTS.md`; correggere gli errori e ripetere i controlli prima della consegna finale.
+- **Commit suggerito:** `chore: add final implementation validation runner`. Nessun commit o push effettuato.
+- **Riscontro dell’utente / correzioni:** l’utente richiede di mantenere lo script per eseguire i comandi e rimuovere i test dello script stesso; rimossi il file di test, il comando npm dedicato e i relativi riferimenti.

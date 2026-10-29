@@ -127,6 +127,12 @@ npm run build
 produzione in locale, eseguire `npm run start` dopo `npm run build`, arrestando
 prima l'eventuale server di sviluppo sulla stessa porta.
 
+La [validazione finale](final-validation.md) si esegue con `npm run validate:final`:
+l’assistente la eseguirà al termine dello step 28. Raccoglie i controlli statici,
+la build e le future suite di test dell’app, con report in `validation-results/`.
+Finché suite e copertura non sono collegate, il comando segnala `not-ready`. La modalità
+`npm run validate:final -- --preflight` controlla i prerequisiti senza avviare test o build.
+
 Riferimenti: [installazione Next.js](https://nextjs.org/docs/app/getting-started/installation)
 e [Dev Containers in VS Code](https://code.visualstudio.com/docs/devcontainers/create-dev-container).
 Il nome condiviso segue la [configurazione del progetto Compose in VS Code](https://code.visualstudio.com/remote/advancedcontainers/set-docker-compose-project-name).

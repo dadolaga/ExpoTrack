@@ -10,7 +10,8 @@
     "build": "next build",
     "start": "next start --hostname 0.0.0.0",
     "lint": "eslint . --max-warnings=0",
-    "typecheck": "next typegen && tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit",
+    "validate:final": "node scripts/validate-final.mjs"
   },
   "dependencies": {
     "next": "16.4.3",
