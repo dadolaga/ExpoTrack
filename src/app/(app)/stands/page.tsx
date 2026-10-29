@@ -13,8 +13,8 @@ export default function StandsPage() {
       <Card>
         <h2 id="stands-title">Catalogo stand</h2>
         <EmptyState
-          title="Nessuno stand disponibile"
-          description="Il catalogo dell’evento non è ancora disponibile. Qui potrai cercare gli stand e organizzare i tuoi interessi."
+          title="Elenco stand non ancora disponibile"
+          description="Qui potrai cercare gli stand dell’evento e organizzare i tuoi interessi."
         />
       </Card>
     </section>

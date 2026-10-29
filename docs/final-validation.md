@@ -62,6 +62,18 @@ le prove su browser dell’app completa e su dispositivo, gli altri record perso
 dichiara completate queste aree per lo step 28 e non sostituisce le future prove
 su API/PostgreSQL isolati. Le altre aree rimangono pendenti.
 
+**Copertura introdotta nello step 06:** `tests/integration/profile-selection.test.ts`
+è eseguito da `test:integration` e collegato a `local-persistence` e
+`profile-event-isolation`. Sei scenari coprono primo/secondo avvio del repository,
+scelta persistita, cambio dopo commit personali, prodotti/code preservati, profili
+rimossi/disabilitati, preferenze corrotte, evento valido/non valido, errori di
+scrittura con retry e catalogo vuoto senza duplicare gli snapshot. Una prova
+temporanea Chromium ha esercitato il flusso UI completo su `next dev`, inclusi
+refresh, tastiera, errori e stati vuoti. Non è una suite E2E permanente della build
+di produzione: `profiles-and-dashboard` resta da collegare quando verranno
+introdotti i test E2E e le ulteriori funzioni di quell’area. Le prove fisiche e le
+altre parti delle aree di integrazione restano pendenti.
+
 ## Prove su dispositivo
 
 Gli emulatori non dimostrano installazione PWA, fotocamera, memoria o usabilità su un telefono fisico. Il manifest mantiene tre verifiche distinte:

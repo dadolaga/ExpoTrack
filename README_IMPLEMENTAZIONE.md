@@ -2,7 +2,7 @@
 
 Questo README definisce **come lavoriamo**, un passo alla volta, sulla parte web mobile da fiera. Ogni step parte da una domanda concreta, produce un’implementazione circoscritta e termina con un risultato verificabile. Non autorizza a implementare l’intera applicazione in un’unica sessione.
 
-**Stato corrente:** step 00, 01, 02, 03, 04 e 05 accettati dall’utente. Gli step dal 06 in avanti non sono iniziati. Le cartelle indicate qui sono destinazioni da creare quando servono, non funzionalità già presenti. Gli esiti sono riportati nel registro della singola consegna.
+**Stato corrente:** step 00, 01, 02, 03, 04, 05 e 06 accettati dall’utente. Gli step dal 07 in avanti non sono iniziati. Le cartelle indicate qui sono destinazioni da creare quando servono, non funzionalità già presenti. Gli esiti sono riportati nel registro della singola consegna.
 
 ## Riferimenti e priorità
 
@@ -111,7 +111,7 @@ L’ordine è intenzionale: prima fondamenta e funzioni locali verificabili, poi
 | 03 | Shell mobile, navigazione e tema | Accettato |
 | 04 | Contratti dati e dataset dimostrativo | Accettato |
 | 05 | Persistenza locale e outbox | Accettato |
-| 06 | Selezione e cambio profilo | Da iniziare |
+| 06 | Selezione e cambio profilo | Accettato |
 | 07 | Lista stand e interessi | Da iniziare |
 | 08 | Dettaglio stand e checklist | Da iniziare |
 | 09 | Note dello stand | Da iniziare |
@@ -585,3 +585,43 @@ Le aree `local-persistence` e `profile-event-isolation` sono collegate al test r
 **Punto di commit:** soltanto i file dello step elencati sopra; titolo suggerito `feat: add atomic IndexedDB persistence and local outbox`. Nessun commit o push effettuato.
 
 **Riscontro dell’utente / correzioni:** l’utente conferma «Verificato»; step 05 accettato e chiuso. Lo step 06 non è stato avviato.
+
+### Consegna step 06 — Selezione e cambio profilo
+
+- **Data:** 29 ottobre 2026.
+- **Stato:** Accettato.
+- **Domanda:** Chi sta usando l’app e come cambia profilo?
+- **Risultato implementato:** al primo avvio compare «Chi sta usando ExpoTrack?» con gruppi configurati/personali e righe selezionabili. Il tap salva immediatamente la scelta sul dispositivo e apre Home, senza «Continua». Agli avvii successivi un profilo valido apre direttamente Home. Il nome, il colore e l’evento attivi compaiono nella testata; da Profilo → Cambia profilo si torna alla scelta. Profilo/evento non più disponibili richiedono una nuova scelta esplicita, conservando dati e preferenza precedente. Catalogo vuoto, archivio non disponibile e scrittura fallita hanno messaggi e recupero coerenti, senza falso successo.
+- **Stato Git iniziale:** working tree pulito; step 05 accettato e chiuso.
+- **File dello step:** `src/types/profiles.ts`; `src/lib/offline/profile-session.ts`, `repository.ts`, `README.md`; `src/components/profiles/{ProfileProvider,ProfilePicker,ProfileRow,ProfileIdentity,ActiveProfile}.tsx`; `src/components/layout/{AppShell,TopBar}.tsx`, `src/components/README.md`; `src/app/(app)/layout.tsx`, `page.tsx`, `{profile,profiles,stands,products}/page.tsx`, `src/app/globals.css`; `public/brand/{expotrack-icon.png,README.md}`; `tests/integration/profile-selection.test.ts`; `validation/final-evidence.json`; `config/README.md`, `docs/development.md`, `docs/final-validation.md`, `README_IMPLEMENTAZIONE.md`.
+- **Componenti riusati / introdotti:** riusati Card, Button, StatusChip pieno, NavigationIcon, shell e selettore tema. ProfileProvider coordina il repository; ProfilePicker compone i gruppi; ProfileRow gestisce la singola scelta; ProfileIdentity è condiviso con testata e ActiveProfile. Il logo raster fornito è copiato senza modifiche da `docs/mockups/`, con provenienza documentata. Nessuna nuova dipendenza o regola di lint modificata.
+
+**Decisioni operative:** catalogo letto dal layout Server Component e trasferito al provider client, senza endpoint aggiuntivi. L’archivio rimane alla versione 1: `app_meta` conserva `active-context` con profilo/evento, senza nuove tabelle o mutazioni outbox. Bootstrap identici non duplicano snapshot. Il cambio attende il commit delle scritture già iniziate e non elimina o trasferisce record/code fra contesti. Un evento valido viene conservato; se non è più valido, l’evento predefinito si applica soltanto dopo una scelta esplicita. Nessun profilo viene scelto automaticamente al primo avvio. Il catalogo viene riletto al caricamento del layout; un aggiornamento dei JSON richiede una nuova apertura o un refresh completo. API e confine di commit in [src/lib/offline/README.md](src/lib/offline/README.md).
+
+**Verifiche eseguite:**
+
+| Comando / controllo | Esito |
+|---|---|
+| `npm run lint:fix` | Superato, codice 0; nessuna regola disabilitata o indebolita. |
+| `npm run lint` | Superato, codice 0, nessun warning. |
+| `npm run typecheck` | Superato, codice 0; generazione tipi route e TypeScript senza errori. |
+| `npm run test:integration` | Superato, codice 0; entrambi i file passati: otto scenari esistenti e sei nuovi su selezione, persistenza, isolamento, eventi, errori e catalogo vuoto. |
+| `npm run test:unit` | Superato, codice 0; suite catalogo passata. |
+| `npm run validate:config` | Superato, codice 0; catalogo demo valido con due profili e un evento. |
+| Chromium / app in sviluppo, prova temporanea | Superata, codice 0: primo avvio, riapertura e refresh, cambio da Profilo anche da tastiera, scrittura fallita con scelta precedente conservata e retry, profilo disabilitato, catalogo vuoto, accesso diretto a un tab e IndexedDB negato. Nessun errore JavaScript rilevato. |
+| `git diff --check` | Superato sul registro finale. |
+
+La nuova suite usa soltanto fixture fittizie e database isolati, chiusi/eliminati al termine. I test sono collegati alle aree `local-persistence` e `profile-event-isolation` del manifest finale. La prova temporanea Chromium usa una copia isolata dell’app sulla porta 3106, senza `.env`, database o media reali; modifica soltanto la copia del catalogo e la ripristina. Server temporaneo arrestato e copia rimossa al termine; il server di sviluppo già presente non è stato arrestato. Script e immagini temporanei non fanno parte del commit. Nessuna suite E2E di produzione o validazione finale completa dichiarata.
+
+**Come provarlo:**
+
+1. Avviare `npm run dev` e aprire [http://localhost:3000](http://localhost:3000) in una finestra privata o in un contesto browser nuovo, senza eliminare archivi esistenti. Deve apparire la scelta con i profili demo configurati e la sezione personale vuota, senza pulsante creazione.
+2. Selezionare «Io · demo»: si apre Home e la testata mostra il profilo e l’evento. Ricaricare o riaprire l’indirizzo nello stesso contesto: Home si apre direttamente con la stessa identità.
+3. Aprire Profilo → Cambia profilo e selezionare «Papà · demo», anche con Tab/Invio: Home e testata devono aggiornarsi; un nuovo refresh conserva la scelta.
+4. Eseguire `npm run test:integration` per verificare anche preferenze invalide, rollback/retry, eventi, conservazione e isolamento di prodotti/code durante il cambio. Le liste applicative personali saranno collegate nei rispettivi step.
+
+**Controlli non eseguiti / limiti:** nessuna build Next.js eseguita, come richiesto. Chromium verifica l’app in sviluppo con IndexedDB reale; non certifica produzione, installazione PWA, refresh senza rete, altri browser o dispositivi fisici. Ispezionate manualmente anteprime a 320 px nei temi chiaro/scuro e con testo al 200%, senza test grafici automatici. I profili personali si potranno creare nello step 20; qui la sezione è vuota. Dashboard, liste operative, cambio evento, API e sincronizzazione restano ai rispettivi step. Lo step 07 non è stato avviato.
+
+**Punto di commit:** soltanto i file dello step elencati sopra; titolo suggerito `feat: add persistent profile selection and switching`. Nessun commit o push effettuato.
+
+**Riscontro dell’utente / correzioni:** l’utente conferma «va bene»; step 06 accettato e chiuso. Lo step 07 non è stato avviato.

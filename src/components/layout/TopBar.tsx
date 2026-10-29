@@ -13,10 +13,11 @@ type TopBarProps = {
   subtitle?: string;
   onBack?: () => void;
   actions?: ReactNode;
+  context?: ReactNode;
 };
 
 export function TopBar({
-  title, subtitle = "ExpoTrack", onBack, actions,
+  title, subtitle = "ExpoTrack", onBack, actions, context,
 }: TopBarProps) {
   const pathname = usePathname();
   const destination = destinations.find((item) => isDestinationActive(pathname, item.href));
@@ -37,6 +38,7 @@ export function TopBar({
           <h1>{title ?? destination?.label ?? "ExpoTrack"}</h1>
         </div>
         {actions}
+        {context !== undefined && <div className="min-w-0 basis-full">{context}</div>}
       </div>
     </header>
   );

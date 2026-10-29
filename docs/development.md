@@ -3,18 +3,28 @@
 La base implementata comprende Next.js con App Router in `src/app`, React,
 TypeScript in modalità strict, Tailwind CSS, ESLint e PostgreSQL 17 in Docker.
 L'alias `@/*` punta a `src/*`. La shell mobile offre Home (`/`), Stand (`/stands`),
-Prodotti (`/products`) e Profilo (`/profile`), con contenuti iniziali vuoti.
+Prodotti (`/products`) e Profilo (`/profile`). Al primo avvio la scelta del profilo
+avviene in `/profiles`; un profilo ricordato e valido apre Home agli avvii successivi.
+Si cambia da **Profilo → Cambia profilo**, senza conferma intermedia.
 In Profilo si sceglie il tema Automatico/Chiaro/Scuro, ricordato nel browser.
 La dimostrazione dei componenti di base è in `/examples/components`.
-Visualizzazione del catalogo, dati personali e sincronizzazione verranno implementati nelle fasi successive.
+Riepilogo, elenchi stand/prodotti e sincronizzazione verranno implementati nelle fasi successive.
 
 Il dataset dimostrativo e il loader di configurazione sono disponibili dallo step 04,
-separati dalla UI. Tutti i dati sono fittizi; le pagine iniziali restano vuote.
+separati dal markup. Tutti i dati sono fittizi: i profili mostrati sono marcati come demo.
 Contratti effettivi e struttura dei file: [config/README.md](../config/README.md).
 
 Dallo step 05 è disponibile il [repository IndexedDB](../src/lib/offline/README.md),
 con input recuperabili, ultima versione valida e outbox atomica. È verificabile
-tramite test: il collegamento alle schermate avverrà nei rispettivi step funzionali.
+tramite test; dallo step 06 ricorda anche profilo/evento selezionati. Il layout server
+legge il catalogo e un provider client prepara l’archivio locale, senza un endpoint
+API aggiuntivo. Nome e colore del profilo attivo compaiono nell’header.
+
+Per provare il primo avvio, usare un contesto browser nuovo o una finestra privata,
+senza cancellare archivi già usati. Se il browser impedisce IndexedDB, viene mostrato
+un errore con **Riprova**. Se un profilo ricordato non è più disponibile, la pagina
+richiede una nuova scelta senza eliminare i dati personali. La sezione dei profili
+personali rimane vuota fino allo step 20.
 
 ## Avvio con devcontainer
 
@@ -148,7 +158,8 @@ temporanee isolate del dataset. Gli strumenti compilano TypeScript in `/tmp`
 (o nella directory temporanea del sistema) e ripuliscono l’output a fine esecuzione.
 Non richiedono un database server o un browser. `test:integration` usa la dipendenza
 di sviluppo `fake-indexeddb` per i test della persistenza locale, con factory e nomi
-database isolati; include rollback e riapertura delle connessioni. `NODE_PATH` dei
+database isolati; include rollback, riapertura delle connessioni e selezione del
+profilo con preferenze valide/non valide. `NODE_PATH` dei
 processi di test punta alle dipendenze del progetto per eseguire il codice compilato
 nella directory temporanea. Le prove su browser reale, API/PostgreSQL ed E2E della
 PWA saranno ampliate quando verranno implementati i rispettivi comportamenti.

@@ -7,8 +7,8 @@ export default function HomePage() {
       <Card>
         <h2 id="visit-title">La tua visita</h2>
         <EmptyState
-          title="Nessuna visita da mostrare"
-          description="Non hai ancora un profilo o un evento attivo. Qui troverai il riepilogo della visita quando saranno disponibili."
+          title="Riepilogo non ancora disponibile"
+          description="Qui ritroverai il riepilogo delle attività e dei prodotti della tua visita."
         />
       </Card>
     </section>

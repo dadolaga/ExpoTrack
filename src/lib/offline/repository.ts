@@ -11,12 +11,14 @@ import {
   validateIdentity,
   validateProduct,
 } from "./product-input";
+import { profileContextForSelection, resolveProfileSession } from "./profile-session";
 
 import type { LocalDatabaseOptions } from "./database";
 import type { CatalogSnapshot } from "../../types/catalog";
 import type {
   LocalContext, LocalProduct, OutboxOperation, ProductInput,
 } from "../../types/offline";
+import type { ProfileSession } from "../../types/profiles";
 
 type StoredCatalog = {
   id: string;
@@ -48,6 +50,18 @@ async function readCatalog(transaction: IDBTransaction): Promise<CatalogSnapshot
   return stored.data;
 }
 
+function activateCatalog(transaction: IDBTransaction, data: CatalogSnapshot, snapshotId: string) {
+  transaction.objectStore("config_snapshots").add({
+    id: snapshotId,
+    data,
+    createdAt: new Date().toISOString(),
+  } satisfies StoredCatalog);
+  transaction.objectStore("app_meta").put({
+    key: "active-catalog",
+    snapshotId,
+  } satisfies ActiveCatalog);
+}
+
 export class LocalRepository {
   private readonly database: IDBDatabase;
 
@@ -67,20 +81,67 @@ export class LocalRepository {
 
     validateReferences(data);
     await inTransaction(this.database, ["config_snapshots", "app_meta"], "readwrite", (transaction) => {
-      transaction.objectStore("config_snapshots").add({
-        id: snapshotId,
-        data,
-        createdAt: new Date().toISOString(),
-      } satisfies StoredCatalog);
-      transaction.objectStore("app_meta").put({
-        key: "active-catalog",
-        snapshotId,
-      } satisfies ActiveCatalog);
+      activateCatalog(transaction, data, snapshotId);
     });
   }
 
   async getCatalog(): Promise<CatalogSnapshot | null> {
     return inTransaction(this.database, ["config_snapshots", "app_meta"], "readonly", readCatalog);
+  }
+
+  async initializeProfileSession(catalog: CatalogSnapshot): Promise<ProfileSession> {
+    const data = structuredClone(catalog);
+
+    validateReferences(data);
+
+    return inTransaction(this.database, [
+      "config_snapshots", "app_meta", "products", "outbox",
+    ], "readwrite", async (transaction) => {
+      const current = await readCatalog(transaction);
+
+      if (JSON.stringify(current) !== JSON.stringify(data)) {
+        activateCatalog(transaction, data, createLocalId());
+      }
+      const stored = await readRequest<unknown>(transaction.objectStore("app_meta").get("active-context"));
+
+      return resolveProfileSession(data, stored);
+    });
+  }
+
+  async getProfileSession(): Promise<ProfileSession | null> {
+    return inTransaction(this.database, ["config_snapshots", "app_meta"], "readonly", async (transaction) => {
+      const catalog = await readCatalog(transaction);
+
+      if (catalog === null) {
+        return null;
+      }
+      const stored = await readRequest<unknown>(transaction.objectStore("app_meta").get("active-context"));
+
+      return resolveProfileSession(catalog, stored);
+    });
+  }
+
+  async selectProfile(profileId: string): Promise<ProfileSession> {
+    // Sharing the write scope waits for previously started product/outbox commits.
+    return inTransaction(this.database, [
+      "config_snapshots", "app_meta", "products", "outbox",
+    ], "readwrite", async (transaction) => {
+      const catalog = await readCatalog(transaction);
+
+      if (catalog === null) {
+        throw new LocalInputError("Carica un catalogo valido prima di scegliere il profilo.");
+      }
+      const store = transaction.objectStore("app_meta");
+      const stored = await readRequest<unknown>(store.get("active-context"));
+      const selected = {
+        key: "active-context",
+        ...profileContextForSelection(catalog, stored, profileId),
+      };
+
+      store.put(selected);
+
+      return resolveProfileSession(catalog, selected);
+    });
   }
 
   async getProduct(context: LocalContext, id: string): Promise<LocalProduct | undefined> {

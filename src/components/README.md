@@ -23,15 +23,30 @@ I componenti di base non decidono quando salvare, quale validazione eseguire o d
 
 | Componente | Proprietà e impiego |
 |---|---|
-| `layout/AppShell` | `children` contiene le pagine Server Component. Header, area principale scorrevole e barra inferiore occupano tre righe del viewport dinamico: la barra rimane visibile e il suo ingombro reale non copre i contenuti, anche con testo ingrandito. Safe area sui quattro lati e collegamento «Vai al contenuto». |
-| `layout/TopBar` | Titolo derivato dalla destinazione corrente; `title` e `subtitle` possono sostituirlo. `onBack` facoltativo mostra un vero pulsante Indietro soltanto quando il chiamante fornisce il ritorno previsto; `actions` accoglie azioni contestuali. Nei quattro tab principali il ritorno è gestito dalla cronologia del browser. |
+| `layout/AppShell` | `children` contiene le pagine Server Component. Componente client che attende la sessione locale, manda a `/profiles` quando manca una scelta valida e usa un layout dedicato senza tab per la selezione. Dopo la scelta, header/area scorrevole/barra inferiore occupano tre righe del viewport dinamico. Safe area sui quattro lati e collegamento «Vai al contenuto». |
+| `layout/TopBar` | Titolo derivato dalla destinazione corrente; `title` e `subtitle` possono sostituirlo. `onBack` facoltativo mostra Indietro solo con un ritorno effettivo; `actions` accoglie azioni contestuali e `context` il riepilogo di profilo/evento. Nei tab principali si usa la cronologia del browser. |
 | `layout/BottomNav` | Quattro link Next.js stabili: `/`, `/stands`, `/products`, `/profile`. Icone SVG locali e label visibili; destinazione attiva con `aria-current="page"`, sfondo pieno e testo rinforzato. I percorsi delle sottoviste mantengono attivo il tab del proprio ambito. |
 | `forms/ThemeSelector` | Gruppo radio nativo Automatico/Chiaro/Scuro, utilizzato in Profilo. Usa i token esistenti; Automatico segue il sistema senza un override su `html`. Preferenza locale `expotrack.theme`, sincronizzata fra schede. Se la scrittura fallisce, applica il tema alla sessione e mostra errore e pulsante per ritentare. |
 | `layout/ThemeController` | Componente senza UI montato nel layout radice. Ripristina la preferenza dopo il remount di sviluppo e ascolta le modifiche fra schede. Lo script statico in `head` applica il tema prima del primo rendering; `suppressHydrationWarning` è limitato a `html`, il cui attributo è modificato dallo script come previsto dalla guida Next.js installata. |
 
-Pagine e shell restano Server Components; solo navigazione, titolo legato al percorso
-e preferenza tema richiedono componenti client. Le destinazioni iniziali sono stati
-vuoti espliciti: catalogo, profili, contatori e sincronizzazione arriveranno nei loro step.
+Pagine e layout restano Server Components; la shell è client per gestire la scelta
+locale del profilo e la navigazione. La selezione profili è operativa; riepilogo,
+elenchi stand/prodotti e sincronizzazione arriveranno nei rispettivi step.
+
+## Selezione profili
+
+| Componente | Proprietà e impiego |
+|---|---|
+| `profiles/ProfileProvider` | Riceve il `CatalogSnapshot` letto e validato dal layout server. Apre il repository e ripristina la sessione; `useProfileSession()` espone stato, repository, catalogo/contesto validi, scelta profilo e retry. Non sceglie automaticamente il primo profilo. Chiude le connessioni e ignora risultati di inizializzazioni già smontate. |
+| `profiles/ProfilePicker` | Pagina `/profiles`. Gruppi configurati/personali, scelta mediante riga, messaggio per catalogo vuoto o scelta non più valida. Durante il commit disabilita le righe con spiegazione; naviga a Home soltanto dopo salvataggio riuscito. Nessun pulsante Continua o creazione personale anticipata. |
+| `profiles/ProfileRow` | `profile`, `active`, `disabled`, `onSelect`. Pulsante a larghezza piena con nome, origine, avatar decorativo e indicazione testuale «In uso». `aria-current` identifica la scelta attuale; descrizione dell’origine e stato del salvataggio associati. |
+| `profiles/ProfileIdentity` | `profile`, `compact` facoltativo e `children` per una descrizione. Riusa nome e colore in riga, header e sezione Profilo; icona utente standard. L’identità JSON è visualizzata in sola lettura. |
+| `profiles/ActiveProfile` | Profilo/evento effettivamente attivi e collegamento «Cambia profilo». Il selettore tema rimane nella stessa sezione Profilo. |
+
+I profili personali sono un gruppo distinto attualmente vuoto: la creazione e la
+gestione arriveranno nello step 20. Non viene simulato un profilo personale dal
+mockup. Il PNG del marchio è un asset locale già presente nel progetto, con
+provenienza documentata in `public/brand/README.md`.
 
 Esempio in un componente client (il form gestisce `name`, `error` e `onSubmit`):
 

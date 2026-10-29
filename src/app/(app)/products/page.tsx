@@ -13,8 +13,8 @@ export default function ProductsPage() {
       <Card>
         <h2 id="products-title">La tua raccolta</h2>
         <EmptyState
-          title="Nessun prodotto da mostrare"
-          description="Non ci sono prodotti disponibili. Qui ritroverai i prodotti pianificati e quelli raccolti durante la visita."
+          title="Raccolta prodotti non ancora disponibile"
+          description="Qui ritroverai i prodotti pianificati e quelli raccolti durante la visita."
         />
       </Card>
     </section>

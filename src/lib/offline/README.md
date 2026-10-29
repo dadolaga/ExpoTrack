@@ -10,7 +10,7 @@ del modulo non accede alle API browser durante il rendering server di Next.js.
 | Store | Chiave | Impiego |
 |---|---|---|
 | `config_snapshots` | `id` | Snapshot editoriali validati, separati dai dati personali. |
-| `app_meta` | `key` | Puntatore allo snapshot attivo. |
+| `app_meta` | `key` | Puntatore allo snapshot attivo e preferenza locale `active-context` con profilo/evento. |
 | `products` | `[profileId, eventId, id]` | Input corrente, errori, ultima versione valida e sequenza locale. |
 | `outbox` | `operationId` | Mutazioni valide da inviare in futuro; indice univoco su contesto/entità/sequenza. |
 
@@ -30,12 +30,37 @@ IndexedDB; questa versione è distinta dallo `schemaVersion` dei JSON.
 |---|---|
 | `saveCatalog(snapshot, snapshotId?)` | Accetta il `CatalogSnapshot` già validato dal loader dello step 04; ricontrolla i riferimenti. Snapshot e puntatore si scrivono nella stessa transazione. Gli ID snapshot non si sovrascrivono: una collisione rifiuta la transazione e preserva lo snapshot attivo precedente. Nessuna cancellazione dei dati personali o delle code. |
 | `getCatalog()` | Snapshot attivo, oppure `null` prima del caricamento iniziale. |
+| `initializeProfileSession(catalog)` | Collega il catalogo validato e risolve la scelta ricordata. Evita di duplicare snapshot identici e non sceglie il primo profilo. |
+| `getProfileSession()` | Sessione risolta dal catalogo attivo e dalla preferenza locale; `null` se il catalogo non è ancora caricato. |
+| `selectProfile(profileId)` | Verifica disponibilità, attende le transazioni personali già avviate e salva il contesto locale dopo commit. Non accoda preferenze al server e non elimina prodotti o code. |
 | `saveProduct(context, id, changes)` | Salva una patch dei campi modificati intenzionalmente. Restituisce il record solo dopo commit riuscito; in caso di errore rigetta la Promise. |
 | `getProduct(context, id)` | Record completo di input, errori e ultima versione valida; `undefined` se assente. La sola lettura non crea record. |
 | `listProducts(context)` | Record locali del solo contesto, compresi input incompleti da recuperare. |
 | `listRegisteredProducts(context)` | Ultime versioni valide del solo contesto. Esclude gli inserimenti che non hanno mai raggiunto i dati minimi validi. |
 | `listOutbox(context)` | Mutazioni del solo contesto, ordinate per entità e sequenza locale; nessun invio o conferma simulata. |
 | `close()` | Chiude la connessione. Riaprire il repository rilegge lo stesso archivio persistente. |
+
+## Sessione del profilo — step 06
+
+Il layout server carica i JSON dello step 04 e passa soltanto dati serializzabili a
+`ProfileProvider`. Nel browser il bootstrap salva uno snapshot solo se cambiato e
+legge `app_meta["active-context"]`. Senza preferenza, oppure se profilo/evento sono
+rimossi, disabilitati o non validi, la sessione non attiva un contesto e richiede una
+scelta esplicita. Una preferenza non più valida viene conservata finché l’utente
+sceglie, senza cancellare dati o code degli altri contesti.
+
+Il cambio conserva l’evento ricordato se ancora disponibile; altrimenti, dopo la
+scelta esplicita del profilo, usa l’evento predefinito valido. Questa preferenza è
+locale al dispositivo e non genera operazioni di outbox. Le transazioni di cambio
+condividono gli store con i salvataggi personali per attendere i commit già avviati;
+i futuri editor devono comunque attendere e gestire l’esito di `saveProduct`,
+come descritto sotto, prima di abbandonare input ancora in memoria.
+
+La pagina di selezione distingue configurati e personali; attualmente il catalogo
+fornisce soltanto profili JSON. Non sono aggiunti store o API di creazione personale
+prima dello step 20. Lo schema IndexedDB resta alla versione 1: la preferenza usa
+lo store `app_meta` già esistente. Una modifica del catalogo viene riletta a un nuovo
+caricamento del layout, senza un motore di aggiornamento o sincronizzazione.
 
 In questo step il prodotto copre il minimo necessario alla persistenza: nome,
 categoria, riferimento stand e descrizione libera. Prezzo, valutazione, risposte,
