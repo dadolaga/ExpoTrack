@@ -2,7 +2,7 @@
 
 Questo README definisce **come lavoriamo**, un passo alla volta, sulla parte web mobile da fiera. Ogni step parte da una domanda concreta, produce un’implementazione circoscritta e termina con un risultato verificabile. Non autorizza a implementare l’intera applicazione in un’unica sessione.
 
-**Stato corrente:** step 00, 01, 02, 03, 04, 05 e 06 accettati dall’utente. Gli step dal 07 in avanti non sono iniziati. Le cartelle indicate qui sono destinazioni da creare quando servono, non funzionalità già presenti. Gli esiti sono riportati nel registro della singola consegna.
+**Stato corrente:** step da 00 a 07 accettati dall’utente; gli step dal 08 in avanti non sono iniziati. Le cartelle indicate qui sono destinazioni da creare quando servono, non funzionalità già presenti. Gli esiti sono riportati nel registro della singola consegna.
 
 ## Riferimenti e priorità
 
@@ -27,6 +27,12 @@ La specifica mobile prevale sui mockup superati e sugli esempi tecnici precedent
 **Lingua dei commit:** titoli e messaggi di commit devono essere in inglese.
 
 Uno step dovrebbe produrre un singolo cambiamento comprensibile. Se durante il lavoro risulta troppo ampio, lo divido qui in sottopassi numerati, per esempio `17a` e `17b`, e consegno soltanto il primo. Non considero una funzione completata se i suoi controlli non sono eseguibili o se il risultato dipende da codice ancora da realizzare.
+
+## Priorità: sviluppo rapido e consumo contenuto di token
+
+**L’app è prevista per un solo utilizzo in fiera.** Su richiesta dell’utente, privilegiare velocità di implementazione e pochi token, con una manutenibilità essenziale: codice comprensibile e riuso dove serve subito, senza progettare per evoluzioni future. Questa priorità guida le regole organizzative che seguono.
+
+Scegliere la soluzione diretta più semplice che soddisfa lo step e il mockup. Limitare letture, spiegazioni e verifiche al necessario; evitare astrazioni preventive, frammentazione in tanti file, refactoring estetici, documentazione prolissa e ripetizioni di controlli già superati senza nuove modifiche o problemi. Fermarsi quando il risultato richiesto è raggiunto. Restano obbligatori lint e typecheck a fine step, i test mirati ai rischi concreti e la protezione dei dati; la fedeltà al mockup resta un requisito.
 
 ## Codice semplice e componenti riusabili
 
@@ -112,7 +118,7 @@ L’ordine è intenzionale: prima fondamenta e funzioni locali verificabili, poi
 | 04 | Contratti dati e dataset dimostrativo | Accettato |
 | 05 | Persistenza locale e outbox | Accettato |
 | 06 | Selezione e cambio profilo | Accettato |
-| 07 | Lista stand e interessi | Da iniziare |
+| 07 | Lista stand e interessi | Accettato |
 | 08 | Dettaglio stand e checklist | Da iniziare |
 | 09 | Note dello stand | Da iniziare |
 | 10 | Stand personali | Da iniziare |
@@ -625,3 +631,46 @@ La nuova suite usa soltanto fixture fittizie e database isolati, chiusi/eliminat
 **Punto di commit:** soltanto i file dello step elencati sopra; titolo suggerito `feat: add persistent profile selection and switching`. Nessun commit o push effettuato.
 
 **Riscontro dell’utente / correzioni:** l’utente conferma «va bene»; step 06 accettato e chiuso. Lo step 07 non è stato avviato.
+
+### Consegna step 07 — Lista stand e interessi
+
+- **Data:** 1 novembre 2026.
+- **Stato:** Accettato.
+- **Domanda:** Come troviamo gli stand che ci interessano?
+- **Risultato implementato:** `/stands` mostra per default gli interessi del profilo nell’evento attivo, con ricerca per nome/categoria/padiglione tollerante ad accenti e maiuscole. La vista completa include anche gli stand senza interesse. Filtri combinabili per visita, interesse, categoria, padiglione e priorità; conteggi reali, azzeramento e ordine iniziale per priorità decrescente, poi nome/ID. La stella salva un override personale e l’operazione pendente in una sola transazione: non cambia visita o priorità. Rimozioni esplicite e aggiunte sopravvivono a refresh e cambio profilo. Errori di lettura e scrittura consentono il retry senza falso successo.
+- **Riferimento visivo:** dopo il riscontro dell’utente, rivista la disposizione rispetto a `docs/mockups/03_lista-stand.png`: marchio e azioni circolari in testata, titolo con selettore segmentato, ricerca su fondo tenue, chip degli stati con conteggi, select compatte e pannello Filtri, righe compatte con priorità colorata, pallino visita e stella arancione. Testata e selezione del tab assumono questa forma nella lista stand. Il catalogo demo contiene due stand fittizi e nessun logo: sono mostrati i dati effettivi e un fallback con iniziali. Le righe diventano navigabili con il dettaglio dello step 08; la creazione personale resta allo step 10.
+- **Stato Git iniziale:** working tree pulito all’avvio dello step. Le modifiche presenti alla ripresa erano il lavoro incompleto dello stesso step, conservato e corretto.
+- **File dello step:** `src/app/(app)/stands/page.tsx`, `src/app/globals.css`; `src/components/stands/{StandHeader,StandCatalog,StandList,StandRow}.tsx`; `src/components/forms/{TextField,SelectField}.tsx`; `src/components/layout/{AppShell,NavigationIcon}.tsx`; `src/features/stands/{stand-list,use-stand-list,use-stand-filters}.ts`; `src/types/offline.ts`; `src/lib/offline/{database,repository}.ts`; `tests/unit/stand-list.test.ts`, `tests/integration/stand-interests.test.ts`, `tests/integration/local-persistence.test.ts`; `validation/final-evidence.json`; `src/components/README.md`, `src/lib/offline/README.md`, `docs/development.md`, `docs/final-validation.md`, `README_IMPLEMENTAZIONE.md`.
+- **Componenti riusati / introdotti:** ricerca con TextField e label accessibile, select nativa condivisa SelectField, icone estese in NavigationIcon, errori con Button ed EmptyState. StandList e StandRow ricevono dati/callback; gli hook coordinano repository e memoria della lista. Nessuna nuova dipendenza, nessuna regola di lint modificata.
+
+**Decisioni operative:** IndexedDB passa alla versione 2 con migrazione conservativa: aggiunta dello store `stand_preferences` e ricostruzione dell’indice outbox con tipo entità incluso. Snapshot, profilo ricordato, prodotti e operazioni della versione 1 restano intatti. Gli override sono per campo: una stella non congela il seed della priorità; `false` conserva una rimozione intenzionale anche dopo aggiornamenti del JSON. L’outbox distingue prodotti e preferenze stand. I filtri sono nell’URL, associati al contesto; lo scroll appartiene alla singola voce di cronologia. Il ritorno ripristina la lista e l’ingresso dal tab usa i default. Gli aggiornamenti rapidi si uniscono ai parametri già applicati nel browser, evitando che una ricerca subito dopo il cambio vista ripristini il valore precedente. In assenza di posizione compare «Posizione non disponibile»; quando presente, si usa anche il codice di padiglione configurato. Sui viewport stretti i chip scorrono nel proprio gruppo e la barra filtri può distribuirsi su più righe, mantenendo i controlli da 48 px.
+
+**Verifiche eseguite:**
+
+| Comando / controllo | Esito |
+|---|---|
+| `npm run lint:fix` | Superato, codice 0; corretti anche gli errori manuali senza disabilitare regole. |
+| `npm run lint` | Superato, codice 0, nessun warning. |
+| `npm run typecheck` | Superato, codice 0; tipi delle route e TypeScript senza errori. |
+| `npm run test:unit` | Superato, codice 0: entrambe le suite; due nuovi scenari su interessi/override, ricerca, filtri, ordine e contesto. |
+| `npm run test:integration` | Superato, codice 0: tutte e tre le suite; quattro nuovi scenari su persistenza/isolamento, seed aggiornati, visita preservata, concorrenza/dipendenze, rollback quota/abort e migrazione 1 → 2. |
+| Chromium, prove funzionali temporanee su `next dev` | Superate: due profili, ricerca e filtri combinati/azzerati, posizione assente, stella dopo refresh, errore quota con retry, ordine, ritorno con filtri, nuovo ingresso dal tab e scorciatoie ricerca/filtri. Nessun errore JavaScript rilevato nella prova principale. |
+| Chromium, lista lunga fittizia isolata | Superata: azioni rapide vista/ricerca, ritorno con ricerca e scroll conservati, nuovo ingresso dal tab azzerato. |
+| Confronto visivo manuale delle anteprime | Ispezionate viste chiara/scura a 430/390 px e vista stretta a 320 px, anche con testo al 200%; nessun test grafico automatico o snapshot aggiunto. |
+| `git diff --check` | Superato. |
+
+Le suite permanenti usano fixture e database IndexedDB emulati isolati; i nuovi file sono collegati alle aree pertinenti del manifest finale. La verifica Chromium usa una copia temporanea dell’app sulla porta 3107, senza `.env`, database server o media reali. La lista lunga aggiunge stand esclusivamente nella copia di test, poi ripristinata; il catalogo del repository non è stato modificato. La prova del ritorno usa Profilo come destinazione temporanea, dato che il dettaglio arriverà nello step 08. Queste prove non sostituiscono gli E2E di produzione ancora da introdurre.
+
+**Come provarlo:**
+
+1. Avviare `npm run dev` e aprire [http://localhost:3000/stands](http://localhost:3000/stands). Scegliere «Io · demo» se richiesto e aprire Stand: compare Borse Demo con priorità 9/10. «Tutti gli stand» mostra anche Luci Demo, con priorità non impostata e posizione non disponibile.
+2. Nella vista completa cercare `ILLUMINAZIÓNE`: resta Luci Demo. Provare categoria, padiglione, priorità e chip visita; Filtri contiene interesse e ordine. «Azzera filtri» ripristina ricerca vuota e interessi personali.
+3. Nella vista completa togliere la stella a Borse Demo, quindi ricaricare: la stella resta spenta e la visita resta «Da visitare». Riaccenderla e verificare di nuovo il refresh. La vista interessi rimuove subito lo stand dopo il commit della stella spenta.
+4. Da Profilo → Cambia profilo scegliere «Papà · demo»: gli interessi iniziali sono Luci Demo 8/10 e Borse Demo 4/10, indipendenti dalle modifiche di Io. Tornare a Io conserva le sue scelte.
+5. Applicare una ricerca o un filtro, aprire Profilo e tornare con Indietro del browser: la lista conserva lo stato. Entrare invece dal tab Stand ripristina i default. Confrontare la disposizione con il mockup nei temi chiaro e scuro; le informazioni demo restano quelle del catalogo.
+
+**Controlli non eseguiti / limiti:** nessuna build eseguita, come richiesto. Nessuna validazione finale dello step 28 dichiarata. Restano le prove su telefono reale/altri browser e gli E2E della build di produzione. Refresh dell’intera app senza rete e sincronizzazione server appartengono agli step successivi. Nel dataset ridotto lo scroll è limitato: la conservazione è stata verificata con 25 stand fittizi nella sola copia isolata. Dettaglio, checklist, note e stand personali non sono anticipati.
+
+**Punto di commit:** solo i file dello step elencati sopra; titolo suggerito `feat: add stand discovery and persistent personal interests`. Nessun commit o push effettuato.
+
+**Riscontro dell’utente / correzioni:** l’utente ha richiesto maggiore fedeltà al mockup durante l’implementazione; disposizione e densità sono state riviste. Successivamente conferma «Va bene»: step 07 accettato. Richiesta inoltre priorità a sviluppo rapido, pochi token e manutenibilità essenziale per un’app destinata a un solo utilizzo; indicazione registrata sopra. Lo step 08 non è stato avviato.

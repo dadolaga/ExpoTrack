@@ -5,6 +5,7 @@ import { useEffect } from "react";
 
 import { ProfileIdentity } from "@/components/profiles/ProfileIdentity";
 import { useProfileSession } from "@/components/profiles/ProfileProvider";
+import { StandHeader } from "@/components/stands/StandHeader";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 
@@ -55,23 +56,33 @@ export function AppShell({ children }: AppShellProps) {
   const { profile, event } = state.session;
 
   return (
-    <div className="app-shell">
+    <div
+      className="app-shell"
+      data-section={pathname === "/stands" ? "stands" : undefined}
+    >
       <a
         href="#main-content"
         className="skip-link rounded-input bg-primary p-3 font-medium text-on-primary"
       >
         Vai al contenuto
       </a>
-      <TopBar
-        context={profile === null ? null : (
-          <ProfileIdentity
-            profile={profile}
-            compact
-          >
-            <span className="block text-caption text-text-muted">{event?.name}</span>
-          </ProfileIdentity>
-        )}
-      />
+      {pathname === "/stands" && profile !== null ? (
+        <StandHeader
+          profile={profile}
+          eventName={event?.name ?? ""}
+        />
+      ) : (
+        <TopBar
+          context={profile === null ? null : (
+            <ProfileIdentity
+              profile={profile}
+              compact
+            >
+              <span className="block text-caption text-text-muted">{event?.name}</span>
+            </ProfileIdentity>
+          )}
+        />
+      )}
       <main
         id="main-content"
         tabIndex={-1}

@@ -1,5 +1,6 @@
-import { EmptyState } from "@/components/feedback/EmptyState";
-import { Card } from "@/components/ui/Card";
+import { Suspense } from "react";
+
+import { StandCatalog } from "@/components/stands/StandCatalog";
 
 import type { Metadata } from "next";
 
@@ -9,14 +10,12 @@ export const metadata: Metadata = {
 
 export default function StandsPage() {
   return (
-    <section aria-labelledby="stands-title">
-      <Card>
-        <h2 id="stands-title">Catalogo stand</h2>
-        <EmptyState
-          title="Elenco stand non ancora disponibile"
-          description="Qui potrai cercare gli stand dell’evento e organizzare i tuoi interessi."
-        />
-      </Card>
+    <section
+      aria-label="Catalogo stand"
+    >
+      <Suspense fallback={<p role="status">Caricamento degli stand…</p>}>
+        <StandCatalog />
+      </Suspense>
     </section>
   );
 }

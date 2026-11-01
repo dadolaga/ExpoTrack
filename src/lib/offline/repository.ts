@@ -16,7 +16,7 @@ import { profileContextForSelection, resolveProfileSession } from "./profile-ses
 import type { LocalDatabaseOptions } from "./database";
 import type { CatalogSnapshot } from "../../types/catalog";
 import type {
-  LocalContext, LocalProduct, OutboxOperation, ProductInput,
+  LocalContext, LocalProduct, LocalStandPreferences, OutboxOperation, ProductInput, StandPreferencesData,
 } from "../../types/offline";
 import type { ProfileSession } from "../../types/profiles";
 
@@ -154,6 +154,88 @@ export class LocalRepository {
           scope.profileId, scope.eventId, identity,
         ]),
       );
+    });
+  }
+
+  async listStandPreferences(context: LocalContext): Promise<LocalStandPreferences[]> {
+    const scope = validateContext(context);
+
+    return inTransaction(this.database, ["stand_preferences"], "readonly", (transaction) => {
+      return readRequest<LocalStandPreferences[]>(transaction.objectStore("stand_preferences")
+        .index("by_context").getAll([scope.profileId, scope.eventId]));
+    });
+  }
+
+  async setStandInterest(context: LocalContext, standId: string, interested: boolean): Promise<LocalStandPreferences> {
+    const scope = validateContext(context);
+    const identity = validateIdentity(standId);
+
+    if (typeof interested !== "boolean") {
+      throw new LocalInputError("L’interesse deve essere un valore booleano.");
+    }
+
+    return inTransaction(this.database, [
+      "config_snapshots", "app_meta", "stand_preferences", "outbox",
+    ], "readwrite", async (transaction) => {
+      const catalog = await readCatalog(transaction);
+
+      if (catalog === null
+        || !catalog.profiles.some((profile) => profile.id === scope.profileId && profile.enabled)
+        || !catalog.config.events.some((event) => event.id === scope.eventId && event.enabled)
+        || !catalog.stands.some((stand) => stand.id === identity && stand.eventId === scope.eventId)) {
+        throw new LocalInputError("Seleziona un profilo, un evento e uno stand disponibili.");
+      }
+      const store = transaction.objectStore("stand_preferences");
+      const previous = await readRequest<LocalStandPreferences | undefined>(store.get([
+        scope.profileId, scope.eventId, "catalog", identity,
+      ]));
+
+      if (previous?.interested === interested) {
+        return previous;
+      }
+      // Only intentional overrides enter the payload: starring never freezes the seed priority or visit status.
+      const payload: StandPreferencesData = {
+        ...scope,
+        standRef: {
+          source: "catalog",
+          eventId: scope.eventId,
+          standId: identity,
+        },
+        interested,
+        ...(previous?.priority === undefined ? {} : {
+          priority: previous.priority,
+        }),
+        ...(previous?.visitStatus === undefined ? {} : {
+          visitStatus: previous.visitStatus,
+        }),
+      };
+      const operationId = createLocalId();
+      const now = new Date().toISOString();
+      const record: LocalStandPreferences = {
+        ...previous,
+        ...payload,
+        localSequence: (previous?.localSequence ?? 0) + 1,
+        serverRevision: previous?.serverRevision ?? null,
+        latestOperationId: operationId,
+        updatedAt: now,
+      };
+
+      store.put(record);
+      transaction.objectStore("outbox").add({
+        ...scope,
+        operationId,
+        entityType: "stand-preferences",
+        entityId: JSON.stringify([payload.standRef.source, identity]),
+        action: previous === undefined ? "create" : "update",
+        localSequence: record.localSequence,
+        baseRevision: record.serverRevision,
+        dependsOn: previous === undefined ? [] : [previous.latestOperationId],
+        payload,
+        status: "pending",
+        queuedAt: now,
+      } satisfies OutboxOperation);
+
+      return record;
     });
   }
 

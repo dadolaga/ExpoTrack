@@ -31,7 +31,8 @@ I componenti di base non decidono quando salvare, quale validazione eseguire o d
 
 Pagine e layout restano Server Components; la shell è client per gestire la scelta
 locale del profilo e la navigazione. La selezione profili è operativa; riepilogo,
-elenchi stand/prodotti e sincronizzazione arriveranno nei rispettivi step.
+elenco prodotti e sincronizzazione arriveranno nei rispettivi step. La lista stand
+è operativa dallo step 07.
 
 ## Selezione profili
 
@@ -47,6 +48,30 @@ I profili personali sono un gruppo distinto attualmente vuoto: la creazione e la
 gestione arriveranno nello step 20. Non viene simulato un profilo personale dal
 mockup. Il PNG del marchio è un asset locale già presente nel progetto, con
 provenienza documentata in `public/brand/README.md`.
+
+## Lista stand — step 07
+
+`stands/StandHeader` riprende il marchio, il contesto e le due scorciatoie ricerca/filtri
+del mockup 03. La shell lo compone nella lista stand; il titolo e il selettore
+interessi/catalogo sono nella stessa riga del contenuto. La selezione del tab Stand
+usa il fondo tenue del mockup.
+
+`stands/StandCatalog` collega la sessione agli hook di `features/stands/`, con caricamento,
+errore di lettura e retry di una stella non salvata. `StandList` riceve dati e callback:
+ricerca, chip degli stati con conteggi, tre select compatte e pannello Filtri per
+interesse e ordinamento; nessuna chiamata diretta allo storage. `StandRow` mostra
+fallback con iniziali, nome/categorie/posizione, priorità colorata, stato con pallino
+e stella indipendente. I loghi non sono ancora nel contratto del catalogo. Le righe
+diventeranno navigabili con il dettaglio dello step 08.
+
+`forms/SelectField` associa label e select nativa; `compact` mantiene la label
+accessibile e usa la forma compatta della barra filtri. `forms/TextField` accetta
+`labelClassName`, utilizzato con `sr-only` per la ricerca. Le icone ricerca, filtri,
+chiusura e chevron estendono `layout/NavigationIcon`.
+
+I filtri combinabili usano funzioni pure. Il loro URL include profilo/evento per
+evitare riusi accidentali in un altro contesto; lo scroll è associato alla voce
+di cronologia, senza salvare preferenze di lista nel catalogo o nell’outbox.
 
 Esempio in un componente client (il form gestisce `name`, `error` e `onSubmit`):
 

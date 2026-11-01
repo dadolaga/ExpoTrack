@@ -13,7 +13,7 @@ export function openLocalDatabase(options: LocalDatabaseOptions = {}): Promise<I
 
       return;
     }
-    const request = factory.open(options.name ?? "expotrack-local", 1);
+    const request = factory.open(options.name ?? "expotrack-local", 2);
     let blocked = false;
 
     request.onblocked = () => {
@@ -23,31 +23,52 @@ export function openLocalDatabase(options: LocalDatabaseOptions = {}): Promise<I
     request.onerror = () => {
       reject(request.error ?? new Error("Impossibile aprire l’archivio locale."));
     };
-    request.onupgradeneeded = () => {
+    request.onupgradeneeded = (event) => {
       const database = request.result;
 
-      database.createObjectStore("config_snapshots", {
-        keyPath: "id",
-      });
-      database.createObjectStore("app_meta", {
-        keyPath: "key",
-      });
-      const products = database.createObjectStore("products", {
-        keyPath: [
-          "profileId", "eventId", "id",
-        ],
-      });
-      const outbox = database.createObjectStore("outbox", {
-        keyPath: "operationId",
-      });
+      if (event.oldVersion < 1) {
+        database.createObjectStore("config_snapshots", {
+          keyPath: "id",
+        });
+        database.createObjectStore("app_meta", {
+          keyPath: "key",
+        });
+        const products = database.createObjectStore("products", {
+          keyPath: [
+            "profileId", "eventId", "id",
+          ],
+        });
+        const outbox = database.createObjectStore("outbox", {
+          keyPath: "operationId",
+        });
 
-      products.createIndex("by_context", ["profileId", "eventId"]);
-      outbox.createIndex("by_context", ["profileId", "eventId"]);
-      outbox.createIndex("by_entity_sequence", [
-        "profileId", "eventId", "entityId", "localSequence",
-      ], {
-        unique: true,
-      });
+        products.createIndex("by_context", ["profileId", "eventId"]);
+        outbox.createIndex("by_context", ["profileId", "eventId"]);
+        outbox.createIndex("by_entity_sequence", [
+          "profileId", "eventId", "entityId", "localSequence",
+        ], {
+          unique: true,
+        });
+      }
+      if (event.oldVersion < 2) {
+        const preferences = database.createObjectStore("stand_preferences", {
+          keyPath: [
+            "profileId", "eventId", "standRef.source", "standRef.standId",
+          ],
+        });
+        const outbox = request.transaction?.objectStore("outbox");
+
+        preferences.createIndex("by_context", ["profileId", "eventId"]);
+        if (outbox === undefined) {
+          throw new Error("Transazione di migrazione non disponibile.");
+        }
+        outbox.deleteIndex("by_entity_sequence");
+        outbox.createIndex("by_entity_sequence", [
+          "profileId", "eventId", "entityType", "entityId", "localSequence",
+        ], {
+          unique: true,
+        });
+      }
     };
     request.onsuccess = () => {
       const database = request.result;

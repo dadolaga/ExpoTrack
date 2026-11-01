@@ -1,13 +1,18 @@
 {
   "automated": {
-    "catalog-and-domain": ["tests/unit/catalog.test.ts"],
+    "catalog-and-domain": [
+      "tests/unit/catalog.test.ts",
+      "tests/unit/stand-list.test.ts"
+    ],
     "profile-event-isolation": [
       "tests/integration/local-persistence.test.ts",
-      "tests/integration/profile-selection.test.ts"
+      "tests/integration/profile-selection.test.ts",
+      "tests/integration/stand-interests.test.ts"
     ],
     "local-persistence": [
       "tests/integration/local-persistence.test.ts",
-      "tests/integration/profile-selection.test.ts"
+      "tests/integration/profile-selection.test.ts",
+      "tests/integration/stand-interests.test.ts"
     ],
     "server-contracts": [],
     "sync-integrity": [],

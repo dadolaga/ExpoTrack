@@ -148,7 +148,7 @@ void test("input invalido resta locale, altri campi validi avanzano e categoria/
   const operations = await repository.listOutbox(firstContext);
 
   assert.equal(operations.length, 2);
-  assert.ok(operations.every((operation) => operation.payload.name.trim().length > 0));
+  assert.ok(operations.every((operation) => operation.entityType === "product" && operation.payload.name.trim().length > 0));
   await assert.rejects(repository.saveProduct(firstContext, "product", {
     categoryId: "lights",
   }), LocalInputError);

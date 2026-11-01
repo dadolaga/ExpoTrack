@@ -74,6 +74,20 @@ di produzione: `profiles-and-dashboard` resta da collegare quando verranno
 introdotti i test E2E e le ulteriori funzioni di quell’area. Le prove fisiche e le
 altre parti delle aree di integrazione restano pendenti.
 
+**Copertura introdotta nello step 07:** `tests/unit/stand-list.test.ts`, eseguito
+da `test:unit` e collegato a `catalog-and-domain`, copre interessi per profilo,
+precedenza degli override, ricerca senza accenti, filtri combinati e azzeramento,
+priorità decrescente con spareggio per nome/ID e contesto dei parametri di lista.
+`tests/integration/stand-interests.test.ts`, eseguito da `test:integration`, è
+collegato a `local-persistence` e `profile-event-isolation`: rimozioni esplicite
+persistenti, aggiornamenti dei seed, due profili/eventi, visita/priorità preservate,
+concorrenza, dipendenze, rollback su quota/abort e migrazione IndexedDB 1 → 2 con
+prodotti e code preesistenti conservati. Le prove temporanee in Chromium verificano
+il flusso UI, errori/retry e ritorno con filtri/scroll; non sono una suite E2E di
+produzione. `stands` resta da collegare quando saranno disponibili anche dettaglio,
+checklist, note e CRUD personale. Le altre parti delle aree e le prove fisiche
+restano pendenti; nessun test grafico automatico introdotto.
+
 ## Prove su dispositivo
 
 Gli emulatori non dimostrano installazione PWA, fotocamera, memoria o usabilità su un telefono fisico. Il manifest mantiene tre verifiche distinte:

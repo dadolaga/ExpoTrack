@@ -8,7 +8,9 @@ avviene in `/profiles`; un profilo ricordato e valido apre Home agli avvii succe
 Si cambia da **Profilo → Cambia profilo**, senza conferma intermedia.
 In Profilo si sceglie il tema Automatico/Chiaro/Scuro, ricordato nel browser.
 La dimostrazione dei componenti di base è in `/examples/components`.
-Riepilogo, elenchi stand/prodotti e sincronizzazione verranno implementati nelle fasi successive.
+La lista Stand (`/stands`) offre interessi personali, catalogo completo, ricerca e
+filtri dallo step 07. Riepilogo, elenco prodotti e sincronizzazione verranno
+implementati nelle fasi successive.
 
 Il dataset dimostrativo e il loader di configurazione sono disponibili dallo step 04,
 separati dal markup. Tutti i dati sono fittizi: i profili mostrati sono marcati come demo.

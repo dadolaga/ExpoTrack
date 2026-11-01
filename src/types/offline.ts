@@ -36,15 +36,40 @@ export type LocalProduct = LocalContext & {
   updatedAt: string;
 };
 
-export type OutboxOperation = LocalContext & {
+export type VisitStatus = "to_visit" | "visited" | "to_revisit";
+
+export type StandPreferencesData = LocalContext & {
+  standRef: StandReference;
+  interested?: boolean;
+  priority?: number | null;
+  visitStatus?: VisitStatus;
+};
+
+export type LocalStandPreferences = StandPreferencesData & {
+  localSequence: number;
+  serverRevision: number | null;
+  latestOperationId: string;
+  updatedAt: string;
+};
+
+type OutboxMetadata = LocalContext & {
   operationId: string;
-  entityType: "product";
   entityId: string;
   action: "create" | "update";
   localSequence: number;
   baseRevision: number | null;
   dependsOn: string[];
-  payload: ProductData;
   status: "pending";
   queuedAt: string;
 };
+
+export type OutboxOperation = OutboxMetadata & (
+  | {
+    entityType: "product";
+    payload: ProductData;
+  }
+  | {
+    entityType: "stand-preferences";
+    payload: StandPreferencesData;
+  }
+);

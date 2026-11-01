@@ -1,6 +1,6 @@
 # Persistenza locale — step 05
 
-`openLocalRepository()` apre IndexedDB `expotrack-local`, versione **1**. Non apre
+`openLocalRepository()` apre IndexedDB `expotrack-local`, versione **2**. Non apre
 connessioni a database server e non esegue richieste di rete. Importare i tipi da
 `src/types/offline.ts`; aprire il repository soltanto nel browser. L’importazione
 del modulo non accede alle API browser durante il rendering server di Next.js.
@@ -12,7 +12,8 @@ del modulo non accede alle API browser durante il rendering server di Next.js.
 | `config_snapshots` | `id` | Snapshot editoriali validati, separati dai dati personali. |
 | `app_meta` | `key` | Puntatore allo snapshot attivo e preferenza locale `active-context` con profilo/evento. |
 | `products` | `[profileId, eventId, id]` | Input corrente, errori, ultima versione valida e sequenza locale. |
-| `outbox` | `operationId` | Mutazioni valide da inviare in futuro; indice univoco su contesto/entità/sequenza. |
+| `stand_preferences` | `[profileId, eventId, standRef.source, standRef.standId]` | Override personali degli stand; l’assenza di un campo conserva il seed. |
+| `outbox` | `operationId` | Mutazioni valide da inviare in futuro; indice univoco su contesto/tipo entità/entità/sequenza. |
 
 Tutte le letture e scritture personali richiedono esplicitamente profilo ed evento.
 Le chiavi composte sono array IndexedDB: non concatenazioni di stringhe.
@@ -38,6 +39,8 @@ IndexedDB; questa versione è distinta dallo `schemaVersion` dei JSON.
 | `listProducts(context)` | Record locali del solo contesto, compresi input incompleti da recuperare. |
 | `listRegisteredProducts(context)` | Ultime versioni valide del solo contesto. Esclude gli inserimenti che non hanno mai raggiunto i dati minimi validi. |
 | `listOutbox(context)` | Mutazioni del solo contesto, ordinate per entità e sequenza locale; nessun invio o conferma simulata. |
+| `listStandPreferences(context)` | Override degli stand del solo profilo/evento; una lettura non materializza i seed. |
+| `setStandInterest(context, standId, interested)` | Salva l’override booleano di uno stand del catalogo e accoda una mutazione `stand-preferences` nella stessa transazione. La Promise termina dopo il commit. |
 | `close()` | Chiude la connessione. Riaprire il repository rilegge lo stesso archivio persistente. |
 
 ## Sessione del profilo — step 06
@@ -58,9 +61,29 @@ come descritto sotto, prima di abbandonare input ancora in memoria.
 
 La pagina di selezione distingue configurati e personali; attualmente il catalogo
 fornisce soltanto profili JSON. Non sono aggiunti store o API di creazione personale
-prima dello step 20. Lo schema IndexedDB resta alla versione 1: la preferenza usa
+prima dello step 20. Nello step 06 lo schema IndexedDB restava alla versione 1: la preferenza usa
 lo store `app_meta` già esistente. Una modifica del catalogo viene riletta a un nuovo
 caricamento del layout, senza un motore di aggiornamento o sincronizzazione.
+
+## Interessi stand — step 07
+
+La migrazione 1 → 2 aggiunge `stand_preferences` e ricrea soltanto l’indice univoco
+dell’outbox includendo `entityType`, così un prodotto e una preferenza con ID e
+sequenza uguali non collidono. Conserva snapshot, profilo selezionato, prodotti e
+operazioni pendenti. I dati della versione 1 non vengono riscritti né eliminati.
+
+La stella scrive esclusivamente `interested`: `false` è una rimozione esplicita
+anche quando il JSON include lo stand. Non copia la priorità iniziale nel record
+e non cambia la visita; eventuali override personali di priorità e visita già
+presenti sono conservati. L’assenza di priorità personale permette di seguire
+gli aggiornamenti del seed; `null` conserva invece una rimozione intenzionale.
+Il selettore applica la precedenza per campo senza modificare il catalogo.
+
+Ogni scrittura rilegge il record nella transazione, preserva gli altri campi,
+incrementa la sequenza e dipende dall’operazione precedente della stessa entità.
+Ripetere lo stesso override non aggiunge operazioni. Quota/abort annullano insieme
+record e coda; la UI aggiorna la stella soltanto dopo commit e permette il retry.
+L’outbox è ora una union discriminata fra `product` e `stand-preferences`.
 
 In questo step il prodotto copre il minimo necessario alla persistenza: nome,
 categoria, riferimento stand e descrizione libera. Prezzo, valutazione, risposte,
