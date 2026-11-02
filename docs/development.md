@@ -43,7 +43,7 @@ Per provare il primo avvio, usare un contesto browser nuovo o una finestra priva
 senza cancellare archivi già usati. Se il browser impedisce IndexedDB, viene mostrato
 un errore con **Riprova**. Se un profilo ricordato non è più disponibile, la pagina
 richiede una nuova scelta senza eliminare i dati personali. La sezione dei profili
-personali rimane vuota fino allo step 20.
+personali rimane vuota fino allo step 16 del piano ridotto.
 
 ## Avvio con devcontainer
 
@@ -184,7 +184,7 @@ nella directory temporanea. Le prove su browser reale, API/PostgreSQL ed E2E del
 PWA saranno ampliate quando verranno implementati i rispettivi comportamenti.
 
 La [validazione finale](final-validation.md) si esegue con `npm run validate:final`:
-l’assistente la eseguirà al termine dello step 28. Raccoglie i controlli statici,
+l’assistente la eseguirà al termine dello step 21 (ex step 28). Raccoglie i controlli statici,
 la build e le future suite di test dell’app, con report in `validation-results/`.
 Finché suite e copertura non sono collegate, il comando segnala `not-ready`. La modalità
 `npm run validate:final -- --preflight` controlla i prerequisiti senza avviare test o build.

@@ -6,9 +6,11 @@ Il comando unico è:
 npm run validate:final
 ```
 
-**Responsabile: l’assistente.** Lo eseguirà al termine dell’intera implementazione nello step 28, correggerà gli errori e riporterà gli esiti. Preparare lo script ora non completa né avvia gli step applicativi successivi. `test:unit` copre i contratti e il loader; dallo step 05 `test:integration` copre il repository locale con IndexedDB emulato. API/PostgreSQL ed E2E non sono ancora disponibili. I prerequisiti incompleti devono produrre `not-ready`, senza dichiarare validata l’app.
+**Responsabile: l’assistente.** Lo eseguirà al termine dell’intera implementazione nello step 21 (ex step 28), correggerà gli errori e riporterà gli esiti. Preparare lo script ora non completa né avvia gli step applicativi successivi. `test:unit` copre i contratti e il loader; dallo step 05 `test:integration` copre il repository locale con IndexedDB emulato. API/PostgreSQL ed E2E non sono ancora disponibili. I prerequisiti incompleti devono produrre `not-ready`, senza dichiarare validata l’app.
 
 La fonte dei requisiti è [la specifica mobile corrente, §§6–7](27_Specifiche_UI_Mobile.md#6-accessibilità-prestazioni-e-verifiche). Le indicazioni precedenti su bozze, conferma Salva, pagina 08, foto stand o conflitti manuali non sono criteri di accettazione attivi.
+
+Il [piano ridotto a sei step](../README_IMPLEMENTAZIONE.md#corrispondenza-con-il-piano-precedente) aggiunge la consultazione essenziale da casa al collaudo finale: dopo raccolta offline e sincronizzazione, aprire l’app da PC con archivio locale vuoto e recuperare dal server dati del profilo/evento e originali fotografici. Includere questo caso nella suite dell’area `offline-pwa-multidevice`, senza introdurre una nuova area o test grafici. Verificare inoltre sull’ambiente operativo la raggiungibilità da telefono e PC e la persistenza dopo riavvio server; non riavviare servizi operativi senza autorizzazione. La prova di installabilità PWA resta richiesta, ma non serve una guida all’installazione.
 
 ## Prerequisiti e comportamento
 
@@ -46,7 +48,7 @@ e dei riferimenti fra profili/eventi, definizioni dei sei tipi di domanda e alia
 letture fallite e file opzionali assenti. Questo collegamento è **parziale**: non prova
 ancora importazione nel database, override persistenti, filtri, contatori o validazione
 delle risposte. Questi casi devono essere aggiunti negli step pertinenti prima dello
-step 28. Le prove fisiche restano pendenti.
+step 21 (ex step 28). Le prove fisiche restano pendenti.
 
 **Copertura introdotta nello step 05:** `tests/integration/local-persistence.test.ts`,
 eseguito da `npm run test:integration`, è collegato a `local-persistence` e
@@ -59,7 +61,7 @@ La suite usa `fake-indexeddb` in memoria; una prova temporanea su IndexedDB real
 in Chromium ha verificato anche refresh e scrittura senza rete. Restano da ampliare
 le prove su browser dell’app completa e su dispositivo, gli altri record personali
 (interessi, budget, note, media) e tutti i contratti server. Il collegamento non
-dichiara completate queste aree per lo step 28 e non sostituisce le future prove
+dichiara completate queste aree per lo step 21 (ex step 28) e non sostituisce le future prove
 su API/PostgreSQL isolati. Le altre aree rimangono pendenti.
 
 **Copertura introdotta nello step 06:** `tests/integration/profile-selection.test.ts`

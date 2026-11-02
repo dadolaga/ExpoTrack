@@ -2,7 +2,7 @@
 
 Questo README definisce **come lavoriamo**, un passo alla volta, sulla parte web mobile da fiera. Ogni step parte da una domanda concreta, produce un’implementazione circoscritta e termina con un risultato verificabile. Non autorizza a implementare l’intera applicazione in un’unica sessione.
 
-**Stato corrente:** step da 00 a 13 accettati dall’utente; step 14 implementato e da verificare dall’utente. Gli step dal 15 in avanti non sono iniziati. Gli esiti sono riportati nel registro della singola consegna.
+**Stato corrente:** implementazione arrivata allo step 15; gli esiti e i riscontri sono riportati nel registro della singola consegna. Il lavoro restante è organizzato in **sei step, dal 16 al 21**, tutti da iniziare, che sostituiscono i precedenti step 16–28.
 
 ## Riferimenti e priorità
 
@@ -26,11 +26,15 @@ La specifica mobile prevale sui mockup superati e sugli esempi tecnici precedent
 
 **Lingua dei commit:** titoli e messaggi di commit devono essere in inglese.
 
-Uno step dovrebbe produrre un singolo cambiamento comprensibile. Se durante il lavoro risulta troppo ampio, lo divido qui in sottopassi numerati, per esempio `17a` e `17b`, e consegno soltanto il primo. Non considero una funzione completata se i suoi controlli non sono eseguibili o se il risultato dipende da codice ancora da realizzare.
+Uno step deve produrre un risultato completo e verificabile. I sei step restanti raggruppano attività prima separate: i sottopassi tecnici si svolgono nella stessa consegna, senza moltiplicare automaticamente gli step. Un impedimento concreto va segnalato con il suo effetto sul risultato. Non considero una funzione completata se i suoi controlli non sono eseguibili o se il risultato dipende da codice ancora da realizzare.
 
 ## Priorità: sviluppo rapido e consumo contenuto di token
 
 **L’app è prevista per un solo utilizzo in fiera.** Su richiesta dell’utente, privilegiare velocità di implementazione e pochi token, con una manutenibilità essenziale: codice comprensibile e riuso dove serve subito, senza progettare per evoluzioni future. Questa priorità guida le regole organizzative che seguono.
+
+**Priorità del piano ridotto:** raccogliere e ritrovare dati e foto durante la fiera, anche senza rete; al ritorno trasferirli in PostgreSQL e nello storage media e consultarli con calma anche da PC. La sincronizzazione immediata in fiera è utile quando la rete c’è, ma il lavoro locale deve proseguire quando manca. Il caricamento sul server e la rilettura da un altro dispositivo fanno parte del risultato richiesto, non sono un extra eventuale.
+
+Non serve una guida per installare l’app. Restano la preparazione tecnica necessaria all’uso offline e la prova sul telefono effettivamente usato in fiera. Per casa si riusano lista, ricerca, filtri, editor e galleria esistenti, rendendoli utilizzabili da PC; confronto affiancato, report dedicati ed export PDF avanzati restano successivi a questi sei step. La disponibilità di un server raggiungibile dal telefono e da casa è un prerequisito operativo da verificare prima della fiera; scrivere istruzioni di installazione non lo sostituisce. Questo piano non avvia una pubblicazione.
 
 Scegliere la soluzione diretta più semplice che soddisfa lo step e il mockup. Limitare letture, spiegazioni e verifiche al necessario; evitare astrazioni preventive, frammentazione in tanti file, refactoring estetici, documentazione prolissa e ripetizioni di controlli già superati senza nuove modifiche o problemi. Fermarsi quando il risultato richiesto è raggiunto. Restano obbligatori lint e typecheck a fine step, i test mirati ai rischi concreti e la protezione dei dati; la fedeltà al mockup resta un requisito.
 
@@ -101,7 +105,7 @@ Stati: `Da iniziare` → `In corso` → `Da verificare dall’utente` → `Accet
 
 ### Validazione finale a carico dell’assistente
 
-Su richiesta dell’utente, al termine dell’intera implementazione nello **step 28 eseguirò io `npm run validate:final`**, leggerò il report, correggerò gli errori e ripeterò le verifiche necessarie prima della consegna finale. La procedura è in [docs/final-validation.md](docs/final-validation.md) ed è richiamata anche in `AGENTS.md` per le sessioni successive.
+Su richiesta dell’utente, al termine dell’intera implementazione nello **step 21 (ex step 28) eseguirò io `npm run validate:final`**, leggerò il report, correggerò gli errori e ripeterò le verifiche necessarie prima della consegna finale. La procedura è in [docs/final-validation.md](docs/final-validation.md) ed è richiamata anche in `AGENTS.md` per le sessioni successive.
 
 Durante gli step pertinenti collegare i test reali alle aree obbligatorie di `validation/final-evidence.json` e introdurre i comandi `test:unit`, `test:integration`, `test:e2e` quando servono. Il runner non considera sufficiente una build riuscita: suite o copertura mancanti impediscono la validazione; prove fisiche ancora pendenti mantengono l’esito incompleto. Non anticipare funzioni applicative solo per far passare il runner. I report generati sono in `validation-results/`, esclusi da Git.
 
@@ -127,19 +131,25 @@ L’ordine è intenzionale: prima fondamenta e funzioni locali verificabili, poi
 | 13 | Modifica prodotto e descrizione | Accettato |
 | 14 | Lista prodotti, duplicazione ed eliminazione | Accettato |
 | 15 | Motore questionari e primi controlli | Accettato |
-| 16 | Rating e scelte del questionario | Da iniziare |
-| 17 | Acquisizione e salvataggio fotografie | Da iniziare |
-| 18 | Galleria, principale ed eliminazione foto | Da iniziare |
-| 19 | Budget per categoria | Da iniziare |
-| 20 | Gestione profili e impostazioni | Da iniziare |
-| 21 | Schema PostgreSQL e repository server | Da iniziare |
-| 22 | API di bootstrap e lettura | Da iniziare |
-| 23 | Invio modifiche, LWW e cancellazioni | Da iniziare |
-| 24 | Ricezione modifiche e recupero della coda | Da iniziare |
-| 25 | Upload degli originali fotografici | Da iniziare |
-| 26 | Pagina sincronizzazione e indicatore | Da iniziare |
-| 27 | Installabilità e shell offline PWA | Da iniziare |
-| 28 | Collaudo del flusso completo e dati reali | Da iniziare |
+| 16 | Completamento questionari, budget e impostazioni | Da iniziare |
+| 17 | Fotografie complete sul dispositivo | Da iniziare |
+| 18 | PostgreSQL, importazione catalogo e API di lettura | Da iniziare |
+| 19 | Sincronizzazione completa di dati e fotografie | Da iniziare |
+| 20 | Apertura e riapertura dell’app senza rete | Da iniziare |
+| 21 | Collaudo fiera → server → consultazione da casa | Da iniziare |
+
+### Corrispondenza con il piano precedente
+
+| Nuovo step | Step precedenti riuniti | Risultato osservabile |
+|---|---|---|
+| 16 | 16, 19, 20 | Questionari, budget e profili utilizzabili senza parti incompiute. |
+| 17 | 17, 18 | Scatto, conservazione e consultazione locale delle fotografie. |
+| 18 | 21, 22 | Database e API reali pronti a ricevere e restituire i dati. |
+| 19 | 23, 24, 25, 26 | Dati e originali trasferiti al server, recuperabili da un altro dispositivo, con stato reale. |
+| 20 | 27 | App preparata online e riapribile in fiera senza connessione. |
+| 21 | 28, più consultazione essenziale da casa | Giornata simulata completa e raccolta rileggibile da PC. |
+
+I riferimenti ai vecchi numeri nelle consegne storiche descrivono il piano dell’epoca: per il lavoro futuro vale questa corrispondenza. La numerazione dei documenti `docs/` non cambia.
 
 ### Step 00 — Qual è la base verificata da cui iniziamo?
 
@@ -179,7 +189,7 @@ L’ordine è intenzionale: prima fondamenta e funzioni locali verificabili, poi
 
 ### Step 06 — Chi sta usando l’app e come cambia profilo?
 
-**Implementazione:** realizzare 01 con `ProfileRow`, distinzione configurati/personali, selezione immediata e memorizzazione della scelta. Un profilo valido apre Home agli avvii successivi; cambio profilo da Profilo. La creazione personale arriva nello step 20.
+**Implementazione:** realizzare 01 con `ProfileRow`, distinzione configurati/personali, selezione immediata e memorizzazione della scelta. Un profilo valido apre Home agli avvii successivi; cambio profilo da Profilo. La creazione personale arriva nello step 16 del piano ridotto.
 
 **Controllo:** primo/secondo avvio, cambio profilo, scelta non più valida e isolamento dati. Nel frattempo un catalogo profili vuoto ha un messaggio corretto, senza pulsante creazione ancora privo di funzione.
 
@@ -237,83 +247,55 @@ L’ordine è intenzionale: prima fondamenta e funzioni locali verificabili, poi
 
 **Controllo:** due profili con domande diverse, nessun questionario applicabile, risposta non compilata distinta da No, numero invalido e snapshot storico. Zero domande inventate o duplicate nel markup.
 
-### Step 16 — Come rispondiamo con voti e scelte configurabili?
+### Step 16 — Come completiamo le funzioni da usare durante la visita?
 
-**Implementazione:** completare il renderer con rating 1–10, scelta singola/multipla e dettaglio focalizzato 05a. `RatingSlider` condiviso con il voto generale; spunta come indicatore di risposta presente.
+**Riunisce:** precedenti step 16, 19 e 20.
 
-**Controllo:** nessun voto preassegnato, risposta cancellabile, scelte salvate per ID e ripristinate dopo refresh. Indietro non annulla risposte; nessuna foto, bozza o conferma Salva risposta nel dettaglio domanda.
+**Implementazione:** completare il questionario con rating 1–10, scelta singola/multipla e dettaglio 05a; condividere `RatingSlider` con il voto generale. Aggiungere budget per profilo/categoria in 11a e differenza rispetto al prezzo in 05. Completare creazione/modifica/eliminazione dei profili personali e impostazioni di evento, tema e informazioni app, riusando i componenti esistenti.
 
-### Step 17 — Come conserviamo subito le foto originali sul telefono?
+**Controllo:** nessun voto preassegnato, risposte cancellabili e scelte persistite per ID; indietro e refresh preservano le risposte. Budget assente/zero, categoria esatta senza ereditarietà, override rimosso distinto da «Nessun budget», separazione profili e riuso fra eventi. Profili JSON protetti, nessun questionario inventato per i personali, doppia conferma eliminazione e dipendenze preservate; cambio contesto senza perdere input o coda. Nessuna bozza, conferma Salva risposta, reset personalizzazioni o somma dei prezzi come spesa sostenuta.
 
-**Implementazione:** acquisizione da fotocamera/galleria, validazione file, anteprime derivate e salvataggio atomico di originali/metadati. Collegare a prodotto e outbox con dipendenze, senza upload server ancora attivo.
+### Step 17 — Come raccogliamo e ritroviamo tutte le fotografie sul telefono?
 
-**Controllo:** foto riapribile dopo refresh con rete server assente, originale invariato, errori permessi/formato/quota senza falso successo. Foto mantenuta se il prodotto è ancora incompleto; nessuna fotografia stand.
+**Riunisce:** precedenti step 17 e 18.
 
-### Step 18 — Come consultiamo e organizziamo le foto raccolte?
+**Implementazione:** acquisizione da fotocamera/galleria, validazione file, anteprime derivate e salvataggio atomico di originali/metadati con dipendenze prodotto/outbox. Completare `PhotoGrid`, `PhotoViewer`, scelta principale ed eliminazione con conferma, sostituzione principale e pulizia sicura dei soli asset non più referenziati. Upload server nello step 19.
 
-**Implementazione:** `PhotoGrid`, `PhotoViewer`, scelta principale ed eliminazione con conferma; riusare il viewer senza attivare 08. Gestire sostituzione principale e pulizia sicura dei soli asset non più referenziati.
+**Controllo:** originale invariato e riapribile dopo refresh con server assente, anche se il prodotto è incompleto; principale persistente, viewer con ripristino focus, eliminazione annullata/confermata e griglia vuota. Errori di permessi, formato e quota senza falso successo; conservare riferimenti usati dalle operazioni pendenti. Fotografie solo prodotto, nessuna pagina 08 o pulsante Informazioni foto. Il riavvio dell’intera app senza rete sarà garantito dallo step 20.
 
-**Controllo:** apertura/chiusura con ripristino focus, principale persistente, eliminazione annullata/confermata, griglia vuota e riferimenti ancora usati da operazioni pendenti. Nessun pulsante Informazioni foto.
+### Step 18 — Come prepariamo un archivio server reale e consultabile?
 
-### Step 19 — Come confrontiamo un prezzo con il budget della categoria?
+**Riunisce:** precedenti step 21 e 22.
 
-**Implementazione:** 11a in Profilo, budget profilo/categoria con override ed esclusione esplicita del seed; importo e differenza nell’editor 05. Riutilizzare campi monetari e selezione categoria.
+**Implementazione:** accesso PostgreSQL semplice, migrazioni versionate, repository server e API di bootstrap/lettura. Rappresentare i dati già usati localmente, revisioni, idempotenza, tombstone e riferimenti media; importare il catalogo JSON validato in una transazione ripetibile. Collegare bootstrap e aggiornamenti al repository locale preservando dati personali e override. Credenziali esclusivamente sul server.
 
-**Controllo:** budget assente/zero, due profili, categoria esatta senza ereditarietà, rimozione override distinta da «Nessun budget», persistenza locale e riuso fra eventi. Nessuna somma dei prezzi come spesa sostenuta.
+**Controllo:** database di test isolato, migrazioni e vincoli di proprietà/profilo/evento, categoria/stand immutabili, budget e checklist. Importazione valida/invalida, rollback, riferimenti mancanti, richieste ripetibili e server irraggiungibile. Aggiornare il catalogo senza cancellare raccolte o riattivare interessi esclusi. Nessuna modifica o cancellazione dei dati di sviluppo per i test; la scrittura delle raccolte dal telefono arriva nello step 19.
 
-### Step 20 — Come gestiamo profili personali ed evento attivo?
+### Step 19 — Come portiamo dati e foto sul server senza perderli?
 
-**Implementazione:** creazione/modifica profilo personale, nome/colore e icona standard; doppia conferma eliminazione con gestione delle dipendenze. Completare impostazioni con evento a tendina, tema già condiviso e informazioni app.
+**Riunisce:** precedenti step 23, 24, 25 e 26.
 
-**Controllo:** identità JSON non modificabile/eliminabile, profilo personale senza questionario automatico, cambio contesto senza perdita di input/operazioni. Niente reset personalizzazioni, descrizione profilo o selettore icone.
+**Implementazione:** completare push/pull, applicazione atomica, LWW per record nell’ordine di accettazione server, revisioni, retry idempotente, cursori e conferme persistenti. Riprendere la coda dopo interruzioni, proteggere modifiche locali successive e tombstone, recuperare gli update respinti come nuovi elementi. Trasferire gli originali con verifica integrità e dipendenza dal prodotto, senza pubblicare file incompleti o bloccare la UI. Collegare indicatore e pagina 10 a operazioni, foto, errori e comando manuale reali; sincronizzazione automatica con app aperta e rete disponibile.
 
-### Step 21 — Come rappresentiamo gli stessi dati sul server?
+**Controllo:** risposta persa/retry senza duplicati, ID riusato con payload diverso, due dispositivi, modifiche locali durante pull, crash prima del commit locale, cursore scaduto, due profili/eventi e update tardivo contro cancellazione. Upload interrotto/ripetuto, hash discordante, prodotto eliminato durante invio e spazio server insufficiente: gli originali locali restano disponibili. Foto conteggiate una sola volta, errori visibili e «Sincronizzato» soltanto dopo conferma di dati e file. Da un contesto browser pulito rileggere dal server prodotti, risposte, note e foto; il solo svuotamento della coda non basta. Nessuna scelta manuale della versione o promessa di trasferimento ad app chiusa.
 
-**Implementazione:** scegliere un accesso PostgreSQL semplice, introdurre migrazioni versionate e repository server per i contratti già usati localmente. Modellare revisioni, idempotenza, tombstone e riferimenti media senza esporre credenziali al browser.
+### Step 20 — Come garantiamo l’uso in fiera quando manca la connessione?
 
-**Controllo:** migrazione su database di test isolato e test di integrità, proprietà, categoria/stand immutabili e budget/checklist. Non modificare o azzerare il database di sviluppo per far passare i test.
+**Riunisce:** precedente step 27, con priorità al funzionamento offline.
 
-### Step 22 — Come carichiamo catalogo e dati server con contratti verificabili?
+**Implementazione:** manifest, icone e cache della shell PWA, preparazione iniziale online di catalogo e dati necessari, aggiornamento controllato degli asset. Preservare dati personali, originali e outbox negli aggiornamenti. Nessuna guida o procedura guidata di installazione: l’obiettivo è aprire e usare l’app sul telefono effettivo durante la fiera.
 
-**Implementazione:** API di bootstrap/lettura con validazione dei JSON, snapshot coerente e perimetro profilo/evento. Collegare l’aggiornamento dei cataloghi al repository locale, preservando override e dati personali.
+**Controllo:** sulla versione di produzione e sul telefono di riferimento, caricamento iniziale online → modalità aereo → navigazione e raccolta dati/foto → refresh → chiusura/riapertura → ritorno rete e ripresa sync. Verificare che il catalogo necessario sia disponibile e che un aggiornamento non perda raccolte o coda. Primo accesso mai preparato senza rete gestito esplicitamente. Conservare la prova di installabilità PWA prevista dalla validazione, senza dedicarle una guida. Non richiedere una build come controllo ordinario di ogni step: la verifica offline sulla versione di produzione resta necessaria.
 
-**Controllo:** richieste ripetibili documentate e test di configurazione valida/invalida, riferimenti mancanti, profilo errato e server non raggiungibile. Un aggiornamento catalogo non cancella raccolte locali né riaccende interessi esclusi.
+### Step 21 — Possiamo usare l’app in fiera e rileggere la raccolta da casa?
 
-### Step 23 — Come inviamo le modifiche senza duplicarle?
+**Riunisce:** precedente step 28 e consultazione essenziale post-fiera.
 
-**Implementazione:** push dell’outbox, applicazione atomica sul server, LWW per record nell’ordine di accettazione, retry idempotente e protezione cancellazioni. Nessuna scelta manuale della versione.
+**Implementazione:** integrare i dati reali disponibili e correggere i difetti del flusso completo. Rendere lista, ricerca, filtri, editor e galleria esistenti utilizzabili anche da PC, senza creare un nuovo modulo di analisi. Verificare la raggiungibilità dell’ambiente operativo dal telefono e da casa, la persistenza dopo riavvio server e la disponibilità sia del database sia dei file fotografici. Non inventare catalogo o posizioni mancanti: elencare i dati ancora da fornire. PostgreSQL conserva i dati strutturati e i riferimenti; gli originali rimangono nello storage media persistente del server.
 
-**Controllo:** due dispositivi sullo stesso record, retry dopo risposta persa, stesso ID con payload diverso, update tardivo contro tombstone. Verifiche API/database prima di collegare l’intera UI.
+**Controllo:** simulare profilo → interessi → stand/checklist e note → prodotto → questionario → descrizione → foto → refresh e riapertura offline → ritorno rete → sync → apertura da PC con archivio locale inizialmente vuoto. Verificare dal PC la raccolta completa del profilo/evento scelto, con prezzi, voti, risposte, descrizioni, note e originali; rileggere i dati dal server senza dipendere dalla cache del telefono. Provare anche stand personale, budget, cancellazioni, isolamento profili, tastiera e usabilità sul telefono reale; controlli grafici solo manuali.
 
-### Step 24 — Come riceviamo aggiornamenti senza perdere quelli locali?
-
-**Implementazione:** pull incrementale, cursori, conferme persistenti, ordine per record e ripresa automatica della coda. Proteggere input locali successivi e recuperare gli update respinti come nuovi elementi.
-
-**Controllo:** crash fra risposta e commit locale, cursor scaduto, modifiche locali durante pull, code di due profili/eventi e recupero da cancellazione. Nessuna riapplicazione di operazioni già confermate.
-
-### Step 25 — Come trasferiamo gli originali fotografici al server?
-
-**Implementazione:** endpoint media, controlli di integrità e upload automatico dipendente dal prodotto; retry e progresso senza bloccare la UI. Collegare lo storage server ai metadati senza pubblicare file incompleti.
-
-**Controllo:** upload interrotto/ripetuto, hash discordante, prodotto cancellato durante invio e spazio server insufficiente. Il file locale resta disponibile e non viene eliminato per un semplice errore di rete.
-
-### Step 26 — Come capiamo cosa è salvato e cosa è ancora in attesa?
-
-**Implementazione:** indicatore condiviso e pagina 10 con stato reale, totale operazioni del dispositivo, dettagli del contesto attivo, sottoinsieme foto, errori e comando manuale. Riutilizzare `SaveStatus` senza simulare l’esito del server.
-
-**Controllo:** numero corretto con foto conteggiate una volta, errori inclusi, cambio profilo, retry e coda svuotata. Sync automatica sempre attiva, entrambe le reti, nessun toggle superfluo; «Sincronizzato» soltanto a conferma avvenuta.
-
-### Step 27 — Come apriamo l’app anche senza rete e la installiamo sul telefono?
-
-**Implementazione:** manifest, icone e cache della shell PWA; aggiornamento controllato degli asset e bootstrap necessario al primo uso. Preservare dati personali e outbox durante aggiornamenti.
-
-**Controllo:** su build di produzione, primo caricamento online seguito da modalità aereo, refresh, chiusura/riapertura e installazione sul dispositivo di riferimento. Primo accesso mai preparato senza rete gestito correttamente; nessuna promessa di sync a PWA chiusa.
-
-### Step 28 — Il flusso completo è pronto per l’utilizzo in fiera?
-
-**Implementazione:** integrare i dati reali disponibili e risolvere soltanto i difetti emersi dal collaudo. Non inventare catalogo o posizioni mancanti: registrare quali dati devono ancora essere forniti. Niente nuove funzionalità o rifacimento generale finale.
-
-**Controllo:** profilo → interessi → stand/checklist → prodotto → questionario → descrizione → foto → refresh offline → sync → riapertura su altro dispositivo. Verificare anche stand personale, budget, cancellazioni, temi, accessibilità e tastiera su telefono reale. Build e criteri di accettazione della specifica verificati; annotare limiti residui. La pubblicazione richiede un’attività separata esplicitamente richiesta.
+**Validazione finale a carico dell’assistente:** eseguire `npm run validate:final`, leggere il report, correggere gli errori e ripetere i controlli necessari. Le suite devono esercitare database e media di test isolati e avere i collegamenti reali in `validation/final-evidence.json`. Prove fisiche mancanti, server non verificabile o dati reali ancora necessari vanno dichiarati: non equivalgono a un esito completo. La build prevista dal runner finale resta necessaria; nessuna build aggiuntiva come controllo ordinario di fine step. Nessun confronto affiancato o export avanzato in questa consegna. La pubblicazione resta un’attività separata da richiedere esplicitamente, da predisporre prima della fiera se l’ambiente operativo non esiste già.
 
 ## Registro della singola consegna
 

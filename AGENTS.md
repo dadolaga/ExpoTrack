@@ -22,6 +22,6 @@ Su richiesta dell’utente, non eseguire la build come controllo di fine step: i
 
 ## Validazione finale dell’implementazione
 
-Al termine dell’intera implementazione, durante lo step 28, **l’assistente deve eseguire `npm run validate:final`**, leggere il report e correggere gli errori prima di dichiarare concluso il lavoro. L’esecuzione è a carico dell’assistente, come richiesto dall’utente; non delegare all’utente i controlli automatizzabili.
+Al termine dell’intera implementazione, durante lo step 21 (ex step 28), **l’assistente deve eseguire `npm run validate:final`**, leggere il report e correggere gli errori prima di dichiarare concluso il lavoro. L’esecuzione è a carico dell’assistente, come richiesto dall’utente; non delegare all’utente i controlli automatizzabili.
 
 Durante gli step che introducono test, collegare i file reali alle aree di `validation/final-evidence.json`, secondo `docs/final-validation.md`. Suite mancanti, test non collegati o prove su dispositivo ancora pendenti non valgono come validazione completa. Non segnare verifiche come superate senza averle eseguite. Usare database e media di test isolati, senza modificare i dati di sviluppo o produzione.
