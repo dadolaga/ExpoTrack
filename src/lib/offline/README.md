@@ -131,6 +131,14 @@ dichiarato «Sincronizzato» dopo un salvataggio locale.
 
 ## Confine della transazione
 
+Dallo step 09 `saveStandPreferences` accetta anche `notes`: stringa facoltativa
+non troncata né ripulita, inclusa la stringa vuota per cancellare il contenuto.
+Le altre patch preservano le note; modificarle non cambia interesse, priorità,
+visita, checklist o descrizione prodotto. Non serve una migrazione dello schema 2.
+Testo e outbox condividono lo stesso commit. La suite stand già collegata al
+manifest verifica testo lungo, riapertura, isolamento, concorrenza, invalidi,
+quota/rollback e retry.
+
 Le modifiche al prodotto e la relativa mutazione si scrivono insieme. La Promise
 attende `IDBTransaction.complete`, non il solo successo della richiesta `put` o
 `add`: un abort successivo annulla entrambe le scritture. La distinzione segue

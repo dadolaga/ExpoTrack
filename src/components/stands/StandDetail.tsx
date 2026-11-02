@@ -132,6 +132,16 @@ function ContextStandDetail({
       />
       <section
         className="stand-detail-card"
+        aria-labelledby="stand-notes-title"
+      >
+        <h2 id="stand-notes-title">Note personali</h2>
+        <p className="stand-notes-preview">{stand.notes.length === 0 ? "Nessuna nota sullo stand." : stand.notes}</p>
+        <Link href={`/stands/${encodeURIComponent(standId)}/notes?from=detail`}>
+          Apri note stand
+        </Link>
+      </section>
+      <section
+        className="stand-detail-card"
         aria-labelledby="planned-title"
       >
         <div className="stand-section-heading"><h2 id="planned-title">Prodotti da vedere</h2><span className="stand-count">{stand.planned.length}</span></div>

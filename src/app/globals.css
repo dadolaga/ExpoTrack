@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+.stand-notes-preview {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
 :root {
   color-scheme: light;
 

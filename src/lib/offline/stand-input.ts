@@ -9,12 +9,18 @@ export function applyStandPatch(
   changes: StandPreferencesPatch,
 ): StandPreferencesData {
   if (Object.keys(changes).length === 0 || Object.keys(changes).some((key) => ![
-    "interested", "priority", "visitStatus", "checklistChange", "addChecklistItem",
+    "interested", "priority", "visitStatus", "checklistChange", "addChecklistItem", "notes",
   ].includes(key))) {
     throw new LocalInputError("Modifica stand non valida.");
   }
   const next = structuredClone(previous);
 
+  if (Object.hasOwn(changes, "notes")) {
+    if (typeof changes.notes !== "string") {
+      throw new LocalInputError("Le note devono essere un testo.");
+    }
+    next.notes = changes.notes;
+  }
   if (Object.hasOwn(changes, "interested")) {
     if (typeof changes.interested !== "boolean") {
       throw new LocalInputError("L’interesse deve essere un valore booleano.");

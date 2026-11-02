@@ -223,6 +223,9 @@ export class LocalRepository {
         ...(previous?.checklistDone === undefined ? {} : {
           checklistDone: previous.checklistDone,
         }),
+        ...(previous?.notes === undefined ? {} : {
+          notes: previous.notes,
+        }),
       };
       const payload = applyStandPatch(previousData, seed?.checklist ?? [], patch);
 

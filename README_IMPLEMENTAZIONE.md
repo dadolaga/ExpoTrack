@@ -2,7 +2,7 @@
 
 Questo README definisce **come lavoriamo**, un passo alla volta, sulla parte web mobile da fiera. Ogni step parte da una domanda concreta, produce un’implementazione circoscritta e termina con un risultato verificabile. Non autorizza a implementare l’intera applicazione in un’unica sessione.
 
-**Stato corrente:** step da 00 a 08 accettati dall’utente. Gli step dal 09 in avanti non sono iniziati. Le cartelle indicate qui sono destinazioni da creare quando servono, non funzionalità già presenti. Gli esiti sono riportati nel registro della singola consegna.
+**Stato corrente:** step da 00 a 09 accettati dall’utente. Gli step dal 10 in avanti non sono iniziati. Le cartelle indicate qui sono destinazioni da creare quando servono, non funzionalità già presenti. Gli esiti sono riportati nel registro della singola consegna.
 
 ## Riferimenti e priorità
 
@@ -120,7 +120,7 @@ L’ordine è intenzionale: prima fondamenta e funzioni locali verificabili, poi
 | 06 | Selezione e cambio profilo | Accettato |
 | 07 | Lista stand e interessi | Accettato |
 | 08 | Dettaglio stand e checklist | Accettato |
-| 09 | Note dello stand | Da iniziare |
+| 09 | Note dello stand | Accettato |
 | 10 | Stand personali | Da iniziare |
 | 11 | Dashboard con conteggi reali | Da iniziare |
 | 12 | Creazione minima prodotto e selezione stand | Da iniziare |
@@ -688,3 +688,18 @@ Le suite permanenti usano fixture e database IndexedDB emulati isolati; i nuovi 
 - **Limiti:** note dedicate allo step 09; azioni/editor prodotto allo step 12. Non sono mostrati pulsanti senza funzione, mappe o fotografie stand. Nessuna build o validazione finale dello step 28 eseguita; nessuna certificazione su telefono reale, produzione o riavvio PWA offline. L’area E2E `stands` resta pendente; la suite di integrazione estesa è già collegata a `local-persistence` e `profile-event-isolation`.
 - **Commit suggerito:** `feat: add stand details and persistent checklist`. Nessun commit o push effettuato.
 - **Riscontro:** l’utente conferma «Va bene»; step 08 accettato. Step 09 non avviato.
+
+### Consegna step 09 — Note dello stand
+
+- **Data / stato:** 2 novembre 2026; Accettato.
+- **Risultato:** dal dettaglio «Apri note stand» apre `/stands/[standId]/notes`. Nome stand, testo unico facoltativo senza limite UI, stato autosalvataggio e ritorno al dettaglio. Il testo viene conservato integralmente, inclusi spazi e righe; nessuna cronologia o conferma Salva. Nel dettaglio compare un’anteprima di tre righe, resa come testo.
+- **Persistenza:** campo `notes` nelle preferenze personali esistenti, isolato per profilo/evento/stand. Commit atomico con outbox, senza migrazione o dipendenze nuove. Le altre patch preservano le note; queste non cambiano interesse, priorità, visita, checklist o descrizione prodotto. L’apertura della vista non crea record vuoti.
+- **Navigazione/errori:** input salvato subito, scritture serializzate con recupero dell’ultimo testo arrivato durante il commit. Header, ritorno, tab e cambio profilo attendono il salvataggio. Indietro del browser è protetto anche senza Navigation API; il fallback viene registrato dal provider prima dell’App Router. Se la scrittura fallisce, il testo resta aperto con retry e senza successo dichiarato. Refresh/chiusura con modifiche pendenti usano `beforeunload`; dopo commit il normale refresh recupera le note.
+- **File nuovi:** `src/app/(app)/stands/[standId]/notes/page.tsx`, `src/components/stands/StandNotes.tsx`, `src/components/feedback/SaveStatus.tsx`, `src/features/stands/use-stand-notes.ts`.
+- **File aggiornati:** `src/types/offline.ts`, `src/lib/offline/{stand-input,repository}.ts`, `src/features/stands/stand-list.ts`, `src/components/stands/{StandDetail,StandHeader}.tsx`, `src/components/layout/BottomNav.tsx`, `src/components/profiles/ProfileProvider.tsx`, `src/app/globals.css`, `tests/integration/stand-interests.test.ts`, `src/components/README.md`, `src/lib/offline/README.md`, `docs/{development,final-validation}.md`, questo README. Working tree iniziale pulito. Riusati Button, header, sessione, loader del dettaglio e repository.
+- **Verifiche:** `npm run lint:fix`, `npm run lint`, `npm run typecheck`, `npm run test:unit` e `npm run test:integration` superati, codice 0. Due scenari note aggiunti alla suite stand già collegata a `local-persistence` e `profile-event-isolation` in `validation/final-evidence.json`: testo lungo, riapertura, svuotamento, concorrenza, isolamento, descrizione prodotto preservata, invalidi, quota/rollback/retry. Tutte le suite preesistenti passano. `git diff --check` superato.
+- **Browser:** prove temporanee Chromium su copia isolata dell’app, `next dev --webpack` porta 3109, senza `.env`, database server o media reali. Verificati testo lungo, refresh, ritorno immediato da pulsante/header/browser, input durante transazione ritardata, cambio profilo, quota e blocco uscite/retry, ritorno alla lista filtrata, svuotamento, accesso diretto, stand mancante e chiusura/riapertura della pagina. Ripetuto il caso quota/Indietro con Navigation API disattivata. Anteprime chiara/scura a 390 px e stretta a 320 px con testo 200% ispezionate manualmente; nessun test grafico introdotto.
+- **Come provarlo:** `npm run dev`, poi [http://localhost:3000/stands](http://localhost:3000/stands). Scegliere Io · demo, aprire Borse Demo → Apri note stand. Scrivere anche un testo lungo e tornare subito al dettaglio: l’anteprima lo mostra; riaprire e ricaricare conserva tutto. Cambiare a Papà · demo: le note di Io non compaiono. Tornare a Io le recupera. Svuotare il campo e ricaricare mantiene il testo vuoto. Un accesso diretto a `/stands/demo-lights/notes` consente comunque il ritorno al dettaglio.
+- **Limiti:** nessuna build o validazione finale dello step 28 eseguita. Prove su telefono reale e altri browser, PWA offline ed E2E di produzione restano pendenti. Il fallback è esercitato in Chromium disattivando l’API, senza certificare altri motori. La sync server resta agli step successivi; l’indicatore distingue salvataggio locale e sincronizzazione in attesa. Step 10 non avviato.
+- **Punto di commit:** soltanto i file elencati sopra; titolo suggerito `feat: add autosaved personal stand notes`. Nessun commit o push effettuato.
+- **Riscontro:** l’utente conferma «Va bene»; step 09 accettato. Step 10 non avviato.

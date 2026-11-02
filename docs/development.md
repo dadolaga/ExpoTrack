@@ -15,7 +15,10 @@ implementati nelle fasi successive.
 Dallo step 08 il tap sulla riga apre `/stands/[standId]`: priorità e stato visita
 manuali, checklist persistente e sezioni per prodotti pianificati/registrati.
 La stella rimane un controllo indipendente. Le azioni prodotto arriveranno allo
-step 12 e le note dedicate allo step 09.
+step 12. Dallo step 09 «Apri note stand» apre `/stands/[standId]/notes`: testo
+facoltativo senza limite UI, autosalvataggio locale e ritorno dopo commit.
+Le note sono personali per profilo/evento/stand; un errore di storage mantiene il
+testo aperto con retry. La sincronizzazione server arriverà negli step successivi.
 
 Il dataset dimostrativo e il loader di configurazione sono disponibili dallo step 04,
 separati dal markup. Tutti i dati sono fittizi: i profili mostrati sono marcati come demo.

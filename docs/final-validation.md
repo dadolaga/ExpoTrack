@@ -119,3 +119,14 @@ Ogni esecuzione crea `validation-results/<timestamp-UTC>/report.json`, escluso d
 | `preflight-only` | 0 | Solo prerequisiti controllati; **non** equivale a un’app validata. |
 
 Il comando diagnostico `npm run validate:final -- --preflight` controlla soltanto la preparazione; l’assistente dovrà comunque eseguire il comando completo alla fine. Dopo un difetto corretto, ripetere i controlli pertinenti e la validazione finale sul codice aggiornato, riportando sempre lo stato effettivo e il percorso dell’ultimo report.
+
+**Estensione step 09:** i due scenari note in
+`tests/integration/stand-interests.test.ts`, già collegato a `local-persistence`
+e `profile-event-isolation` in `validation/final-evidence.json`, verificano testo
+lungo integro, riapertura, cancellazione del contenuto, profili/eventi/stand,
+separazione dalla descrizione prodotto, patch concorrenti, invalidi e quota con
+rollback/retry. Le prove Chromium temporanee su copia isolata verificano input
+mentre una transazione è in corso, ritorno immediato, cambio profilo, refresh e
+blocco dell’uscita con recupero dopo errore. Non completano l’area E2E `stands`,
+ancora priva di CRUD personale e suite della build di produzione; le prove
+fisiche restano pendenti. Nessun test grafico aggiunto.

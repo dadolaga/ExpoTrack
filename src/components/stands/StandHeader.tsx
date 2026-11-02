@@ -1,8 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import { NavigationIcon } from "@/components/layout/NavigationIcon";
+import { useProfileSession } from "@/components/profiles/ProfileProvider";
 
 import type { ProfileSummary } from "@/types/profiles";
 
@@ -12,6 +13,9 @@ export function StandHeader({ profile, eventName, detail = false }: {
   detail?: boolean;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const { leave } = useProfileSession();
+  const notes = pathname.endsWith("/notes");
 
   if (detail) {
     return (
@@ -19,13 +23,21 @@ export function StandHeader({ profile, eventName, detail = false }: {
         <div className="stand-detail-topbar">
           <button
             type="button"
-            aria-label="Torna alla lista stand"
+            aria-label={notes ? "Torna al dettaglio stand" : "Torna alla lista stand"}
             onClick={() => {
-              if (new URLSearchParams(window.location.search).get("from") === "list" && window.history.length > 1) {
-                router.back();
-              } else {
-                router.replace("/stands");
-              }
+              void leave(() => {
+                const from = new URLSearchParams(window.location.search).get("from");
+                const historyState = window.history.state as {
+                  notesBackFallback?: boolean;
+                } | null;
+
+                if (from === (notes ? "detail" : "list") && window.history.length > 1
+                  && (!notes || historyState?.notesBackFallback !== true)) {
+                  router.back();
+                } else {
+                  router.replace(notes ? pathname.slice(0, -"/notes".length) : "/stands");
+                }
+              });
             }}
           ><NavigationIcon name="back" />
           </button>

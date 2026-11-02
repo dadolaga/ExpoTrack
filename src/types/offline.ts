@@ -45,9 +45,10 @@ export type StandPreferencesData = LocalContext & {
   visitStatus?: VisitStatus;
   checklist?: ChecklistSeedItem[];
   checklistDone?: Record<string, boolean>;
+  notes?: string;
 };
 
-export type StandPreferencesPatch = Pick<StandPreferencesData, "interested" | "priority" | "visitStatus"> & {
+export type StandPreferencesPatch = Pick<StandPreferencesData, "interested" | "priority" | "visitStatus" | "notes"> & {
   checklistChange?: {
     id: string;
     checked: boolean;

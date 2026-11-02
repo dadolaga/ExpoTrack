@@ -432,3 +432,132 @@ void test("patch dettaglio invalide e quota non cambiano record/coda; le spunte 
   });
   assert.equal((await repository.listOutbox(scope)).length, queue.length + 1);
 });
+
+void test("note: testo lungo integro dopo riapertura, campi indipendenti e isolamento profilo/evento/stand", async (context) => {
+  const { catalog, repository, connect } = await fixture(context);
+  const notes = `  Appunti personali\n${"È una prova <script>test</script> 👜\n".repeat(2000)}  `;
+  const secondEvent = "notes-second-demo";
+
+  catalog.config.events.push({
+    ...catalog.config.events[0],
+    id: secondEvent,
+  });
+  catalog.stands.push({
+    ...catalog.stands[0],
+    eventId: secondEvent,
+    hall: undefined,
+  });
+  await repository.saveCatalog(catalog);
+  const peer = await connect();
+
+  await Promise.all([
+    repository.saveStandPreferences(scope, "demo-bags", {
+      notes,
+    }),
+    peer.saveStandPreferences(scope, "demo-bags", {
+      visitStatus: "visited",
+      priority: 6,
+    }),
+  ]);
+  const father = {
+    ...scope,
+    profileId: "father",
+  };
+  const otherEvent = {
+    ...scope,
+    eventId: secondEvent,
+  };
+
+  await repository.saveStandPreferences(father, "demo-bags", {
+    notes: "Note papà",
+  });
+  await repository.saveStandPreferences(otherEvent, "demo-bags", {
+    notes: "Altro evento",
+  });
+  await repository.setStandInterest(scope, "demo-bags", false);
+  await repository.saveStandPreferences(scope, "demo-bags", {
+    checklistChange: {
+      id: catalog.interests[0].checklist[0].id,
+      checked: true,
+    },
+  });
+  await repository.saveProduct(scope, "notes-product", {
+    name: "Prodotto",
+    categoryId: "bags",
+    description: "Descrizione distinta",
+    standRef: {
+      source: "catalog",
+      eventId: scope.eventId,
+      standId: "demo-bags",
+    },
+  });
+  repository.close();
+  const reopened = await connect();
+  const preferences = await reopened.listStandPreferences(scope);
+  const detail = resolveStandDetail(catalog, scope, "demo-bags", preferences, []);
+
+  assert.ok(detail);
+  assert.equal(detail.notes, notes);
+  assert.equal(detail.visitStatus, "visited");
+  assert.equal(detail.priority, 6);
+  assert.equal(detail.interested, false);
+  assert.equal(detail.completed, 1);
+  assert.equal(resolveStandDetail(catalog, scope, "demo-lights", preferences, [])?.notes, "");
+  assert.equal(resolveStandDetail(catalog, father, "demo-bags", preferences, [])?.notes, "");
+  assert.equal((await reopened.listStandPreferences(father))[0].notes, "Note papà");
+  assert.equal((await reopened.listStandPreferences(otherEvent))[0].notes, "Altro evento");
+  assert.equal((await reopened.getProduct(scope, "notes-product"))?.input.description, "Descrizione distinta");
+  const queue = await reopened.listOutbox(scope);
+  const standQueue = queue.filter((operation) => operation.entityType === "stand-preferences");
+
+  assert.equal(standQueue.at(-1)?.payload.notes, notes);
+  await reopened.saveStandPreferences(scope, "demo-bags", {
+    notes,
+  });
+  assert.equal((await reopened.listOutbox(scope)).length, queue.length);
+  await reopened.saveStandPreferences(scope, "demo-bags", {
+    notes: "",
+  });
+  const cleared = resolveStandDetail(catalog, scope, "demo-bags", await reopened.listStandPreferences(scope), []);
+
+  assert.equal(cleared?.notes, "");
+  assert.equal(cleared.visitStatus, "visited");
+  assert.equal((await reopened.listStandPreferences(father))[0].notes, "Note papà");
+});
+
+void test("note: input invalido e quota conservano record e outbox, retry senza perdita di testo", async (context) => {
+  const { repository } = await fixture(context);
+  const initial = await repository.saveStandPreferences(scope, "demo-bags", {
+    notes: "Testo precedente",
+  });
+  const queue = await repository.listOutbox(scope);
+  const invalid = JSON.parse('{"notes":42}') as {
+    notes: string;
+  };
+
+  await assert.rejects(repository.saveStandPreferences(scope, "demo-bags", invalid), LocalInputError);
+  const add = Reflect.get(IDBObjectStore.prototype, "add");
+  const quota = context.mock.method(IDBObjectStore.prototype, "add", function(this: IDBObjectStore, value: unknown) {
+    if (this.name === "outbox") {
+      throw new DOMException("Quota simulata.", "QuotaExceededError");
+    }
+
+    return add.call(this, value);
+  });
+  const notes = "Ultimo testo da non perdere\n ";
+
+  await assert.rejects(repository.saveStandPreferences(scope, "demo-bags", {
+    notes,
+  }), {
+    name: "QuotaExceededError",
+  });
+  quota.mock.restore();
+  assert.deepEqual(await repository.listStandPreferences(scope), [initial]);
+  assert.deepEqual(await repository.listOutbox(scope), queue);
+  const saved = await repository.saveStandPreferences(scope, "demo-bags", {
+    notes,
+  });
+
+  assert.equal(saved.notes, notes);
+  assert.equal((await repository.listOutbox(scope)).length, queue.length + 1);
+});

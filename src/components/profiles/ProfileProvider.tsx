@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import {
-  createContext, useContext, useEffect, useRef, useState,
+  createContext, useCallback, useContext, useEffect, useRef, useState,
 } from "react";
 
 import { openLocalRepository } from "@/lib/offline/repository";
@@ -32,6 +32,11 @@ type ProfileContextValue = {
   selectionError: string | null;
   chooseProfile: (id: string) => Promise<boolean>;
   retry: () => void;
+  registerBeforeLeave: (
+    handler: () => Promise<boolean>,
+    onPopstate: (event: PopStateEvent) => void,
+  ) => () => void;
+  leave: (action: () => void) => Promise<void>;
 };
 
 const ProfileContext = createContext<ProfileContextValue | null>(null);
@@ -49,6 +54,50 @@ export function ProfileProvider({ catalog, children }: {
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const repositoryRef = useRef<LocalRepository | null>(null);
   const selectingRef = useRef(false);
+  const beforeLeave = useRef<(() => Promise<boolean>) | null>(null);
+  const popstateGuard = useRef<((event: PopStateEvent) => void) | null>(null);
+  const leaving = useRef(false);
+  const registerBeforeLeave = useCallback((
+    handler: () => Promise<boolean>,
+    onPopstate: (event: PopStateEvent) => void,
+  ) => {
+    beforeLeave.current = handler;
+    popstateGuard.current = onPopstate;
+
+    return () => {
+      if (beforeLeave.current === handler) {
+        beforeLeave.current = null;
+        popstateGuard.current = null;
+      }
+    };
+  }, []);
+
+  // Install before the parent App Router's effect. A late page listener can be
+  // removed by the router's synchronous traversal before it receives popstate.
+  useEffect(() => {
+    function popstate(event: PopStateEvent) {
+      popstateGuard.current?.(event);
+    }
+
+    window.addEventListener("popstate", popstate, true);
+
+    return () => {
+      window.removeEventListener("popstate", popstate, true);
+    };
+  }, []);
+  const leave = useCallback(async (action: () => void) => {
+    if (leaving.current) {
+      return;
+    }
+    leaving.current = true;
+    try {
+      if (beforeLeave.current === null || await beforeLeave.current()) {
+        action();
+      }
+    } finally {
+      leaving.current = false;
+    }
+  }, []);
 
   useEffect(() => {
     let disposed = false;
@@ -115,6 +164,9 @@ export function ProfileProvider({ catalog, children }: {
     if (repository === null || selectingRef.current) {
       return false;
     }
+    if (beforeLeave.current !== null && !await beforeLeave.current()) {
+      return false;
+    }
     selectingRef.current = true;
     setSelecting(true);
     setSelectionError(null);
@@ -165,6 +217,8 @@ export function ProfileProvider({ catalog, children }: {
         selectionError,
         chooseProfile,
         retry,
+        registerBeforeLeave,
+        leave,
       }}
     >
       {children}

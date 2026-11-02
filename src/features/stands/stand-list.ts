@@ -136,6 +136,7 @@ export function resolveStandDetail(
 
   return {
     ...stand,
+    notes: own?.notes ?? "",
     checklist,
     completed: checklist.filter((item) => item.checked).length,
     planned: catalog.plannedProducts.filter((entry) => entry.profileId === context.profileId
