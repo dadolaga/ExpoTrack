@@ -13,7 +13,7 @@ ExpoTrack, rete o storage; il selettore tema usa solo la preferenza locale del b
 | `forms/TextField` | `label` obbligatoria; `hint` e `error` facoltativi. Prop native di `input`, inclusi `required`, `disabled`, `value`/`defaultValue`, `onChange`, `name` e `ref`. `type`: `text` (default), `email`, `password`, `search`, `tel`, `url`, `number`. `className` si applica all’input. Genera un ID stabile con `useId` se `id` non è fornito. Label e input sono associati; hint ed errore vengono aggiunti ad `aria-describedby`, conservando gli ID del chiamante. Un errore non vuoto imposta `aria-invalid` e mostra il prefisso «Errore:». La validazione e lo spostamento del focus restano al form. |
 | `ui/StatusChip` | Prop native di `span` e `tone`: `neutral` (default), `success`, `warning`, `danger`. `children` deve esprimere lo stato a parole: il colore è un rinforzo. Per aggiornamenti da annunciare, inserire il chip in un contenitore persistente con `role="status"` e `aria-atomic="true"`. Non rileva né simula salvataggi o sincronizzazioni. |
 | `feedback/EmptyState` | `title` e `description` obbligatori; `action` facoltativa (`ReactNode`), normalmente un `Button` con callback reale o un link. Il titolo è un `h3`: collocarlo sotto un titolo di sezione `h2`. Nessuna azione predefinita. |
-| `feedback/SaveStatus` | `status`: `idle`, `saving`, `saved`, `error`; `onRetry` per l’errore. Annuncia il salvataggio locale e l’invio pendente, senza dichiarare sincronizzazione. Riceve lo stato effettivo dal chiamante. |
+| `feedback/SaveStatus` | `status`: `idle`, `saving`, `saved`, `error`; `onRetry` per l’errore. Annuncia il salvataggio locale, senza dichiarare un invio o una sincronizzazione. Riceve lo stato effettivo dal chiamante. |
 
 `TextField` è un Client Component perché usa `useId`. Gli altri componenti di base
 non richiedono una direttiva client. Event handler e stato si definiscono in un
@@ -79,13 +79,32 @@ un accesso diretto offre comunque il ritorno al catalogo.
 
 Dallo step 09 `StandNotes` compone la vista `/stands/[standId]/notes`, con nome,
 textarea facoltativa senza `maxLength`, `SaveStatus` e ritorno al dettaglio.
-`useStandNotes` mantiene il testo corrente e serializza i commit, salvando anche
+`useStandNotes` usa `useLocalAutosave` per mantenere il testo e serializzare i commit, salvando anche
 gli input arrivati durante una scrittura. `ProfileProvider` espone `leave` e
 `registerBeforeLeave`: header, tab e cambio profilo attendono il salvataggio
 registrato; in caso di errore la vista resta aperta. Il browser Indietro viene
 intercettato mentre ci sono modifiche; refresh/chiusura usano la protezione nativa
 `beforeunload` finché il testo non è persistito. Il dettaglio mostra un’anteprima
 di tre righe; il contenuto memorizzato resta integro ed è reso come testo.
+
+## Stand personali e dashboard — step 10–11
+
+`PersonalStandEditor` compone i campi esistenti, categorie facoltative,
+`SaveStatus` e `ConfirmDialog`. Gli hook `usePersonalStand` e
+`usePersonalStandEditor` gestiscono caricamento e mutazioni; `useLocalAutosave`
+è condiviso con le note e protegge uscita e ultima modifica. La sola apertura
+non crea record. `ConfirmDialog` usa un dialog nativo, label/descrizione associate,
+contenuto errore e azioni disabilitate durante l’operazione; Escape annulla quando
+non occupato. Il catalogo non espone azioni di modifica.
+
+Righe, dettaglio, checklist e note ricevono anche l’origine `catalog`/`personal`;
+`standHref` e `standKey` mantengono distinti URL e identità. `StandRow` senza
+callback della stella viene riusata nella dashboard con origine di ritorno dedicata.
+`Dashboard` usa `useStandList` e `selectDashboard`: quattro statistiche, filtri e
+top cinque condividono le regole della lista. Non conta i pianificati e non
+aggiunge riempitivi. La testata riusa `StandHeader`, con profilo ed evento in
+sola lettura e indicazione «Dati locali». Creazione prodotto e indicatore sync
+operativo arriveranno nei rispettivi step.
 
 I filtri combinabili usano funzioni pure. Il loro URL include profilo/evento per
 evitare riusi accidentali in un altro contesto; lo scroll è associato alla voce

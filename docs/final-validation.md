@@ -130,3 +130,16 @@ mentre una transazione è in corso, ritorno immediato, cambio profilo, refresh e
 blocco dell’uscita con recupero dopo errore. Non completano l’area E2E `stands`,
 ancora priva di CRUD personale e suite della build di produzione; le prove
 fisiche restano pendenti. Nessun test grafico aggiunto.
+
+**Estensione step 10–11 (consegna congiunta richiesta dall’utente):**
+`tests/integration/stand-interests.test.ts`, già collegato a `local-persistence`
+e `profile-event-isolation`, copre anche input stand recuperabili, creazione
+atomica con interesse/visita, origini omonime, due profili/eventi, cancellazione
+bloccata da prodotti validi/parziali, tombstone, dipendenze, quota/abort/retry,
+lettura fallita e migrazioni v1/v2 → v3 con dati preesistenti preservati.
+`tests/unit/stand-list.test.ts`, già collegato a `catalog-and-domain`, verifica
+quattro conteggi, esclusione dei pianificati e dei non interessi, top cinque,
+parità, priorità assenti, contesti e coerenza con i filtri di lista. Non si
+aggiungono collegamenti fittizi alle aree E2E `stands` e `profiles-and-dashboard`:
+le prove Chromium su `next dev` isolato sono temporanee, mentre le suite della
+build di produzione e le verifiche fisiche restano pendenti. Nessun test grafico.

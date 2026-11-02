@@ -1,6 +1,6 @@
 import type { CatalogSnapshot, StandReference } from "../../types/catalog";
 import type {
-  LocalContext, LocalProduct, ProductData, ProductInput, ProductIssues,
+  LocalContext, LocalProduct, PersonalStandData, ProductData, ProductInput, ProductIssues,
 } from "../../types/offline";
 
 export class LocalInputError extends Error {
@@ -97,7 +97,12 @@ export function sameStand(first: StandReference | null, second: StandReference):
     && first.eventId === second.eventId && first.standId === second.standId;
 }
 
-export function validateProduct(input: ProductInput, context: LocalContext, catalog: CatalogSnapshot): ProductIssues {
+export function validateProduct(
+  input: ProductInput,
+  context: LocalContext,
+  catalog: CatalogSnapshot,
+  personal: PersonalStandData | null = null,
+): ProductIssues {
   const issues: ProductIssues = {};
 
   if (input.name.trim().length === 0) {
@@ -108,8 +113,13 @@ export function validateProduct(input: ProductInput, context: LocalContext, cata
   }
   const stand = input.standRef;
 
-  if (stand?.eventId !== context.eventId || stand.source !== "catalog"
-    || !catalog.stands.some((entry) => entry.eventId === context.eventId && entry.id === stand.standId)) {
+  const available = stand?.source === "personal"
+    ? personal !== null && personal.id === stand.standId && personal.profileId === context.profileId
+      && personal.eventId === context.eventId && personal.deletedAt === null
+    : stand !== null && catalog.stands.some((entry) => entry.eventId === context.eventId
+      && entry.id === stand.standId);
+
+  if (stand?.eventId !== context.eventId || !available) {
     issues.standRef = "Seleziona uno stand disponibile per questo evento e profilo.";
   }
 

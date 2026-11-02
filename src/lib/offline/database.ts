@@ -13,7 +13,7 @@ export function openLocalDatabase(options: LocalDatabaseOptions = {}): Promise<I
 
       return;
     }
-    const request = factory.open(options.name ?? "expotrack-local", 2);
+    const request = factory.open(options.name ?? "expotrack-local", 3);
     let blocked = false;
 
     request.onblocked = () => {
@@ -68,6 +68,15 @@ export function openLocalDatabase(options: LocalDatabaseOptions = {}): Promise<I
         ], {
           unique: true,
         });
+      }
+      if (event.oldVersion < 3) {
+        const personalStands = database.createObjectStore("personal_stands", {
+          keyPath: [
+            "profileId", "eventId", "id",
+          ],
+        });
+
+        personalStands.createIndex("by_context", ["profileId", "eventId"]);
       }
     };
     request.onsuccess = () => {

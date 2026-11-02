@@ -2,11 +2,13 @@ import { validateReferences } from "../config/validate-references";
 
 import { inTransaction, openLocalDatabase, readRequest } from "./database";
 import { createLocalId } from "./identity";
+import { parsePersonalStandPatch, validatePersonalStand } from "./personal-stand-input";
 import {
   LocalInputError,
   nextProductData,
   parseProductPatch,
   sameProduct,
+  sameStand,
   validateContext,
   validateIdentity,
   validateProduct,
@@ -15,9 +17,10 @@ import { profileContextForSelection, resolveProfileSession } from "./profile-ses
 import { applyStandPatch } from "./stand-input";
 
 import type { LocalDatabaseOptions } from "./database";
-import type { CatalogSnapshot } from "../../types/catalog";
+import type { CatalogSnapshot, StandReference } from "../../types/catalog";
 import type {
-  LocalContext, LocalProduct, LocalStandPreferences, OutboxOperation, ProductInput, StandPreferencesData,
+  LocalContext, LocalProduct, LocalPersonalStand, PersonalStandData, PersonalStandInput,
+  VisitData, LocalStandPreferences, OutboxOperation, ProductInput, StandPreferencesData,
   StandPreferencesPatch,
 } from "../../types/offline";
 import type { ProfileSession } from "../../types/profiles";
@@ -62,6 +65,82 @@ function activateCatalog(transaction: IDBTransaction, data: CatalogSnapshot, sna
     key: "active-catalog",
     snapshotId,
   } satisfies ActiveCatalog);
+}
+
+async function writeStandPreferences(
+  transaction: IDBTransaction,
+  catalog: CatalogSnapshot,
+  scope: LocalContext,
+  identity: string,
+  source: StandReference["source"],
+  patch: StandPreferencesPatch,
+  dependencies: string[],
+): Promise<LocalStandPreferences> {
+  const store = transaction.objectStore("stand_preferences");
+  const previous = await readRequest<LocalStandPreferences | undefined>(store.get([
+    scope.profileId, scope.eventId, source, identity,
+  ]));
+
+  const seed = source === "personal" ? undefined : catalog.interests.find((entry) => entry.profileId === scope.profileId
+    && entry.standRef.eventId === scope.eventId && entry.standRef.standId === identity);
+  const previousData: StandPreferencesData = {
+    ...scope,
+    standRef: {
+      source,
+      eventId: scope.eventId,
+      standId: identity,
+    },
+    ...(previous?.interested === undefined ? {} : {
+      interested: previous.interested,
+    }),
+    ...(previous?.priority === undefined ? {} : {
+      priority: previous.priority,
+    }),
+    ...(previous?.visitStatus === undefined ? {} : {
+      visitStatus: previous.visitStatus,
+    }),
+    ...(previous?.checklist === undefined ? {} : {
+      checklist: previous.checklist,
+    }),
+    ...(previous?.checklistDone === undefined ? {} : {
+      checklistDone: previous.checklistDone,
+    }),
+    ...(previous?.notes === undefined ? {} : {
+      notes: previous.notes,
+    }),
+  };
+  const payload = applyStandPatch(previousData, seed?.checklist ?? [], patch);
+
+  if (previous !== undefined && JSON.stringify(payload) === JSON.stringify(previousData)) {
+    return previous;
+  }
+  const operationId = createLocalId();
+  const now = new Date().toISOString();
+  const record: LocalStandPreferences = {
+    ...previous,
+    ...payload,
+    localSequence: (previous?.localSequence ?? 0) + 1,
+    serverRevision: previous?.serverRevision ?? null,
+    latestOperationId: operationId,
+    updatedAt: now,
+  };
+
+  store.put(record);
+  transaction.objectStore("outbox").add({
+    ...scope,
+    operationId,
+    entityType: "stand-preferences",
+    entityId: JSON.stringify([payload.standRef.source, identity]),
+    action: previous === undefined ? "create" : "update",
+    localSequence: record.localSequence,
+    baseRevision: record.serverRevision,
+    dependsOn: [...(previous === undefined ? [] : [previous.latestOperationId]), ...dependencies],
+    payload,
+    status: "pending",
+    queuedAt: now,
+  } satisfies OutboxOperation);
+
+  return record;
 }
 
 export class LocalRepository {
@@ -168,77 +247,243 @@ export class LocalRepository {
     });
   }
 
-  async setStandInterest(context: LocalContext, standId: string, interested: boolean): Promise<LocalStandPreferences> {
+  async setStandInterest(
+    context: LocalContext,
+    standId: string,
+    interested: boolean,
+    source: StandReference["source"] = "catalog",
+  ): Promise<LocalStandPreferences> {
     return this.saveStandPreferences(context, standId, {
       interested,
-    });
+    }, source);
   }
 
   async saveStandPreferences(
     context: LocalContext,
     standId: string,
     changes: StandPreferencesPatch,
+    source: StandReference["source"] = "catalog",
   ): Promise<LocalStandPreferences> {
     const scope = validateContext(context);
     const identity = validateIdentity(standId);
     const patch = structuredClone(changes);
 
     return inTransaction(this.database, [
-      "config_snapshots", "app_meta", "stand_preferences", "outbox",
+      "config_snapshots", "app_meta", "personal_stands", "stand_preferences", "outbox",
+    ], "readwrite", async (transaction) => {
+      const catalog = await readCatalog(transaction);
+      const personal = source === "personal" ? await readRequest<LocalPersonalStand | undefined>(
+        transaction.objectStore("personal_stands").get([
+          scope.profileId, scope.eventId, identity,
+        ]),
+      ) : undefined;
+      const available = source === "catalog"
+        ? catalog?.stands.some((stand) => stand.id === identity && stand.eventId === scope.eventId) ?? false
+        : personal?.lastValid?.deletedAt === null;
+
+      if (catalog === null || !available
+        || !catalog.profiles.some((profile) => profile.id === scope.profileId && profile.enabled)
+        || !catalog.config.events.some((event) => event.id === scope.eventId && event.enabled)) {
+        throw new LocalInputError("Seleziona un profilo, un evento e uno stand disponibili.");
+      }
+
+      return writeStandPreferences(
+        transaction,
+        catalog,
+        scope,
+        identity,
+        source,
+        patch,
+        typeof personal?.latestOperationId !== "string" ? [] : [personal.latestOperationId],
+      );
+    });
+  }
+
+  async getVisitData(context: LocalContext): Promise<VisitData> {
+    const scope = validateContext(context);
+    const key = [scope.profileId, scope.eventId];
+
+    return inTransaction(this.database, [
+      "personal_stands", "stand_preferences", "products",
+    ], "readonly", async (transaction) => {
+      const personal = await readRequest<LocalPersonalStand[]>(
+        transaction.objectStore("personal_stands").index("by_context").getAll(key),
+      );
+      const preferences = await readRequest<LocalStandPreferences[]>(
+        transaction.objectStore("stand_preferences").index("by_context").getAll(key),
+      );
+      const products = await readRequest<LocalProduct[]>(
+        transaction.objectStore("products").index("by_context").getAll(key),
+      );
+
+      return {
+        preferences,
+        personalStands: personal.flatMap((record) => record.lastValid !== null
+          && record.lastValid.deletedAt === null ? [record.lastValid] : []),
+        products: products.flatMap((record) => record.lastValid === null ? [] : [record.lastValid]),
+      };
+    });
+  }
+
+  async getPersonalStand(context: LocalContext, id: string): Promise<LocalPersonalStand | undefined> {
+    const scope = validateContext(context);
+    const identity = validateIdentity(id);
+
+    return inTransaction(this.database, ["personal_stands"], "readonly", (transaction) => {
+      return readRequest<LocalPersonalStand | undefined>(transaction.objectStore("personal_stands")
+        .get([
+          scope.profileId, scope.eventId, identity,
+        ]));
+    });
+  }
+
+  async savePersonalStand(
+    context: LocalContext,
+    id: string,
+    changes: Partial<PersonalStandInput>,
+  ): Promise<LocalPersonalStand> {
+    const scope = validateContext(context);
+    const identity = validateIdentity(id);
+    const patch = parsePersonalStandPatch(structuredClone(changes));
+
+    return inTransaction(this.database, [
+      "config_snapshots", "app_meta", "personal_stands", "stand_preferences", "outbox",
     ], "readwrite", async (transaction) => {
       const catalog = await readCatalog(transaction);
 
-      if (catalog === null
-        || !catalog.profiles.some((profile) => profile.id === scope.profileId && profile.enabled)
-        || !catalog.config.events.some((event) => event.id === scope.eventId && event.enabled)
-        || !catalog.stands.some((stand) => stand.id === identity && stand.eventId === scope.eventId)) {
-        throw new LocalInputError("Seleziona un profilo, un evento e uno stand disponibili.");
+      if (catalog === null) {
+        throw new LocalInputError("Catalogo non disponibile.");
       }
-      const store = transaction.objectStore("stand_preferences");
-      const previous = await readRequest<LocalStandPreferences | undefined>(store.get([
-        scope.profileId, scope.eventId, "catalog", identity,
+      const store = transaction.objectStore("personal_stands");
+      const previous = await readRequest<LocalPersonalStand | undefined>(store.get([
+        scope.profileId, scope.eventId, identity,
       ]));
 
-      const seed = catalog.interests.find((entry) => entry.profileId === scope.profileId
-        && entry.standRef.eventId === scope.eventId && entry.standRef.standId === identity);
-      const previousData: StandPreferencesData = {
-        ...scope,
-        standRef: {
-          source: "catalog",
-          eventId: scope.eventId,
-          standId: identity,
-        },
-        ...(previous?.interested === undefined ? {} : {
-          interested: previous.interested,
-        }),
-        ...(previous?.priority === undefined ? {} : {
-          priority: previous.priority,
-        }),
-        ...(previous?.visitStatus === undefined ? {} : {
-          visitStatus: previous.visitStatus,
-        }),
-        ...(previous?.checklist === undefined ? {} : {
-          checklist: previous.checklist,
-        }),
-        ...(previous?.checklistDone === undefined ? {} : {
-          checklistDone: previous.checklistDone,
-        }),
-        ...(previous?.notes === undefined ? {} : {
-          notes: previous.notes,
-        }),
+      if (typeof previous?.lastValid?.deletedAt === "string") {
+        throw new LocalInputError("Lo stand è stato eliminato.");
+      }
+      const input: PersonalStandInput = {
+        name: "",
+        description: "",
+        categoryIds: [],
+        hall: null,
+        booth: "",
+        ...previous?.input,
+        ...patch,
       };
-      const payload = applyStandPatch(previousData, seed?.checklist ?? [], patch);
 
-      if (previous !== undefined && JSON.stringify(payload) === JSON.stringify(previousData)) {
+      validatePersonalStand(input, scope, catalog);
+      if (previous !== undefined && JSON.stringify(input) === JSON.stringify(previous.input)) {
         return previous;
       }
-      const operationId = createLocalId();
       const now = new Date().toISOString();
-      const record: LocalStandPreferences = {
-        ...previous,
-        ...payload,
+      const trimmedName = input.name.trim();
+      const name = trimmedName.length > 0 ? trimmedName : previous?.lastValid?.name;
+      const candidate: PersonalStandData | null = name === undefined ? null : {
+        ...input,
+        ...scope,
+        name,
+        id: identity,
+        createdAt: previous?.createdAt ?? now,
+        updatedAt: now,
+        deletedAt: null,
+      };
+      const last = previous?.lastValid ?? null;
+      const changed = candidate !== null && (candidate.name !== last?.name
+        || candidate.description !== last.description || candidate.hall !== last.hall
+        || candidate.booth !== last.booth
+        || JSON.stringify(candidate.categoryIds) !== JSON.stringify(last.categoryIds));
+      const operationId = changed ? createLocalId() : previous?.latestOperationId ?? null;
+      const record: LocalPersonalStand = {
+        ...scope,
+        id: identity,
+        input,
+        lastValid: changed ? candidate : previous?.lastValid ?? null,
         localSequence: (previous?.localSequence ?? 0) + 1,
         serverRevision: previous?.serverRevision ?? null,
+        latestOperationId: operationId,
+        createdAt: previous?.createdAt ?? now,
+        updatedAt: now,
+      };
+
+      store.put(record);
+      if (changed && operationId !== null) {
+        transaction.objectStore("outbox").add({
+          ...scope,
+          operationId,
+          entityType: "personal-stand",
+          entityId: identity,
+          action: last === null ? "create" : "update",
+          localSequence: record.localSequence,
+          baseRevision: record.serverRevision,
+          dependsOn: typeof previous?.latestOperationId !== "string" ? [] : [previous.latestOperationId],
+          payload: candidate,
+          status: "pending",
+          queuedAt: now,
+        } satisfies OutboxOperation);
+        if (last === null) {
+          await writeStandPreferences(transaction, catalog, scope, identity, "personal", {
+            interested: true,
+            visitStatus: "to_visit",
+          }, [operationId]);
+        }
+      }
+
+      return record;
+    });
+  }
+
+  async deletePersonalStand(context: LocalContext, id: string): Promise<void> {
+    const scope = validateContext(context);
+    const identity = validateIdentity(id);
+
+    await inTransaction(this.database, [
+      "personal_stands", "stand_preferences", "products", "outbox",
+    ], "readwrite", async (transaction) => {
+      const store = transaction.objectStore("personal_stands");
+      const key = [
+        scope.profileId, scope.eventId, identity,
+      ];
+      const previous = await readRequest<LocalPersonalStand | undefined>(store.get(key));
+
+      if (previous === undefined || typeof previous.lastValid?.deletedAt === "string") {
+        return;
+      }
+      const standRef: StandReference = {
+        source: "personal",
+        eventId: scope.eventId,
+        standId: identity,
+      };
+      const products = await readRequest<LocalProduct[]>(transaction.objectStore("products")
+        .index("by_context").getAll([scope.profileId, scope.eventId]));
+
+      if (products.some((product) => sameStand(product.input.standRef, standRef)
+        || (product.lastValid !== null && sameStand(product.lastValid.standRef, standRef)))) {
+        throw new LocalInputError("Questo stand ha prodotti collegati. Gestiscili prima di eliminare lo stand.");
+      }
+      const preferences = transaction.objectStore("stand_preferences");
+      const preferenceKey = [
+        scope.profileId, scope.eventId, "personal", identity,
+      ];
+      const preference = await readRequest<LocalStandPreferences | undefined>(preferences.get(preferenceKey));
+
+      preferences.delete(preferenceKey);
+      if (previous.lastValid === null) {
+        store.delete(key);
+
+        return;
+      }
+      const now = new Date().toISOString();
+      const operationId = createLocalId();
+      const payload: PersonalStandData = {
+        ...previous.lastValid,
+        deletedAt: now,
+        updatedAt: now,
+      };
+      const record: LocalPersonalStand = {
+        ...previous,
+        lastValid: payload,
+        localSequence: previous.localSequence + 1,
         latestOperationId: operationId,
         updatedAt: now,
       };
@@ -247,18 +492,17 @@ export class LocalRepository {
       transaction.objectStore("outbox").add({
         ...scope,
         operationId,
-        entityType: "stand-preferences",
-        entityId: JSON.stringify([payload.standRef.source, identity]),
-        action: previous === undefined ? "create" : "update",
+        entityType: "personal-stand",
+        entityId: identity,
+        action: "delete",
         localSequence: record.localSequence,
         baseRevision: record.serverRevision,
-        dependsOn: previous === undefined ? [] : [previous.latestOperationId],
+        dependsOn: [previous.latestOperationId, preference?.latestOperationId]
+          .filter((dependency): dependency is string => dependency !== null && dependency !== undefined),
         payload,
         status: "pending",
         queuedAt: now,
       } satisfies OutboxOperation);
-
-      return record;
     });
   }
 
@@ -297,7 +541,7 @@ export class LocalRepository {
     const patch = parseProductPatch(changes);
 
     return inTransaction(this.database, [
-      "config_snapshots", "app_meta", "products", "outbox",
+      "config_snapshots", "app_meta", "personal_stands", "products", "outbox",
     ], "readwrite", async (transaction) => {
       const catalog = await readCatalog(transaction);
 
@@ -323,7 +567,12 @@ export class LocalRepository {
         ...patch,
       };
       const now = new Date().toISOString();
-      const issues = validateProduct(input, scope, catalog);
+      const personal = input.standRef?.source === "personal"
+        ? await readRequest<LocalPersonalStand | undefined>(transaction.objectStore("personal_stands")
+          .get([
+            scope.profileId, scope.eventId, input.standRef.standId,
+          ])) : undefined;
+      const issues = validateProduct(input, scope, catalog, personal?.lastValid ?? null);
       const candidate = nextProductData(previous, input, issues, scope, identity, now);
       const lastValid = previous?.lastValid ?? null;
       const changed = candidate !== null && !sameProduct(lastValid, candidate);
@@ -352,9 +601,8 @@ export class LocalRepository {
           action: lastValid === null ? "create" : "update",
           localSequence: record.localSequence,
           baseRevision: record.serverRevision,
-          dependsOn: previous?.latestOperationId === undefined || previous.latestOperationId === null
-            ? []
-            : [previous.latestOperationId],
+          dependsOn: [previous?.latestOperationId, personal?.latestOperationId]
+            .filter((dependency): dependency is string => typeof dependency === "string"),
           payload: candidate,
           status: "pending",
           queuedAt: now,

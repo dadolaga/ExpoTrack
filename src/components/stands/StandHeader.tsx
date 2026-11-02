@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 import { NavigationIcon } from "@/components/layout/NavigationIcon";
@@ -7,15 +8,19 @@ import { useProfileSession } from "@/components/profiles/ProfileProvider";
 
 import type { ProfileSummary } from "@/types/profiles";
 
-export function StandHeader({ profile, eventName, detail = false }: {
+export function StandHeader({
+  profile, eventName, detail = false, dashboard = false,
+}: {
   profile: ProfileSummary;
   eventName: string;
   detail?: boolean;
+  dashboard?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const { leave } = useProfileSession();
   const notes = pathname.endsWith("/notes");
+  const editor = pathname.endsWith("/edit");
 
   if (detail) {
     return (
@@ -23,7 +28,7 @@ export function StandHeader({ profile, eventName, detail = false }: {
         <div className="stand-detail-topbar">
           <button
             type="button"
-            aria-label={notes ? "Torna al dettaglio stand" : "Torna alla lista stand"}
+            aria-label={notes || editor ? "Torna al dettaglio stand" : "Torna indietro"}
             onClick={() => {
               void leave(() => {
                 const from = new URLSearchParams(window.location.search).get("from");
@@ -31,11 +36,11 @@ export function StandHeader({ profile, eventName, detail = false }: {
                   notesBackFallback?: boolean;
                 } | null;
 
-                if (from === (notes ? "detail" : "list") && window.history.length > 1
-                  && (!notes || historyState?.notesBackFallback !== true)) {
+                if ((from === ((notes || editor) ? "detail" : "list") || from === "dashboard") && window.history.length > 1
+                  && (!(notes || editor) || historyState?.notesBackFallback !== true)) {
                   router.back();
                 } else {
-                  router.replace(notes ? pathname.slice(0, -"/notes".length) : "/stands");
+                  router.replace(notes || editor ? pathname.slice(0, pathname.lastIndexOf("/")) : "/stands");
                 }
               });
             }}
@@ -74,20 +79,33 @@ export function StandHeader({ profile, eventName, detail = false }: {
             </span>
           </p>
         </div>
-        <button
-          type="button"
-          aria-label="Vai alla ricerca stand"
-          onClick={() => {
-            document.getElementById("stand-search")?.focus();
-          }}
-        ><NavigationIcon name="search" />
-        </button>
-        <button
-          type="button"
-          aria-label="Vai ai filtri stand"
-          onClick={openFilters}
-        ><NavigationIcon name="filters" />
-        </button>
+        {dashboard ? (
+          <>
+            <span className="dashboard-local-indicator">Dati locali</span>
+            <Link
+              href="/profile"
+              aria-label="Apri profilo"
+            ><NavigationIcon name="profile" />
+            </Link>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              aria-label="Vai alla ricerca stand"
+              onClick={() => {
+                document.getElementById("stand-search")?.focus();
+              }}
+            ><NavigationIcon name="search" />
+            </button>
+            <button
+              type="button"
+              aria-label="Vai ai filtri stand"
+              onClick={openFilters}
+            ><NavigationIcon name="filters" />
+            </button>
+          </>
+        )}
       </div>
     </header>
   );

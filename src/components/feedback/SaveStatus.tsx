@@ -5,8 +5,8 @@ export type SaveState = "idle" | "saving" | "saved" | "error";
 const messages: Record<SaveState, string> = {
   idle: "Le modifiche si salvano automaticamente sul dispositivo.",
   saving: "Salvataggio sul dispositivo…",
-  saved: "Salvato sul dispositivo · sincronizzazione in attesa.",
-  error: "Note non salvate. Il testo resta aperto: riprova prima di uscire.",
+  saved: "Salvato sul dispositivo.",
+  error: "Modifiche non salvate. I dati restano aperti: riprova prima di uscire.",
 };
 
 export function SaveStatus({ status, onRetry }: {

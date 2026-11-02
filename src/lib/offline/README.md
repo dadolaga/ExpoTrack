@@ -1,6 +1,6 @@
 # Persistenza locale — step 05
 
-`openLocalRepository()` apre IndexedDB `expotrack-local`, versione **2**. Non apre
+`openLocalRepository()` apre IndexedDB `expotrack-local`, versione **3**. Non apre
 connessioni a database server e non esegue richieste di rete. Importare i tipi da
 `src/types/offline.ts`; aprire il repository soltanto nel browser. L’importazione
 del modulo non accede alle API browser durante il rendering server di Next.js.
@@ -13,6 +13,7 @@ del modulo non accede alle API browser durante il rendering server di Next.js.
 | `app_meta` | `key` | Puntatore allo snapshot attivo e preferenza locale `active-context` con profilo/evento. |
 | `products` | `[profileId, eventId, id]` | Input corrente, errori, ultima versione valida e sequenza locale. |
 | `stand_preferences` | `[profileId, eventId, standRef.source, standRef.standId]` | Override personali degli stand; l’assenza di un campo conserva il seed. |
+| `personal_stands` | `[profileId, eventId, id]` | Input e ultima versione valida degli stand personali; tombstone dopo eliminazione. |
 | `outbox` | `operationId` | Mutazioni valide da inviare in futuro; indice univoco su contesto/tipo entità/entità/sequenza. |
 
 Tutte le letture e scritture personali richiedono esplicitamente profilo ed evento.
@@ -40,8 +41,12 @@ IndexedDB; questa versione è distinta dallo `schemaVersion` dei JSON.
 | `listRegisteredProducts(context)` | Ultime versioni valide del solo contesto. Esclude gli inserimenti che non hanno mai raggiunto i dati minimi validi. |
 | `listOutbox(context)` | Mutazioni del solo contesto, ordinate per entità e sequenza locale; nessun invio o conferma simulata. |
 | `listStandPreferences(context)` | Override degli stand del solo profilo/evento; una lettura non materializza i seed. |
-| `setStandInterest(context, standId, interested)` | Salva l’override booleano di uno stand del catalogo e accoda una mutazione `stand-preferences` nella stessa transazione. La Promise termina dopo il commit. |
-| `saveStandPreferences(context, standId, changes)` | Patch di interesse, priorità intera 1–10/null, visita manuale, spunta per ID o aggiunta di una voce checklist. Validazione e record/outbox atomici; conserva i campi non modificati. |
+| `setStandInterest(context, standId, interested, source?)` | Override booleano con outbox atomica. Origine predefinita `catalog`; usare `personal` per uno stand del proprietario. |
+| `saveStandPreferences(context, standId, changes, source?)` | Patch di interesse, priorità, visita, checklist e note. Origine predefinita `catalog`; record/outbox atomici, campi indipendenti preservati. |
+| `getVisitData(context)` | Snapshot atomico di preferenze, stand personali attivi e prodotti registrati del contesto; condiviso da lista, dettaglio e dashboard. |
+| `getPersonalStand(context, id)` | Input e ultima versione valida del solo proprietario/evento, anche per recupero dopo refresh; una lettura non crea record. |
+| `savePersonalStand(context, id, changes)` | Patch validata, senza modificare il catalogo; prima versione valida inizializza interesse e visita con le rispettive operazioni dipendenti. |
+| `deletePersonalStand(context, id)` | Blocca prodotti collegati anche parziali; altrimenti elimina preferenze e salva tombstone/outbox atomicamente. |
 | `close()` | Chiude la connessione. Riaprire il repository rilegge lo stesso archivio persistente. |
 
 ## Sessione del profilo — step 06
@@ -84,13 +89,14 @@ Ogni scrittura rilegge il record nella transazione, preserva gli altri campi,
 incrementa la sequenza e dipende dall’operazione precedente della stessa entità.
 Ripetere lo stesso override non aggiunge operazioni. Quota/abort annullano insieme
 record e coda; la UI aggiorna la stella soltanto dopo commit e permette il retry.
-L’outbox è ora una union discriminata fra `product` e `stand-preferences`.
+L’outbox distingue `product`, `stand-preferences` e `personal-stand`.
 
 In questo step il prodotto copre il minimo necessario alla persistenza: nome,
 categoria, riferimento stand e descrizione libera. Prezzo, valutazione, risposte,
-foto, eliminazione e stand personali avranno contratti e repository estesi nei
-loro step. I riferimenti a stand personali non ancora disponibili vengono
-conservati come input da correggere, senza generare mutazioni.
+foto ed eliminazione prodotto avranno contratti estesi nei loro step. Dallo step
+10 sono validi anche i riferimenti a stand personali attivi del proprietario:
+la mutazione prodotto dipende da quella dello stand. Riferimenti assenti o
+eliminati restano input da correggere, senza mutazioni valide.
 
 Per allocare un ID senza creare un record, usare `createLocalId()` da `identity.ts`.
 Genera UUID v4 con `crypto.getRandomValues`, disponibile anche sulle origini HTTP
@@ -176,3 +182,23 @@ isolato, senza avviare o modificare il server dell’app. Non è una suite E2E d
 PWA o una verifica su telefono. Le aree finali `local-persistence` e
 `profile-event-isolation` sono collegate alla suite, con i limiti registrati in
 `docs/final-validation.md`.
+
+## Stand personali e snapshot visita — step 10–11
+
+La migrazione 2 → 3 aggiunge soltanto `personal_stands`, conservando gli altri
+store e indici. I test verificano aggiornamento da v1 e v2 con prodotti, note,
+profilo e code preesistenti. Catalogo e stand personali con lo stesso ID restano
+distinti per origine; tutte le operazioni personali sono filtrate per proprietario
+ed evento.
+
+`LocalPersonalStand.input` conserva anche un nome temporaneamente vuoto; prima
+della prima versione valida non nasce outbox, interesse o voce nelle liste.
+Dopo la prima registrazione l’ultima versione valida preserva il nome precedente,
+come nei prodotti. L’editor non introduce una modalità bozza. Il nome è l’unico
+campo obbligatorio; categorie e padiglione devono comunque esistere se indicati.
+
+L’eliminazione controlla input e ultima versione dei prodotti nel contesto,
+senza cascata. Note/checklist/preferenze sono rimosse nella stessa transazione
+della tombstone; le operazioni già pendenti restano ordinate tramite dipendenze.
+Un ID eliminato non viene riutilizzato. `getVisitData` legge i tre store nella
+stessa transazione e gestisce anche errori sincroni senza Promise non osservate.

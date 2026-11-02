@@ -50,7 +50,7 @@ function ContextStandCatalog({ repository, catalog, context }: {
             variant="secondary"
             onClick={() => {
               if (list.failed !== null) {
-                void list.changeInterest(list.failed.standId, list.failed.interested);
+                void list.changeInterest(list.failed.standId, list.failed.interested, list.failed.source);
               }
             }}
           >
@@ -65,8 +65,8 @@ function ContextStandCatalog({ repository, catalog, context }: {
         filters={filters}
         saving={list.saving}
         onFiltersChange={changeFilters}
-        onInterestChange={(standId, interested) => {
-          void list.changeInterest(standId, interested);
+        onInterestChange={(standId, interested, source) => {
+          void list.changeInterest(standId, interested, source);
         }}
       />
       <p

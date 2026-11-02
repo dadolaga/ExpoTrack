@@ -36,6 +36,38 @@ export type LocalProduct = LocalContext & {
   updatedAt: string;
 };
 
+export type PersonalStandInput = {
+  name: string;
+  description: string;
+  categoryIds: string[];
+  hall: string | null;
+  booth: string;
+};
+
+export type PersonalStandData = PersonalStandInput & LocalContext & {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+};
+
+export type LocalPersonalStand = LocalContext & {
+  id: string;
+  input: PersonalStandInput;
+  lastValid: PersonalStandData | null;
+  localSequence: number;
+  serverRevision: number | null;
+  latestOperationId: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type VisitData = {
+  preferences: LocalStandPreferences[];
+  personalStands: PersonalStandData[];
+  products: ProductData[];
+};
+
 export type VisitStatus = "to_visit" | "visited" | "to_revisit";
 
 export type StandPreferencesData = LocalContext & {
@@ -66,7 +98,7 @@ export type LocalStandPreferences = StandPreferencesData & {
 type OutboxMetadata = LocalContext & {
   operationId: string;
   entityId: string;
-  action: "create" | "update";
+  action: "create" | "update" | "delete";
   localSequence: number;
   baseRevision: number | null;
   dependsOn: string[];
@@ -82,5 +114,9 @@ export type OutboxOperation = OutboxMetadata & (
   | {
     entityType: "stand-preferences";
     payload: StandPreferencesData;
+  }
+  | {
+    entityType: "personal-stand";
+    payload: PersonalStandData;
   }
 );

@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { resolveStandDetail } from "./stand-list";
+import { resolveStandDetail, standKey } from "./stand-list";
 
 import type { LocalRepository } from "../../lib/offline/repository";
-import type { CatalogSnapshot } from "../../types/catalog";
+import type { CatalogSnapshot, StandReference } from "../../types/catalog";
 import type {
-  LocalContext, LocalStandPreferences, ProductData, StandPreferencesPatch,
+  LocalContext, VisitData, StandPreferencesPatch,
 } from "../../types/offline";
 
 export function useStandDetail(
@@ -15,11 +15,9 @@ export function useStandDetail(
   catalog: CatalogSnapshot,
   context: LocalContext,
   standId: string,
+  source: StandReference["source"] = "catalog",
 ) {
-  const [data, setData] = useState<{
-    preferences: LocalStandPreferences[];
-    products: ProductData[];
-  } | null>(null);
+  const [data, setData] = useState<VisitData | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -36,22 +34,13 @@ export function useStandDetail(
 
     async function load() {
       try {
-        const [preferences, products] = await Promise.all([
-          repository.listStandPreferences({
-            profileId,
-            eventId,
-          }),
-          repository.listRegisteredProducts({
-            profileId,
-            eventId,
-          }),
-        ]);
+        const loaded = await repository.getVisitData({
+          profileId,
+          eventId,
+        });
 
         if (!disposed) {
-          setData({
-            preferences,
-            products,
-          });
+          setData(loaded);
           setLoadError(false);
         }
       } catch {
@@ -84,12 +73,16 @@ export function useStandDetail(
       const record = await repository.saveStandPreferences({
         profileId,
         eventId,
-      }, standId, changes);
+      }, standId, changes, source);
 
       if (active.current) {
         setData((previous) => previous === null ? null : {
           ...previous,
-          preferences: [...previous.preferences.filter((entry) => entry.standRef.standId !== standId), record],
+          preferences: [
+            ...previous.preferences.filter((entry) => {
+              return standKey(entry.standRef.source, entry.standRef.standId) !== standKey(source, standId);
+            }), record,
+          ],
         });
         setSaved(true);
       }
@@ -112,7 +105,15 @@ export function useStandDetail(
   return {
     loading: data === null,
     loadError,
-    detail: data === null ? null : resolveStandDetail(catalog, context, standId, data.preferences, data.products),
+    detail: data === null ? null : resolveStandDetail(
+      catalog,
+      context,
+      standId,
+      data.preferences,
+      data.products,
+      data.personalStands,
+      source,
+    ),
     saving,
     saved,
     failed,

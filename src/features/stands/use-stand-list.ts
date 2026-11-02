@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { resolveStandList } from "./stand-list";
+import { resolveStandList, standKey } from "./stand-list";
 
 import type { LocalRepository } from "../../lib/offline/repository";
-import type { CatalogSnapshot } from "../../types/catalog";
-import type { LocalContext, LocalStandPreferences } from "../../types/offline";
+import type { CatalogSnapshot, StandReference } from "../../types/catalog";
+import type { LocalContext, VisitData } from "../../types/offline";
 
 type LoadState = {
   status: "loading";
@@ -14,7 +14,7 @@ type LoadState = {
   status: "error";
 } | {
   status: "ready";
-  preferences: LocalStandPreferences[];
+  data: VisitData;
 };
 
 export function useStandList(repository: LocalRepository, catalog: CatalogSnapshot, context: LocalContext) {
@@ -26,6 +26,7 @@ export function useStandList(repository: LocalRepository, catalog: CatalogSnapsh
   const [failed, setFailed] = useState<{
     standId: string;
     interested: boolean;
+    source: StandReference["source"];
   } | null>(null);
   const [saved, setSaved] = useState(false);
   const pending = useRef(new Set<string>());
@@ -39,7 +40,7 @@ export function useStandList(repository: LocalRepository, catalog: CatalogSnapsh
 
     async function load() {
       try {
-        const preferences = await repository.listStandPreferences({
+        const data = await repository.getVisitData({
           profileId,
           eventId,
         });
@@ -47,7 +48,7 @@ export function useStandList(repository: LocalRepository, catalog: CatalogSnapsh
         if (!disposed) {
           setState({
             status: "ready",
-            preferences,
+            data,
           });
         }
       } catch {
@@ -69,11 +70,13 @@ export function useStandList(repository: LocalRepository, catalog: CatalogSnapsh
     repository, profileId, eventId, attempt,
   ]);
 
-  async function changeInterest(standId: string, interested: boolean) {
-    if (pending.current.has(standId)) {
+  async function changeInterest(standId: string, interested: boolean, source: StandReference["source"]) {
+    const key = standKey(source, standId);
+
+    if (pending.current.has(key)) {
       return;
     }
-    pending.current.add(standId);
+    pending.current.add(key);
     setSaving([...pending.current]);
     setFailed(null);
     setSaved(false);
@@ -82,12 +85,18 @@ export function useStandList(repository: LocalRepository, catalog: CatalogSnapsh
       const record = await repository.setStandInterest({
         profileId,
         eventId,
-      }, standId, interested);
+      }, standId, interested, source);
 
       if (active.current) {
         setState((previous) => previous.status !== "ready" ? previous : {
           status: "ready",
-          preferences: [...previous.preferences.filter((entry) => entry.standRef.standId !== standId), record],
+          data: {
+            ...previous.data,
+            preferences: [
+              ...previous.data.preferences.filter((entry) =>
+                standKey(entry.standRef.source, entry.standRef.standId) !== key), record,
+            ],
+          },
         });
         setSaved(true);
       }
@@ -96,10 +105,11 @@ export function useStandList(repository: LocalRepository, catalog: CatalogSnapsh
         setFailed({
           standId,
           interested,
+          source,
         });
       }
     } finally {
-      pending.current.delete(standId);
+      pending.current.delete(key);
       if (active.current) {
         setSaving([...pending.current]);
       }
@@ -115,7 +125,8 @@ export function useStandList(repository: LocalRepository, catalog: CatalogSnapsh
 
   return {
     status: state.status,
-    items: state.status === "ready" ? resolveStandList(catalog, context, state.preferences) : [],
+    items: state.status === "ready" ? resolveStandList(catalog, context, state.data.preferences, state.data.personalStands) : [],
+    products: state.status === "ready" ? state.data.products : [],
     saving,
     failed,
     saved,

@@ -9,20 +9,21 @@ import { useStandDetail } from "@/features/stands/use-stand-detail";
 import { useStandNotes } from "@/features/stands/use-stand-notes";
 
 import type { LocalRepository } from "@/lib/offline/repository";
-import type { CatalogSnapshot } from "@/types/catalog";
+import type { CatalogSnapshot, StandReference } from "@/types/catalog";
 import type { LocalContext } from "@/types/offline";
 
 type NotesContext = {
   repository: LocalRepository;
   context: LocalContext;
   standId: string;
+  source: StandReference["source"];
 };
 
 function NotesEditor({ name, initialValue, ...scope }: NotesContext & {
   name: string;
   initialValue: string;
 }) {
-  const notes = useStandNotes(scope.repository, scope.context, scope.standId, initialValue);
+  const notes = useStandNotes(scope.repository, scope.context, scope.standId, initialValue, scope.source);
 
   return (
     <section className="stand-detail">
@@ -65,7 +66,7 @@ function NotesEditor({ name, initialValue, ...scope }: NotesContext & {
 function ContextStandNotes({ catalog, ...scope }: NotesContext & {
   catalog: CatalogSnapshot;
 }) {
-  const state = useStandDetail(scope.repository, catalog, scope.context, scope.standId);
+  const state = useStandDetail(scope.repository, catalog, scope.context, scope.standId, scope.source);
 
   if (state.loadError) {
     return <div role="alert"><p>Impossibile leggere le note sul dispositivo.</p><Button onClick={state.retryLoad}>Riprova</Button></div>;
@@ -86,8 +87,9 @@ function ContextStandNotes({ catalog, ...scope }: NotesContext & {
   );
 }
 
-export function StandNotes({ standId }: {
+export function StandNotes({ standId, source = "catalog" }: {
   standId: string;
+  source?: StandReference["source"];
 }) {
   const { state } = useProfileSession();
 
@@ -97,11 +99,14 @@ export function StandNotes({ standId }: {
 
   return (
     <ContextStandNotes
-      key={JSON.stringify([state.session.context, standId])}
+      key={JSON.stringify([
+        state.session.context, source, standId,
+      ])}
       repository={state.repository}
       catalog={state.session.catalog}
       context={state.session.context}
       standId={standId}
+      source={source}
     />
   );
 }

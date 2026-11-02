@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 
-import { IDBFactory, IDBObjectStore } from "fake-indexeddb";
+import { IDBFactory, IDBIndex, IDBObjectStore } from "fake-indexeddb";
 
 import { resolveStandDetail, resolveStandList } from "../../src/features/stands/stand-list";
 import { loadCatalog } from "../../src/lib/config/load-catalog";
@@ -10,7 +10,7 @@ import { inTransaction, openLocalDatabase, readRequest } from "../../src/lib/off
 import { LocalInputError } from "../../src/lib/offline/product-input";
 import { LocalRepository, openLocalRepository } from "../../src/lib/offline/repository";
 
-import type { LocalStandPreferences } from "../../src/types/offline";
+import type { LocalProduct, LocalStandPreferences, OutboxOperation } from "../../src/types/offline";
 import type { TestContext } from "node:test";
 
 const scope = {
@@ -204,7 +204,7 @@ void test("quota e abort tardivo annullano interesse e coda insieme, con retry p
   assert.equal((await repository.listOutbox(scope)).length, 2);
 });
 
-void test("migrazione v1 → v2 conserva catalogo, profilo, prodotti e operazioni pendenti", async (context) => {
+void test("migrazione v1 → v3 conserva catalogo, profilo, prodotti e operazioni pendenti", async (context) => {
   const factory = new IDBFactory();
   const name = `expotrack-test-migration-${crypto.randomUUID()}`;
   const request = factory.open(name, 1);
@@ -235,21 +235,65 @@ void test("migrazione v1 → v2 conserva catalogo, profilo, prodotti e operazion
       unique: true,
     });
   };
-  const legacy = new LocalRepository(await readRequest<IDBDatabase>(request));
+  const legacyDatabase = await readRequest<IDBDatabase>(request);
+  const legacy = new LocalRepository(legacyDatabase);
   const catalog = await loadCatalog(path.join(process.cwd(), "tests/fixtures/catalog"));
 
   await legacy.initializeProfileSession(catalog);
   await legacy.selectProfile("me");
-  const product = await legacy.saveProduct(scope, "legacy", {
+  // Seed the historical schema directly; current repository writes require v3.
+  const now = "2026-10-29T00:00:00.000Z";
+  const data = {
+    ...scope,
+    id: "legacy",
     name: "Legacy",
     categoryId: "bags",
+    description: "",
     standRef: {
-      source: "catalog",
+      source: "catalog" as const,
       eventId: scope.eventId,
       standId: "demo-bags",
     },
+    createdAt: now,
+    updatedAt: now,
+  };
+  const product: LocalProduct = {
+    ...scope,
+    id: "legacy",
+    input: {
+      name: data.name,
+      description: data.description,
+      categoryId: data.categoryId,
+      standRef: data.standRef,
+    },
+    lastValid: data,
+    issues: {},
+    localSequence: 1,
+    serverRevision: null,
+    latestOperationId: "legacy-operation",
+    createdAt: now,
+    updatedAt: now,
+  };
+  const queue: OutboxOperation[] = [
+    {
+      ...scope,
+      operationId: "legacy-operation",
+      entityType: "product",
+      entityId: "legacy",
+      action: "create",
+      localSequence: 1,
+      baseRevision: null,
+      dependsOn: [],
+      payload: data,
+      status: "pending",
+      queuedAt: now,
+    },
+  ];
+
+  await inTransaction(legacyDatabase, ["products", "outbox"], "readwrite", (transaction) => {
+    transaction.objectStore("products").put(product);
+    transaction.objectStore("outbox").add(queue[0]);
   });
-  const queue = await legacy.listOutbox(scope);
 
   legacy.close();
   const upgraded = await openLocalRepository({
@@ -560,4 +604,334 @@ void test("note: input invalido e quota conservano record e outbox, retry senza 
 
   assert.equal(saved.notes, notes);
   assert.equal((await repository.listOutbox(scope)).length, queue.length + 1);
+});
+
+void test("stand personali: input recuperabili, interesse iniziale, catalogo immutabile e isolamento origini/profili/eventi", async (context) => {
+  const { catalog, repository, connect } = await fixture(context);
+  const originalCatalog = structuredClone(catalog);
+  const id = "demo-bags";
+
+  assert.equal(await repository.getPersonalStand(scope, id), undefined);
+  await repository.savePersonalStand(scope, id, {
+    description: "Appunti descrittivi",
+  });
+  assert.equal((await repository.getVisitData(scope)).personalStands.length, 0);
+  assert.equal((await repository.listOutbox(scope)).length, 0);
+  const saved = await repository.savePersonalStand(scope, id, {
+    name: "  Stand personale  ",
+  });
+
+  assert.equal(saved.lastValid?.name, "Stand personale");
+  const queue = await repository.listOutbox(scope);
+  const creation = queue.find((operation) => operation.entityType === "personal-stand");
+  const preference = queue.find((operation) => operation.entityType === "stand-preferences");
+
+  assert.ok(creation);
+  assert.ok(preference);
+  assert.deepEqual(preference.dependsOn, [creation.operationId]);
+  assert.equal(preference.payload.interested, true);
+  assert.equal(preference.payload.visitStatus, "to_visit");
+  await repository.saveStandPreferences(scope, id, {
+    notes: "Note personali",
+    priority: 10,
+  }, "personal");
+  await repository.saveStandPreferences(scope, id, {
+    notes: "Note catalogo",
+    visitStatus: "visited",
+  });
+  await repository.savePersonalStand(scope, id, {
+    name: "",
+    booth: "Posizione libera",
+  });
+  repository.close();
+  const reopened = await connect();
+  const recovered = await reopened.getPersonalStand(scope, id);
+
+  assert.equal(recovered?.input.name, "");
+  assert.equal(recovered.lastValid?.name, "Stand personale");
+  const data = await reopened.getVisitData(scope);
+  const personal = resolveStandDetail(catalog, scope, id, data.preferences, [], data.personalStands, "personal");
+  const editorial = resolveStandDetail(catalog, scope, id, data.preferences, [], data.personalStands);
+
+  assert.equal(personal?.notes, "Note personali");
+  assert.equal(personal.visitStatus, "to_visit");
+  assert.equal(personal.location, "Posizione libera");
+  assert.equal(editorial?.notes, "Note catalogo");
+  assert.equal(editorial.visitStatus, "visited");
+  const father = {
+    ...scope,
+    profileId: "father",
+  };
+
+  assert.equal(await reopened.getPersonalStand(father, id), undefined);
+  assert.equal((await reopened.getVisitData(father)).personalStands.length, 0);
+  await assert.rejects(reopened.saveStandPreferences(father, id, {
+    notes: "Vietato",
+  }, "personal"), LocalInputError);
+  await reopened.savePersonalStand(father, id, {
+    name: "Stand papà",
+  });
+  const second = {
+    ...scope,
+    eventId: "personal-second-event",
+  };
+
+  catalog.config.events.push({
+    ...catalog.config.events[0],
+    id: second.eventId,
+  });
+  await reopened.saveCatalog(catalog);
+  await reopened.savePersonalStand(second, id, {
+    name: "Secondo evento",
+  });
+  assert.equal((await reopened.getVisitData(second)).personalStands[0].name, "Secondo evento");
+  assert.equal((await reopened.getVisitData(scope)).personalStands[0].name, "Stand personale");
+  await assert.rejects(reopened.savePersonalStand(scope, id, {
+    hall: "missing",
+  }), LocalInputError);
+  await assert.rejects(reopened.savePersonalStand(scope, id, {
+    categoryIds: ["missing"],
+  }), LocalInputError);
+  assert.deepEqual((await reopened.getCatalog())?.stands, originalCatalog.stands);
+  await reopened.saveProduct(scope, "catalog-collision", {
+    name: "Prodotto catalogo",
+    categoryId: "bags",
+    standRef: {
+      source: "catalog",
+      eventId: scope.eventId,
+      standId: id,
+    },
+  });
+  await reopened.deletePersonalStand(scope, id);
+  assert.equal((await reopened.getVisitData(scope)).personalStands.length, 0);
+  assert.equal((await reopened.getVisitData(scope)).products.length, 1);
+  assert.equal((await reopened.getVisitData(father)).personalStands.length, 1);
+  assert.equal((await reopened.getVisitData(second)).personalStands.length, 1);
+});
+
+void test("cancellazione personale: blocco con prodotto valido o parziale, tombstone e nessuna cascata", async (context) => {
+  const { catalog, repository } = await fixture(context);
+  const id = "personal-with-product";
+
+  await repository.savePersonalStand(scope, id, {
+    name: "Con prodotti",
+  });
+  const standRef = {
+    source: "personal" as const,
+    eventId: scope.eventId,
+    standId: id,
+  };
+  const registered = await repository.saveProduct(scope, "personal-product", {
+    name: "Registrato",
+    categoryId: "bags",
+    standRef,
+  });
+
+  assert.ok(registered.lastValid);
+  const before = await repository.getPersonalStand(scope, id);
+  const queue = await repository.listOutbox(scope);
+
+  assert.ok(typeof before?.latestOperationId === "string");
+  assert.equal(queue.find((operation) => operation.entityType === "product")
+    ?.dependsOn.includes(before.latestOperationId), true);
+  await assert.rejects(repository.deletePersonalStand(scope, id), /prodotti collegati/u);
+  assert.deepEqual(await repository.getPersonalStand(scope, id), before);
+  assert.deepEqual(await repository.listOutbox(scope), queue);
+  assert.deepEqual(await repository.getProduct(scope, "personal-product"), registered);
+  await repository.savePersonalStand(scope, "partial-product-stand", {
+    name: "Con input parziali",
+  });
+  await repository.saveProduct(scope, "partial-product", {
+    standRef: {
+      ...standRef,
+      standId: "partial-product-stand",
+    },
+  });
+  await assert.rejects(repository.deletePersonalStand(scope, "partial-product-stand"), /prodotti collegati/u);
+  await repository.savePersonalStand(scope, "removable", {
+    name: "Eliminabile",
+  });
+  await repository.saveStandPreferences(scope, "removable", {
+    notes: "Note da eliminare",
+  }, "personal");
+  const lastPreferences = (await repository.listStandPreferences(scope))
+    .find((entry) => entry.standRef.source === "personal" && entry.standRef.standId === "removable");
+
+  await repository.deletePersonalStand(scope, "removable");
+  const data = await repository.getVisitData(scope);
+  const tombstone = await repository.getPersonalStand(scope, "removable");
+  const deletion = (await repository.listOutbox(scope)).find((operation) => operation.action === "delete");
+
+  assert.equal(data.personalStands.some((stand) => stand.id === "removable"), false);
+  assert.equal(data.preferences.some((entry) => entry.standRef.standId === "removable"), false);
+  assert.equal(typeof tombstone?.lastValid?.deletedAt, "string");
+  assert.ok(deletion);
+  assert.ok(lastPreferences);
+  assert.ok(deletion.dependsOn.includes(lastPreferences.latestOperationId));
+  await assert.rejects(repository.savePersonalStand(scope, "removable", {
+    name: "Resurrezione",
+  }), LocalInputError);
+  await assert.rejects(repository.saveStandPreferences(scope, "removable", {
+    priority: 4,
+  }, "personal"), LocalInputError);
+  assert.equal(resolveStandList(catalog, scope, data.preferences, data.personalStands)
+    .some((stand) => stand.id === "removable"), false);
+});
+
+void test("stand personali: quota annulla creazione/preferenze/outbox e cancellazione, con retry", async (context) => {
+  const { repository } = await fixture(context);
+  const add = Reflect.get(IDBObjectStore.prototype, "add");
+  const quota = context.mock.method(IDBObjectStore.prototype, "add", function(this: IDBObjectStore, value: unknown) {
+    if (this.name === "outbox") {
+      throw new DOMException("Quota simulata", "QuotaExceededError");
+    }
+
+    return add.call(this, value);
+  });
+
+  await assert.rejects(repository.savePersonalStand(scope, "quota-stand", {
+    name: "Quota",
+  }));
+  assert.equal(await repository.getPersonalStand(scope, "quota-stand"), undefined);
+  assert.deepEqual(await repository.listStandPreferences(scope), []);
+  assert.deepEqual(await repository.listOutbox(scope), []);
+  quota.mock.restore();
+  const stand = await repository.savePersonalStand(scope, "quota-stand", {
+    name: "Quota",
+  });
+  const preferences = await repository.listStandPreferences(scope);
+  const queue = await repository.listOutbox(scope);
+  const abort = context.mock.method(IDBObjectStore.prototype, "add", function(this: IDBObjectStore, value: unknown) {
+    const request = add.call(this, value);
+
+    if (this.name === "outbox") {
+      request.addEventListener("success", () => {
+        this.transaction.abort();
+      });
+    }
+
+    return request;
+  });
+
+  await assert.rejects(repository.deletePersonalStand(scope, "quota-stand"));
+  abort.mock.restore();
+  assert.deepEqual(await repository.getPersonalStand(scope, "quota-stand"), stand);
+  assert.deepEqual(await repository.listStandPreferences(scope), preferences);
+  assert.deepEqual(await repository.listOutbox(scope), queue);
+  await repository.deletePersonalStand(scope, "quota-stand");
+  assert.equal((await repository.getVisitData(scope)).personalStands.length, 0);
+  const getAll = Reflect.get(IDBIndex.prototype, "getAll");
+  const readFailure = context.mock.method(IDBIndex.prototype, "getAll", function(
+    this: IDBIndex,
+    ...args: Parameters<IDBIndex["getAll"]>
+  ) {
+    if (this.objectStore.name === "stand_preferences") {
+      throw new DOMException("Errore di lettura simulato", "UnknownError");
+    }
+
+    return getAll.apply(this, args);
+  });
+
+  await assert.rejects(repository.getVisitData(scope), {
+    name: "UnknownError",
+  });
+  readFailure.mock.restore();
+  assert.equal((await repository.getVisitData(scope)).personalStands.length, 0);
+});
+
+void test("migrazione v2 → v3 conserva note, preferenze e outbox degli stand esistenti", async (context) => {
+  const factory = new IDBFactory();
+  const name = `expotrack-test-migration-v2-${crypto.randomUUID()}`;
+  const request = factory.open(name, 2);
+
+  request.onupgradeneeded = () => {
+    const database = request.result;
+
+    database.createObjectStore("config_snapshots", {
+      keyPath: "id",
+    });
+    database.createObjectStore("app_meta", {
+      keyPath: "key",
+    });
+    database.createObjectStore("products", {
+      keyPath: [
+        "profileId", "eventId", "id",
+      ],
+    })
+      .createIndex("by_context", ["profileId", "eventId"]);
+    database.createObjectStore("stand_preferences", {
+      keyPath: [
+        "profileId", "eventId", "standRef.source", "standRef.standId",
+      ],
+    }).createIndex("by_context", ["profileId", "eventId"]);
+    const outbox = database.createObjectStore("outbox", {
+      keyPath: "operationId",
+    });
+
+    outbox.createIndex("by_context", ["profileId", "eventId"]);
+    outbox.createIndex("by_entity_sequence", [
+      "profileId", "eventId", "entityType", "entityId", "localSequence",
+    ], {
+      unique: true,
+    });
+  };
+  const legacy = await readRequest<IDBDatabase>(request);
+  const catalog = await loadCatalog(path.join(process.cwd(), "tests/fixtures/catalog"));
+  const repository = new LocalRepository(legacy);
+
+  await repository.initializeProfileSession(catalog);
+  await repository.selectProfile(scope.profileId);
+  const preference: LocalStandPreferences = {
+    ...scope,
+    standRef: {
+      source: "catalog",
+      eventId: scope.eventId,
+      standId: "demo-bags",
+    },
+    notes: "Note anteriori alla migrazione",
+    interested: false,
+    priority: 5,
+    visitStatus: "to_revisit",
+    localSequence: 1,
+    latestOperationId: "v2-operation",
+    serverRevision: null,
+    updatedAt: "2026-11-02T00:00:00Z",
+  };
+  const operation: OutboxOperation = {
+    ...scope,
+    operationId: "v2-operation",
+    entityType: "stand-preferences",
+    entityId: JSON.stringify(["catalog", "demo-bags"]),
+    action: "create",
+    localSequence: 1,
+    baseRevision: null,
+    dependsOn: [],
+    status: "pending",
+    queuedAt: preference.updatedAt,
+    payload: preference,
+  };
+
+  await inTransaction(legacy, ["stand_preferences", "outbox"], "readwrite", (transaction) => {
+    transaction.objectStore("stand_preferences").put(preference);
+    transaction.objectStore("outbox").add(operation);
+  });
+  repository.close();
+  const upgraded = await openLocalRepository({
+    factory,
+    name,
+  });
+
+  context.after(async () => {
+    upgraded.close();
+    await readRequest<void>(factory.deleteDatabase(name));
+  });
+  assert.deepEqual(await upgraded.listStandPreferences(scope), [preference]);
+  assert.deepEqual(await upgraded.listOutbox(scope), [operation]);
+  assert.deepEqual((await upgraded.getProfileSession())?.context, scope);
+  assert.deepEqual((await upgraded.getVisitData(scope)).personalStands, []);
+  await upgraded.savePersonalStand(scope, "post-migration", {
+    name: "Dopo migrazione",
+  });
+  assert.equal((await upgraded.getVisitData(scope)).personalStands.length, 1);
+  assert.deepEqual(await upgraded.getCatalog(), catalog);
 });

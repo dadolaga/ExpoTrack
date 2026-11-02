@@ -1,16 +1,20 @@
 import Link from "next/link";
 
-import { visitLabels } from "@/features/stands/stand-list";
+import { NavigationIcon } from "@/components/layout/NavigationIcon";
+import { standHref, visitLabels } from "@/features/stands/stand-list";
 
 import type { StandListItem } from "@/features/stands/stand-list";
 
 type StandRowProps = {
   stand: StandListItem;
-  saving: boolean;
-  onInterestChange: (interested: boolean) => void;
+  saving?: boolean;
+  onInterestChange?: (interested: boolean) => void;
+  origin?: "list" | "dashboard";
 };
 
-export function StandRow({ stand, saving, onInterestChange }: StandRowProps) {
+export function StandRow({
+  stand, saving = false, onInterestChange, origin = "list",
+}: StandRowProps) {
   let priorityTone = "neutral";
 
   if (stand.priority !== null && stand.priority >= 9) {
@@ -29,7 +33,7 @@ export function StandRow({ stand, saving, onInterestChange }: StandRowProps) {
       <div className="stand-row-info">
         <h2>
           <Link
-            href={`/stands/${encodeURIComponent(stand.id)}?from=list`}
+            href={`${standHref(stand)}?from=${origin}`}
             className="stand-row-link"
           >
             {stand.name}
@@ -56,12 +60,14 @@ export function StandRow({ stand, saving, onInterestChange }: StandRowProps) {
         >{visitLabels[stand.visitStatus]}
         </span>
       </div>
-      <StandInterestButton
-        name={stand.name}
-        interested={stand.interested}
-        saving={saving}
-        onInterestChange={onInterestChange}
-      />
+      {onInterestChange === undefined ? <span className="stand-row-chevron"><NavigationIcon name="back" /></span> : (
+        <StandInterestButton
+          name={stand.name}
+          interested={stand.interested}
+          saving={saving}
+          onInterestChange={onInterestChange}
+        />
+      )}
     </li>
   );
 }

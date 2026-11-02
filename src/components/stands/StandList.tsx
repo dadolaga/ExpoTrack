@@ -1,13 +1,17 @@
+import Link from "next/link";
+
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { SelectField } from "@/components/forms/SelectField";
 import { TextField } from "@/components/forms/TextField";
 import { NavigationIcon } from "@/components/layout/NavigationIcon";
-import { defaultStandFilters, filterStandList } from "@/features/stands/stand-list";
+import {
+  countStandVisits, defaultStandFilters, filterStandList, standKey,
+} from "@/features/stands/stand-list";
 
 import { StandRow } from "./StandRow";
 
 import type { StandFilters, StandListItem } from "@/features/stands/stand-list";
-import type { Category, Pavilion } from "@/types/catalog";
+import type { Category, Pavilion, StandReference } from "@/types/catalog";
 
 type StandListProps = {
   items: StandListItem[];
@@ -16,7 +20,7 @@ type StandListProps = {
   filters: StandFilters;
   saving: string[];
   onFiltersChange: (changes: Partial<StandFilters>) => void;
-  onInterestChange: (standId: string, interested: boolean) => void;
+  onInterestChange: (standId: string, interested: boolean, source: StandReference["source"]) => void;
 };
 
 const statusFilters = [
@@ -46,6 +50,7 @@ export function StandList({
     ...filters,
     status: "",
   });
+  const counts = countStandVisits(statusItems);
   const hasFilters = filters.query !== "" || filters.status !== "" || filters.category !== ""
     || filters.pavilion !== "" || filters.priority !== "" || filters.interest === "excluded" || filters.sort !== "priority";
 
@@ -55,6 +60,11 @@ export function StandList({
 
   return (
     <div className="stand-list">
+      <Link
+        className="stand-new-link"
+        href="/stands/new?from=list"
+      >+ Nuovo stand
+      </Link>
       <div className="stand-list-heading">
         <h1 id="stands-title">Stand</h1>
         <div
@@ -133,7 +143,7 @@ export function StandList({
               });
             }}
           >
-            {label}({statusItems.filter((item) => value === "" || item.visitStatus === value).length})
+            {label}({value === "" ? statusItems.length : counts[value]})
           </button>
         ))}
       </div>
@@ -257,11 +267,11 @@ export function StandList({
         >
           {results.map((stand) => (
             <StandRow
-              key={stand.id}
+              key={standKey(stand.source, stand.id)}
               stand={stand}
-              saving={saving.includes(stand.id)}
+              saving={saving.includes(standKey(stand.source, stand.id))}
               onInterestChange={(interested) => {
-                onInterestChange(stand.id, interested);
+                onInterestChange(stand.id, interested, stand.source);
               }}
             />
           ))}

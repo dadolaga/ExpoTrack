@@ -4,24 +4,26 @@ import Link from "next/link";
 
 import { useProfileSession } from "@/components/profiles/ProfileProvider";
 import { Button } from "@/components/ui/Button";
+import { standHref } from "@/features/stands/stand-list";
 import { useStandDetail } from "@/features/stands/use-stand-detail";
 
 import { StandChecklist } from "./StandChecklist";
 import { StandInterestButton } from "./StandRow";
 
 import type { LocalRepository } from "@/lib/offline/repository";
-import type { CatalogSnapshot } from "@/types/catalog";
+import type { CatalogSnapshot, StandReference } from "@/types/catalog";
 import type { LocalContext, VisitStatus } from "@/types/offline";
 
 function ContextStandDetail({
-  repository, catalog, context, standId,
+  repository, catalog, context, standId, source,
 }: {
   repository: LocalRepository;
   catalog: CatalogSnapshot;
   context: LocalContext;
   standId: string;
+  source: StandReference["source"];
 }) {
-  const state = useStandDetail(repository, catalog, context, standId);
+  const state = useStandDetail(repository, catalog, context, standId, source);
   const stand = state.detail;
 
   if (state.loadError) {
@@ -124,6 +126,8 @@ function ContextStandDetail({
           </Button>
         </div>
       )}
+      {source === "personal" && <Link href={`${standHref(stand)}/edit?from=detail`}>Modifica stand</Link>}
+      {stand.description.length > 0 && <p className="stand-detail-card">{stand.description}</p>}
       <StandChecklist
         items={stand.checklist}
         completed={stand.completed}
@@ -136,7 +140,7 @@ function ContextStandDetail({
       >
         <h2 id="stand-notes-title">Note personali</h2>
         <p className="stand-notes-preview">{stand.notes.length === 0 ? "Nessuna nota sullo stand." : stand.notes}</p>
-        <Link href={`/stands/${encodeURIComponent(standId)}/notes?from=detail`}>
+        <Link href={`${standHref(stand)}/notes?from=detail`}>
           Apri note stand
         </Link>
       </section>
@@ -192,8 +196,9 @@ function ContextStandDetail({
   );
 }
 
-export function StandDetail({ standId }: {
+export function StandDetail({ standId, source = "catalog" }: {
   standId: string;
+  source?: StandReference["source"];
 }) {
   const { state } = useProfileSession();
 
@@ -203,11 +208,14 @@ export function StandDetail({ standId }: {
 
   return (
     <ContextStandDetail
-      key={JSON.stringify([state.session.context, standId])}
+      key={JSON.stringify([
+        state.session.context, source, standId,
+      ])}
       repository={state.repository}
       catalog={state.session.catalog}
       context={state.session.context}
       standId={standId}
+      source={source}
     />
   );
 }

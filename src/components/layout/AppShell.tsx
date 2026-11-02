@@ -58,7 +58,7 @@ export function AppShell({ children }: AppShellProps) {
   return (
     <div
       className="app-shell"
-      data-section={pathname.startsWith("/stands") ? "stands" : undefined}
+      data-section={pathname.startsWith("/stands") || pathname === "/" ? "stands" : undefined}
     >
       <a
         href="#main-content"
@@ -66,11 +66,12 @@ export function AppShell({ children }: AppShellProps) {
       >
         Vai al contenuto
       </a>
-      {pathname.startsWith("/stands") && profile !== null ? (
+      {(pathname.startsWith("/stands") || pathname === "/") && profile !== null ? (
         <StandHeader
           profile={profile}
           eventName={event?.name ?? ""}
-          detail={pathname !== "/stands"}
+          detail={pathname.startsWith("/stands/")}
+          dashboard={pathname === "/"}
         />
       ) : (
         <TopBar

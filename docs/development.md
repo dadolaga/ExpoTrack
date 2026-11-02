@@ -9,8 +9,9 @@ Si cambia da **Profilo → Cambia profilo**, senza conferma intermedia.
 In Profilo si sceglie il tema Automatico/Chiaro/Scuro, ricordato nel browser.
 La dimostrazione dei componenti di base è in `/examples/components`.
 La lista Stand (`/stands`) offre interessi personali, catalogo completo, ricerca e
-filtri dallo step 07. Riepilogo, elenco prodotti e sincronizzazione verranno
-implementati nelle fasi successive.
+filtri dallo step 07. Home mostra dallo step 11 quattro contatori reali e fino a
+cinque stand prioritari del profilo/evento; le card stand aprono liste filtrate.
+Elenco prodotti e sincronizzazione verranno implementati nelle fasi successive.
 
 Dallo step 08 il tap sulla riga apre `/stands/[standId]`: priorità e stato visita
 manuali, checklist persistente e sezioni per prodotti pianificati/registrati.
@@ -19,6 +20,14 @@ step 12. Dallo step 09 «Apri note stand» apre `/stands/[standId]/notes`: testo
 facoltativo senza limite UI, autosalvataggio locale e ritorno dopo commit.
 Le note sono personali per profilo/evento/stand; un errore di storage mantiene il
 testo aperto con retry. La sincronizzazione server arriverà negli step successivi.
+
+Dallo step 10 «Nuovo stand» apre `/stands/new`: nome obbligatorio, descrizione,
+categorie e posizione facoltative, autosalvataggio locale. L’URL conserva l’ID
+durante la compilazione per recuperare l’input al refresh. Gli stand personali
+aprono `/stands/personal/[standId]`; «Modifica stand» consente modifica ed
+eliminazione confermata, bloccata con prodotti collegati. Il catalogo resta
+in sola lettura. La creazione inizializza interesse e visita «Da visitare»;
+assegnando una priorità lo stand entra fra i candidati della dashboard.
 
 Il dataset dimostrativo e il loader di configurazione sono disponibili dallo step 04,
 separati dal markup. Tutti i dati sono fittizi: i profili mostrati sono marcati come demo.

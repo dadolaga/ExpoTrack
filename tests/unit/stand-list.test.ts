@@ -3,11 +3,11 @@ import path from "node:path";
 import test from "node:test";
 
 import {
-  defaultStandFilters, filterStandList, readStandFilters, resolveStandList, standFiltersQuery,
+  defaultStandFilters, filterStandList, readStandFilters, resolveStandList, selectDashboard, standFiltersQuery,
 } from "../../src/features/stands/stand-list";
 import { loadCatalog } from "../../src/lib/config/load-catalog";
 
-import type { LocalStandPreferences } from "../../src/types/offline";
+import type { LocalStandPreferences, ProductData } from "../../src/types/offline";
 
 const scope = {
   profileId: "me",
@@ -156,4 +156,147 @@ void test("ricerca senza accenti, filtri combinati, azzeramento e ordinamento de
     profileId: "father",
   }), defaults);
   assert.deepEqual(readStandFilters(new URLSearchParams(), scope), defaults);
+});
+
+void test("dashboard: conteggi disgiunti sugli interessi, prodotti del contesto e prime cinque priorità deterministiche", async () => {
+  const catalog = await loadCatalog(path.join(process.cwd(), "tests/fixtures/catalog"));
+  const [base] = resolveStandList(catalog, scope, []);
+  const cases = [
+    {
+      id: "visited",
+      name: "Visitato",
+      visitStatus: "visited" as const,
+      priority: 10,
+    },
+    {
+      id: "none",
+      name: "Senza priorità",
+      visitStatus: "to_visit" as const,
+      priority: null,
+    },
+    {
+      id: "z",
+      name: "Uguale",
+      visitStatus: "to_visit" as const,
+      priority: 9,
+    },
+    {
+      id: "a",
+      name: "Uguale",
+      visitStatus: "to_revisit" as const,
+      priority: 9,
+    },
+    {
+      id: "top",
+      name: "Primo",
+      visitStatus: "to_visit" as const,
+      priority: 10,
+    },
+    {
+      id: "four",
+      name: "Quarto",
+      visitStatus: "to_visit" as const,
+      priority: 8,
+    },
+    {
+      id: "five",
+      name: "Quinto",
+      visitStatus: "to_revisit" as const,
+      priority: 7,
+    },
+    {
+      id: "six",
+      name: "Sesto",
+      visitStatus: "to_visit" as const,
+      priority: 6,
+    },
+  ];
+  const items = cases.map((entry) => ({
+    ...base,
+    ...entry,
+    interested: true,
+  }));
+
+  items.push({
+    ...base,
+    id: "excluded",
+    name: "Escluso",
+    interested: false,
+    priority: 10,
+  });
+  const product: ProductData = {
+    ...scope,
+    id: "valid",
+    name: "Registrato",
+    categoryId: "bags",
+    description: "",
+    standRef: {
+      source: "catalog",
+      eventId: scope.eventId,
+      standId: "demo-bags",
+    },
+    createdAt: "2026-11-02T00:00:00Z",
+    updatedAt: "2026-11-02T00:00:00Z",
+  };
+  const summary = selectDashboard(items, [
+    product,
+    {
+      ...product,
+      id: "father",
+      profileId: "father",
+    },
+    {
+      ...product,
+      id: "other-event",
+      eventId: "another",
+    },
+  ], scope);
+
+  assert.deepEqual(summary.counts, {
+    to_visit: 5,
+    visited: 1,
+    to_revisit: 2,
+  });
+  assert.equal(summary.products, 1);
+  assert.deepEqual(summary.priorities.map((stand) => stand.id), [
+    "top", "a", "z", "four", "five",
+  ]);
+  for (const status of [
+    "to_visit", "visited", "to_revisit",
+  ] as const) {
+    const filters = {
+      ...defaultStandFilters(),
+      status,
+    };
+    const restored = readStandFilters(new URLSearchParams(standFiltersQuery(filters, scope)), scope);
+
+    assert.equal(filterStandList(items, restored).length, summary.counts[status]);
+  }
+});
+
+void test("dashboard: vuoto, meno di cinque candidati, profilo/evento diversi e nessun conteggio dei pianificati", async () => {
+  const catalog = await loadCatalog(path.join(process.cwd(), "tests/fixtures/catalog"));
+  const me = selectDashboard(resolveStandList(catalog, scope, []), [], scope);
+  const fatherScope = {
+    ...scope,
+    profileId: "father",
+  };
+  const father = selectDashboard(resolveStandList(catalog, fatherScope, []), [], fatherScope);
+  const otherScope = {
+    ...scope,
+    eventId: "missing-event",
+  };
+  const other = selectDashboard(resolveStandList(catalog, otherScope, []), [], otherScope);
+
+  assert.equal(me.counts.to_visit, 1);
+  assert.equal(me.priorities.length, 1);
+  assert.equal(me.products, 0);
+  assert.equal(father.counts.to_visit, 2);
+  assert.equal(father.priorities.length, 2);
+  assert.deepEqual(other.counts, {
+    to_visit: 0,
+    visited: 0,
+    to_revisit: 0,
+  });
+  assert.deepEqual(other.priorities, []);
 });
