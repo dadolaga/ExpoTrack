@@ -427,3 +427,89 @@ void test("riferimenti rimossi dal catalogo conservano input e ultima versione v
   assert.equal(recovered.lastValid?.description, "Da conservare");
   assert.equal((await repository.listOutbox(firstContext)).length, 2);
 });
+
+void test("prezzo e voto distinguono assenza e zero, conservano input errati e ultima versione valida", async (context) => {
+  const { repository, connect } = await fixture(context);
+  const initial = await repository.saveProduct(firstContext, "pricing", productInput(firstContext));
+
+  assert.equal(initial.lastValid?.price, null);
+  assert.equal(initial.lastValid.rating, null);
+  const zero = await repository.saveProduct(firstContext, "pricing", {
+    price: "0",
+    rating: 1,
+  });
+
+  assert.equal(zero.lastValid?.price, 0);
+  assert.equal(zero.lastValid.rating, 1);
+  const priced = await repository.saveProduct(firstContext, "pricing", {
+    price: "8799,50",
+  });
+
+  assert.equal(priced.lastValid?.price, 8799.5);
+  const before = await repository.listOutbox(firstContext);
+  const invalid = await repository.saveProduct(firstContext, "pricing", {
+    price: "12,",
+    rating: 11,
+  });
+
+  assert.notEqual(invalid.issues.price, undefined);
+  assert.notEqual(invalid.issues.rating, undefined);
+  assert.equal(invalid.lastValid?.price, 8799.5);
+  assert.equal(invalid.lastValid.rating, 1);
+  assert.equal((await repository.listOutbox(firstContext)).length, before.length);
+  const reopened = await connect();
+  const recovered = await reopened.getProduct(firstContext, "pricing");
+
+  assert.equal(recovered?.input.price, "12,");
+  assert.equal(recovered.input.rating, 11);
+  const removed = await reopened.saveProduct(firstContext, "pricing", {
+    price: "",
+    rating: null,
+  });
+
+  assert.equal(removed.lastValid?.price, null);
+  assert.equal(removed.lastValid.rating, null);
+  assert.deepEqual(removed.issues, {});
+});
+
+void test("descrizione lunga e preferito salvano anche con nome temporaneamente vuoto, senza cambiare visita", async (context) => {
+  const { repository, connect } = await fixture(context);
+
+  await repository.saveProduct(firstContext, "impressions", productInput(firstContext));
+  const notes = "Impressioni personali senza limite.\n".repeat(1000);
+  const edited = await repository.saveProduct(firstContext, "impressions", {
+    name: "",
+    description: notes,
+    favorite: true,
+    price: "19.90",
+    rating: 10,
+  });
+
+  assert.notEqual(edited.issues.name, undefined);
+  assert.equal(edited.input.name, "");
+  assert.equal(edited.lastValid?.name, "Prodotto di prova");
+  assert.equal(edited.lastValid.description, notes);
+  assert.equal(edited.lastValid.favorite, true);
+  const reopened = await connect();
+  const recovered = await reopened.getProduct(firstContext, "impressions");
+
+  assert.equal(recovered?.input.description, notes);
+  assert.equal(recovered.input.name, "");
+  assert.equal((await reopened.listRegisteredProducts(firstContext)).length, 1);
+  assert.deepEqual(await reopened.listStandPreferences(firstContext), []);
+  assert.equal(await reopened.getProduct({
+    ...firstContext,
+    profileId: "father",
+  }, "impressions"), undefined);
+  assert.equal(await reopened.getProduct({
+    ...firstContext,
+    eventId: secondEvent,
+  }, "impressions"), undefined);
+  const operations = await reopened.listOutbox(firstContext);
+  const latest = operations.at(-1);
+
+  assert.equal(latest?.entityType, "product");
+  assert.equal(latest.payload.description, notes);
+  assert.equal(latest.payload.name, "Prodotto di prova");
+  assert.equal(latest.payload.favorite, true);
+});

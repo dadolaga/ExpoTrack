@@ -143,3 +143,12 @@ parità, priorità assenti, contesti e coerenza con i filtri di lista. Non si
 aggiungono collegamenti fittizi alle aree E2E `stands` e `profiles-and-dashboard`:
 le prove Chromium su `next dev` isolato sono temporanee, mentre le suite della
 build di produzione e le verifiche fisiche restano pendenti. Nessun test grafico.
+
+**Copertura estesa nello step 13:** due scenari aggiunti a
+`tests/integration/local-persistence.test.ts`, già collegato a `local-persistence`
+e `profile-event-isolation` in `validation/final-evidence.json`, verificano prezzo
+assente/zero/decimali/errore, voto assente/1/rimozione, recupero input invalido,
+ultima versione valida, descrizione lunga e preferito con nome temporaneamente
+vuoto, outbox valida e isolamento. Le prove temporanee Chromium del flusso editor
+non sono una suite E2E di produzione: `products-and-questionnaires` resta pendente
+fino agli step pertinenti. Nessuna verifica grafica automatica introdotta.

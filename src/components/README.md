@@ -150,3 +150,14 @@ Non è un editor dell’app e non persiste dati. Eseguire `npm run dev` e aprire
 Le verifiche visive restano manuali; non aggiungere snapshot o test di classi,
 colori o struttura esatta del DOM. La dimostrazione resta separata dalle quattro
 destinazioni dell’app e non salva i dati dei campi.
+
+### Editor prodotto (step 12–13)
+
+`products/ProductEditor` compone 05, selettore 09 e descrizione 05b. Gli hook in
+`features/products/` gestiscono caricamento e autosalvataggio; `StandPicker` riceve
+righe e callback senza accedere direttamente allo storage. `ProductDescription`
+riceve testo, stato e callback. Riutilizzati campi, stato salvataggio, interesse e
+navigazione. `forms/RatingSlider` rappresenta l’assenza senza valore preassegnato:
+il tap Aggiungi voto assegna esplicitamente 1; slider 1–10 e rimozione.
+`TextField.requiredIndicator="asterisk"` mostra l’asterisco mantenendo l’indicazione
+accessibile di campo obbligatorio.

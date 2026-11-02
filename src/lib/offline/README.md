@@ -202,3 +202,13 @@ senza cascata. Note/checklist/preferenze sono rimosse nella stessa transazione
 della tombstone; le operazioni già pendenti restano ordinate tramite dipendenze.
 Un ID eliminato non viene riutilizzato. `getVisitData` legge i tre store nella
 stessa transazione e gestisce anche errori sincroni senza Promise non osservate.
+
+Step 13: l’input prodotto conserva `price` come testo, `rating` assente o 1–10 e
+`favorite`. La versione valida usa prezzo numerico in euro o null (zero è valido),
+voto o null e preferito booleano. I campi sono opzionali nel contratto per leggere
+anche i record precedenti; i nuovi salvataggi normalizzano i valori assenti.
+Prezzo temporaneamente invalido resta nell’input senza sovrascrivere il prezzo
+valido; nome/voto invalidi seguono la stessa regola per campo. Descrizione e altre
+modifiche valide continuano a essere accodate atomicamente. Nessun nuovo store.
+I pianificati usano l’ID locale stabile `planned:<id catalogo>` nel contesto
+profilo/evento; l’apertura legge soltanto, la prima modifica avvia la raccolta.

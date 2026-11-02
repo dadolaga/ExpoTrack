@@ -158,7 +158,15 @@ function ContextStandDetail({
                   className="stand-product-fallback"
                 >◇
                 </span>
-                <h3>{product.name}</h3>
+                <h3>
+                  <Link
+                    href={`/products/new?${new URLSearchParams({
+                      planned: product.id,
+                      return: standHref(stand),
+                    })}`}
+                  >{product.name}
+                  </Link>
+                </h3>
               </li>
             ))}
           </ul>
@@ -179,7 +187,14 @@ function ContextStandDetail({
                 >◇
                 </span>
                 <div>
-                  <h3>{product.name}</h3>
+                  <h3>
+                    <Link
+                      href={`/products/${encodeURIComponent(product.id)}?${new URLSearchParams({
+                        return: standHref(stand),
+                      })}`}
+                    >{product.name}
+                    </Link>
+                  </h3>
                   <p>{catalog.categories.find((entry) => entry.id === product.categoryId)?.name}</p>
                 </div>
               </li>
@@ -187,6 +202,15 @@ function ContextStandDetail({
           </ul>
         )}
       </section>
+      <Link
+        className="product-add-link"
+        href={`/products/new?${new URLSearchParams({
+          stand: stand.id,
+          source: stand.source,
+          return: standHref(stand),
+        })}`}
+      >+ Aggiungi prodotto
+      </Link>
       <p
         role="status"
         className="text-caption text-text-muted"

@@ -54,10 +54,12 @@ export function AppShell({ children }: AppShellProps) {
     );
   }
   const { profile, event } = state.session;
+  const productEditor = pathname.startsWith("/products/");
 
   return (
     <div
       className="app-shell"
+      data-editor={productEditor ? "product" : undefined}
       data-section={pathname.startsWith("/stands") || pathname === "/" ? "stands" : undefined}
     >
       <a
@@ -66,7 +68,7 @@ export function AppShell({ children }: AppShellProps) {
       >
         Vai al contenuto
       </a>
-      {(pathname.startsWith("/stands") || pathname === "/") && profile !== null ? (
+      {!productEditor && ((pathname.startsWith("/stands") || pathname === "/") && profile !== null ? (
         <StandHeader
           profile={profile}
           eventName={event?.name ?? ""}
@@ -84,7 +86,7 @@ export function AppShell({ children }: AppShellProps) {
             </ProfileIdentity>
           )}
         />
-      )}
+      ))}
       <main
         id="main-content"
         tabIndex={-1}

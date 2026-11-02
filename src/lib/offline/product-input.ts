@@ -70,10 +70,23 @@ export function parseProductPatch(value: unknown): Partial<ProductInput> {
     switch (key) {
       case "name":
       case "description":
+      case "price":
         if (typeof field !== "string") {
           throw new LocalInputError(`${key}: atteso testo.`);
         }
         result[key] = field;
+        break;
+      case "favorite":
+        if (typeof field !== "boolean") {
+          throw new LocalInputError("favorite: atteso un booleano.");
+        }
+        result.favorite = field;
+        break;
+      case "rating":
+        if (field !== null && (typeof field !== "number" || !Number.isFinite(field))) {
+          throw new LocalInputError("rating: atteso un numero o null.");
+        }
+        result.rating = field;
         break;
       case "categoryId":
         if (field !== null && typeof field !== "string") {
@@ -97,6 +110,18 @@ export function sameStand(first: StandReference | null, second: StandReference):
     && first.eventId === second.eventId && first.standId === second.standId;
 }
 
+export function parsePrice(value: string): number | null | undefined {
+  const text = value.trim();
+
+  if (text === "") {
+    return null;
+  }
+  const amount = Number(text.replace(",", "."));
+
+  return /^\d+(?:[.,]\d{1,2})?$/u.test(text) && Number.isFinite(amount)
+    && amount <= Number.MAX_SAFE_INTEGER / 100 ? amount : undefined;
+}
+
 export function validateProduct(
   input: ProductInput,
   context: LocalContext,
@@ -110,6 +135,13 @@ export function validateProduct(
   }
   if (!catalog.categories.some((category) => category.id === input.categoryId)) {
     issues.categoryId = "Seleziona una categoria disponibile.";
+  }
+  if (parsePrice(input.price ?? "") === undefined) {
+    issues.price = "Inserisci un prezzo positivo o zero, con al massimo due decimali.";
+  }
+  if (input.rating !== undefined && input.rating !== null
+    && (!Number.isInteger(input.rating) || input.rating < 1 || input.rating > 10)) {
+    issues.rating = "Scegli un voto da 1 a 10 oppure rimuovi la valutazione.";
   }
   const stand = input.standRef;
 
@@ -154,6 +186,9 @@ export function nextProductData(
     categoryId: input.categoryId,
     standRef: input.standRef,
     description: input.description,
+    price: issues.price === undefined ? parsePrice(input.price ?? "") ?? null : lastValid?.price ?? null,
+    rating: issues.rating === undefined ? input.rating ?? null : lastValid?.rating ?? null,
+    favorite: input.favorite ?? false,
     createdAt: previous?.createdAt ?? now,
     updatedAt: now,
   };
@@ -161,5 +196,7 @@ export function nextProductData(
 
 export function sameProduct(first: ProductData | null, second: ProductData): boolean {
   return first !== null && first.name === second.name && first.categoryId === second.categoryId
-    && sameStand(first.standRef, second.standRef) && first.description === second.description;
+    && sameStand(first.standRef, second.standRef) && first.description === second.description
+    && (first.price ?? null) === (second.price ?? null) && (first.rating ?? null) === (second.rating ?? null)
+    && (first.favorite ?? false) === (second.favorite ?? false);
 }

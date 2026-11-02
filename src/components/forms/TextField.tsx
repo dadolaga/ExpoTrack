@@ -7,6 +7,7 @@ import type { ComponentProps } from "react";
 type TextFieldProps = Omit<ComponentProps<"input">, "children" | "type"> & {
   label: string;
   labelClassName?: string;
+  requiredIndicator?: "text" | "asterisk";
   hint?: string;
   error?: string;
   type?: "text" | "email" | "password" | "search" | "tel" | "url" | "number";
@@ -15,6 +16,7 @@ type TextFieldProps = Omit<ComponentProps<"input">, "children" | "type"> & {
 export function TextField({
   label,
   labelClassName = "",
+  requiredIndicator = "text",
   hint,
   error,
   id,
@@ -41,7 +43,16 @@ export function TextField({
         className={`text-label font-medium ${labelClassName}`}
       >
         {label}
-        {props.required === true && " (obbligatorio)"}
+        {props.required === true && (requiredIndicator === "asterisk" ? (
+          <span>
+            <span
+              aria-hidden="true"
+              className="text-danger"
+            > *
+            </span>
+            <span className="sr-only"> (obbligatorio)</span>
+          </span>
+        ) : " (obbligatorio)")}
       </label>
       {hasHint && (
         <p

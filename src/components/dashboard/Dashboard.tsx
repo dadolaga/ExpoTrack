@@ -114,6 +114,11 @@ function ContextDashboard({ repository, catalog, context }: {
         )}
       </section>
       <Link
+        href="/products/new"
+        className="product-add-link"
+      >+ Aggiungi prodotto
+      </Link>
+      <Link
         href="/stands"
         className="dashboard-explore"
       ><NavigationIcon name="stands" /><span>Esplora stand<small>Cerca e filtra</small></span>

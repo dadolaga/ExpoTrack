@@ -10,6 +10,10 @@ export type ProductInput = {
   categoryId: string | null;
   standRef: StandReference | null;
   description: string;
+  // Optional for records written before the product editor was introduced.
+  price?: string;
+  rating?: number | null;
+  favorite?: boolean;
 };
 
 export type ProductData = LocalContext & {
@@ -18,11 +22,14 @@ export type ProductData = LocalContext & {
   categoryId: string;
   standRef: StandReference;
   description: string;
+  price?: number | null;
+  rating?: number | null;
+  favorite?: boolean;
   createdAt: string;
   updatedAt: string;
 };
 
-export type ProductIssues = Partial<Record<"name" | "categoryId" | "standRef", string>>;
+export type ProductIssues = Partial<Record<"name" | "categoryId" | "standRef" | "price" | "rating", string>>;
 
 export type LocalProduct = LocalContext & {
   id: string;

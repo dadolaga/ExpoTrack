@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { Card } from "@/components/ui/Card";
 
@@ -17,6 +19,11 @@ export default function ProductsPage() {
           description="Qui ritroverai i prodotti pianificati e quelli raccolti durante la visita."
         />
       </Card>
+      <Link
+        href="/products/new"
+        className="product-add-link"
+      >+ Aggiungi prodotto
+      </Link>
     </section>
   );
 }

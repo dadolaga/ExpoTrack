@@ -2,7 +2,7 @@
 
 Questo README definisce **come lavoriamo**, un passo alla volta, sulla parte web mobile da fiera. Ogni step parte da una domanda concreta, produce un’implementazione circoscritta e termina con un risultato verificabile. Non autorizza a implementare l’intera applicazione in un’unica sessione.
 
-**Stato corrente:** step da 00 a 09 accettati dall’utente; step 10 e 11 implementati insieme su richiesta e da verificare dall’utente. Gli step dal 12 in avanti non sono iniziati. Le cartelle indicate qui sono destinazioni da creare quando servono, non funzionalità già presenti. Gli esiti sono riportati nel registro della singola consegna.
+**Stato corrente:** step da 00 a 11 accettati dall’utente; step 12 e 13 implementati insieme su richiesta e da verificare dall’utente. Gli step dal 14 in avanti non sono iniziati. Gli esiti sono riportati nel registro della singola consegna.
 
 ## Riferimenti e priorità
 
@@ -123,8 +123,8 @@ L’ordine è intenzionale: prima fondamenta e funzioni locali verificabili, poi
 | 09 | Note dello stand | Accettato |
 | 10 | Stand personali | Accettato |
 | 11 | Dashboard con conteggi reali | Accettato |
-| 12 | Creazione minima prodotto e selezione stand | Da iniziare |
-| 13 | Modifica prodotto e descrizione | Da iniziare |
+| 12 | Creazione minima prodotto e selezione stand | Accettato |
+| 13 | Modifica prodotto e descrizione | Accettato |
 | 14 | Lista prodotti, duplicazione ed eliminazione | Da iniziare |
 | 15 | Motore questionari e primi controlli | Da iniziare |
 | 16 | Rating e scelte del questionario | Da iniziare |
@@ -717,3 +717,17 @@ Le suite permanenti usano fixture e database IndexedDB emulati isolati; i nuovi 
 - **Come provarlo:** `npm run dev` → [http://localhost:3000](http://localhost:3000). In un contesto browser nuovo scegliere Io · demo: Home parte da 1 da visitare, 0 visitati, 0 da rivedere e 0 prodotti. Da Stand → Nuovo stand inserire un nome e tornare al dettaglio: lo stand è già di interesse. Assegnare priorità 10 e tornare a Home: conteggio aumentato e nuovo prioritario in testa. Segnarlo Visitato o Da rivedere e controllare card/lista filtrata. Modificare, ricaricare e verificare gli stessi valori; cambiare a Papà · demo per controllare l’isolamento. Eliminare lo stand senza prodotti dal suo editor dopo conferma: scompare e i conteggi si aggiornano. Il blocco con prodotto è già verificato tramite fixture, senza anticipare l’editor prodotto.
 - **Limiti:** nessuna build o `validate:final` eseguita; prove su telefono reale, altri motori browser ed E2E della build di produzione ancora pendenti. La shell PWA offline resta allo step 27. Creazione prodotto allo step 12, lista prodotti allo step 14 e sync operativa nei rispettivi step; Home non espone CTA prodotto o sync non funzionanti. Step 12 non avviato.
 - **Punto di commit:** soltanto i file elencati sopra; titolo suggerito `feat: add personal stands and visit dashboard`. Nessun commit o push effettuato.
+
+### Consegna step 12–13 — Editor prodotto e descrizione
+
+- **Stato:** implementati insieme su richiesta, da verificare dall’utente. Step 10–11 accettati con la richiesta di proseguire; step 14 non avviato.
+- **Step 12:** ingressi Aggiungi prodotto da Home, dettaglio stand e Prodotti; apertura dei pianificati/registrati direttamente in 05. Selettore 09 con interessi, ricerca dal perimetro esplicito, catalogo completo, recenti ricavati dai prodotti del contesto e stelle persistenti. Sola apertura senza scritture prodotto; URL stabile per recuperare input parziali. Identità `planned:<id>` per riaprire lo stesso pianificato. Prima registrazione automatica con nome/categoria/stand validi, blocco categoria/stand e conteggi reali; visita stand invariata. Fine torna allo stand dalla creazione e alla vista chiamante dalla modifica.
+- **Step 13:** prezzo in euro (assenza distinta da zero, virgola o punto decimale), voto generale assente o 1–10 e rimuovibile, preferito e descrizione unica 05b senza limite di testo. Anteprima di tre righe. Autosalvataggio locale e outbox atomica: input errato recuperabile, ultima versione valida preservata per campo e altre modifiche valide ancora salvabili. Navigazione/subviste attendono il commit, errori reali e retry; nessuna bozza o conferma Salva.
+- **Mockup:** tavole 05, 05b e 09 adattate alle decisioni correnti. Testata ExpoTrack, campi compatti, slider/voto, interruttore preferito, riga descrizione e due temi. Corrette la griglia dell’editor senza testata condivisa e la testata stretta con testo ingrandito. Questionari, foto, budget, lista completa e azioni duplica/elimina restano agli step previsti.
+- **File nuovi:** `src/app/(app)/products/{new,[productId]}/page.tsx`; `src/components/products/{ProductEditor,StandPicker,ProductDescription}.tsx`; `src/components/forms/RatingSlider.tsx`; `src/features/products/use-product-editor.ts`.
+- **File aggiornati:** `src/app/(app)/products/page.tsx`, `src/app/globals.css`; `src/components/dashboard/Dashboard.tsx`, `src/components/layout/AppShell.tsx`, `src/components/stands/StandDetail.tsx`, `src/components/forms/TextField.tsx`; `src/types/offline.ts`, `src/lib/offline/product-input.ts`; `tests/integration/local-persistence.test.ts`; `src/components/README.md`, `src/lib/offline/README.md`, `docs/final-validation.md`, questo README. Nessuna nuova dipendenza o modifica ai dati dimostrativi.
+- **Verifiche automatizzate:** applicato `npm run lint:fix`; `npm run lint`, `npm run typecheck`, `npm run test:unit`, `npm run test:integration` e `git diff --check` superati, codice 0. Due scenari di integrazione aggiunti al file già collegato alle aree `local-persistence` e `profile-event-isolation` di `validation/final-evidence.json`. Nessuna copertura E2E dichiarata completa.
+- **Browser:** Chromium temporaneo contro copia isolata dell’app, `next dev --webpack` porta 3112, senza `.env`, DB server o media reali. Passati apertura senza creazione, selezione stand, parziali/refresh, prima registrazione/blocco, pianificato senza duplicazione, ritorni/Fine, visita invariata e conteggio Home. Passati prezzo assente/zero/decimali/input invalido, voto assente/1/9/rimozione, preferito, descrizione lunga/refresh/indietro, nome vuoto con ultima versione valida, quota simulata/retry/uscita protetta, isolamento profili e ricerca interessi/catalogo completo. Anteprime 390 px chiare/scure e descrizione a 320 px con testo 200% ispezionate manualmente; nessun test grafico introdotto.
+- **Come provarlo:** `npm run dev` → [http://localhost:3000](http://localhost:3000). Scegliere Io · demo → Home → Aggiungi prodotto → Borse Demo; inserire il nome, ricaricare prima della categoria per verificare il recupero. Selezionare Borse · demo: stand/categoria si bloccano automaticamente. Provare prezzo `0`, `8799,50`, voto/rimozione, preferito e descrizione lunga. Fine apre Borse Demo; il prodotto registrato riapre lo stesso editor. Aprire anche Borsa giornaliera · demo nei pianificati, modificare un campo e riaprirlo: nessun duplicato. Svuotare temporaneamente nome/prezzo, ricaricare e correggere; il conteggio della registrazione precedente resta valido. Da Profilo cambiare tema/profilo per verificare aspetto e isolamento.
+- **Limiti:** prove su telefono reale, altri motori e suite E2E di produzione pendenti. Nessuna build o `validate:final` eseguita; shell PWA e sincronizzazione server restano agli step previsti.
+- **Punto di commit:** soltanto i file elencati sopra; titolo suggerito `feat: add autosaved product editor and stand picker`. Nessun commit o push effettuato.
