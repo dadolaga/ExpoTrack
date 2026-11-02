@@ -1,4 +1,4 @@
-import type { StandReference } from "./catalog";
+import type { ChecklistSeedItem, StandReference } from "./catalog";
 
 export type LocalContext = {
   profileId: string;
@@ -43,6 +43,16 @@ export type StandPreferencesData = LocalContext & {
   interested?: boolean;
   priority?: number | null;
   visitStatus?: VisitStatus;
+  checklist?: ChecklistSeedItem[];
+  checklistDone?: Record<string, boolean>;
+};
+
+export type StandPreferencesPatch = Pick<StandPreferencesData, "interested" | "priority" | "visitStatus"> & {
+  checklistChange?: {
+    id: string;
+    checked: boolean;
+  };
+  addChecklistItem?: ChecklistSeedItem;
 };
 
 export type LocalStandPreferences = StandPreferencesData & {

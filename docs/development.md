@@ -12,6 +12,11 @@ La lista Stand (`/stands`) offre interessi personali, catalogo completo, ricerca
 filtri dallo step 07. Riepilogo, elenco prodotti e sincronizzazione verranno
 implementati nelle fasi successive.
 
+Dallo step 08 il tap sulla riga apre `/stands/[standId]`: priorità e stato visita
+manuali, checklist persistente e sezioni per prodotti pianificati/registrati.
+La stella rimane un controllo indipendente. Le azioni prodotto arriveranno allo
+step 12 e le note dedicate allo step 09.
+
 Il dataset dimostrativo e il loader di configurazione sono disponibili dallo step 04,
 separati dal markup. Tutti i dati sono fittizi: i profili mostrati sono marcati come demo.
 Contratti effettivi e struttura dei file: [config/README.md](../config/README.md).

@@ -61,17 +61,26 @@ errore di lettura e retry di una stella non salvata. `StandList` riceve dati e c
 ricerca, chip degli stati con conteggi, tre select compatte e pannello Filtri per
 interesse e ordinamento; nessuna chiamata diretta allo storage. `StandRow` mostra
 fallback con iniziali, nome/categorie/posizione, priorità colorata, stato con pallino
-e stella indipendente. I loghi non sono ancora nel contratto del catalogo. Le righe
-diventeranno navigabili con il dettaglio dello step 08.
+e stella indipendente. I loghi non sono ancora nel contratto del catalogo. Dallo step 08 le righe aprono il dettaglio dello stand.
 
 `forms/SelectField` associa label e select nativa; `compact` mantiene la label
 accessibile e usa la forma compatta della barra filtri. `forms/TextField` accetta
 `labelClassName`, utilizzato con `sr-only` per la ricerca. Le icone ricerca, filtri,
 chiusura e chevron estendono `layout/NavigationIcon`.
 
+Il dettaglio `/stands/[standId]`, introdotto nello step 08, usa `StandDetail` e
+`StandChecklist`: priorità rimovibile, visita manuale, spunte e aggiunta di voci
+con ID stabili. Riusa `StandInterestButton`, esportato da `StandRow`, per la stella.
+Pianificati e registrati hanno conteggi e sezioni distinti, ancora senza azioni
+editor prodotto. `useStandDetail` carica e salva; il selettore condiviso risolve
+seed, override e prodotti del contesto. Il ritorno dal dettaglio conserva la lista;
+un accesso diretto offre comunque il ritorno al catalogo.
+
 I filtri combinabili usano funzioni pure. Il loro URL include profilo/evento per
 evitare riusi accidentali in un altro contesto; lo scroll è associato alla voce
-di cronologia, senza salvare preferenze di lista nel catalogo o nell’outbox.
+di cronologia, con recupero in sessione per URL/contesto dopo refresh del dettaglio.
+Un nuovo ingresso dal tab Stand azzera la posizione predefinita. Queste preferenze
+non entrano nel catalogo o nell’outbox.
 
 Esempio in un componente client (il form gestisce `name`, `error` e `onSubmit`):
 

@@ -1,5 +1,7 @@
 import type { CatalogSnapshot } from "../../types/catalog";
-import type { LocalContext, LocalStandPreferences, VisitStatus } from "../../types/offline";
+import type {
+  LocalContext, LocalStandPreferences, ProductData, VisitStatus,
+} from "../../types/offline";
 
 export const visitLabels: Record<VisitStatus, string> = {
   to_visit: "Da visitare",
@@ -109,6 +111,38 @@ export function filterStandList(items: StandListItem[], filters: StandFilters): 
 
     return nameOrder !== 0 ? nameOrder : first.id.localeCompare(second.id);
   });
+}
+
+export function resolveStandDetail(
+  catalog: CatalogSnapshot,
+  context: LocalContext,
+  standId: string,
+  preferences: LocalStandPreferences[],
+  products: ProductData[],
+) {
+  const stand = resolveStandList(catalog, context, preferences).find((entry) => entry.id === standId);
+
+  if (stand === undefined) {
+    return null;
+  }
+  const own = preferences.find((entry) => entry.profileId === context.profileId && entry.eventId === context.eventId
+    && entry.standRef.source === "catalog" && entry.standRef.standId === standId);
+  const seed = catalog.interests.find((entry) => entry.profileId === context.profileId
+    && entry.standRef.eventId === context.eventId && entry.standRef.standId === standId);
+  const checklist = (own?.checklist ?? seed?.checklist ?? []).map((item) => ({
+    ...item,
+    checked: own?.checklistDone?.[item.id] === true,
+  }));
+
+  return {
+    ...stand,
+    checklist,
+    completed: checklist.filter((item) => item.checked).length,
+    planned: catalog.plannedProducts.filter((entry) => entry.profileId === context.profileId
+      && entry.standRef.eventId === context.eventId && entry.standRef.standId === standId),
+    registered: products.filter((entry) => entry.profileId === context.profileId && entry.eventId === context.eventId
+      && entry.standRef.source === "catalog" && entry.standRef.standId === standId),
+  };
 }
 
 export function readStandFilters(params: URLSearchParams, context: LocalContext): StandFilters {

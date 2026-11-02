@@ -1,5 +1,5 @@
 type NavigationIconProps = {
-  name: "home" | "stands" | "products" | "profile" | "search" | "filters" | "close" | "chevronDown";
+  name: "home" | "stands" | "products" | "profile" | "search" | "filters" | "close" | "chevronDown" | "back";
 };
 
 const paths = {
@@ -11,6 +11,7 @@ const paths = {
   filters: "M4 6h16M7 12h10M10 18h4M16 3v6M8 9v6M15 15v6",
   close: "m6 6 12 12M18 6 6 18",
   chevronDown: "m6 9 6 6 6-6",
+  back: "m15 4-8 8 8 8",
 };
 
 export function NavigationIcon({ name }: NavigationIconProps) {

@@ -41,6 +41,7 @@ IndexedDB; questa versione è distinta dallo `schemaVersion` dei JSON.
 | `listOutbox(context)` | Mutazioni del solo contesto, ordinate per entità e sequenza locale; nessun invio o conferma simulata. |
 | `listStandPreferences(context)` | Override degli stand del solo profilo/evento; una lettura non materializza i seed. |
 | `setStandInterest(context, standId, interested)` | Salva l’override booleano di uno stand del catalogo e accoda una mutazione `stand-preferences` nella stessa transazione. La Promise termina dopo il commit. |
+| `saveStandPreferences(context, standId, changes)` | Patch di interesse, priorità intera 1–10/null, visita manuale, spunta per ID o aggiunta di una voce checklist. Validazione e record/outbox atomici; conserva i campi non modificati. |
 | `close()` | Chiude la connessione. Riaprire il repository rilegge lo stesso archivio persistente. |
 
 ## Sessione del profilo — step 06

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { resetStandListScroll } from "@/features/stands/use-stand-filters";
+
 import { destinations, isDestinationActive } from "./navigation";
 import { NavigationIcon } from "./NavigationIcon";
 
@@ -25,6 +27,11 @@ export function BottomNav() {
             <li key={destination.href}>
               <Link
                 href={destination.href}
+                onNavigate={() => {
+                  if (destination.href === "/stands") {
+                    resetStandListScroll();
+                  }
+                }}
                 aria-current={active ? "page" : undefined}
                 className={`flex min-h-touch min-w-touch flex-col items-center justify-center gap-1 rounded-input px-1 py-2 text-center text-caption ${activeClasses}`}
               >

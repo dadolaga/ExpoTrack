@@ -90,6 +90,12 @@ restano pendenti; nessun test grafico automatico introdotto.
 
 ## Prove su dispositivo
 
+**Estensione step 08:** la suite già collegata `tests/integration/stand-interests.test.ts`
+verifica anche checklist per ID, aggiunte, contatore, priorità rimossa, visita
+preservata da spunte/prodotti, separazione dei prodotti e dei profili, riapertura,
+seed aggiornati, patch invalide e rollback/retry. È copertura parziale delle aree
+`local-persistence` e `profile-event-isolation`; l’area E2E `stands` resta pendente.
+
 Gli emulatori non dimostrano installazione PWA, fotocamera, memoria o usabilità su un telefono fisico. Il manifest mantiene tre verifiche distinte:
 
 | ID | Verifica richiesta |

@@ -12,11 +12,13 @@ import {
   validateProduct,
 } from "./product-input";
 import { profileContextForSelection, resolveProfileSession } from "./profile-session";
+import { applyStandPatch } from "./stand-input";
 
 import type { LocalDatabaseOptions } from "./database";
 import type { CatalogSnapshot } from "../../types/catalog";
 import type {
   LocalContext, LocalProduct, LocalStandPreferences, OutboxOperation, ProductInput, StandPreferencesData,
+  StandPreferencesPatch,
 } from "../../types/offline";
 import type { ProfileSession } from "../../types/profiles";
 
@@ -167,12 +169,19 @@ export class LocalRepository {
   }
 
   async setStandInterest(context: LocalContext, standId: string, interested: boolean): Promise<LocalStandPreferences> {
+    return this.saveStandPreferences(context, standId, {
+      interested,
+    });
+  }
+
+  async saveStandPreferences(
+    context: LocalContext,
+    standId: string,
+    changes: StandPreferencesPatch,
+  ): Promise<LocalStandPreferences> {
     const scope = validateContext(context);
     const identity = validateIdentity(standId);
-
-    if (typeof interested !== "boolean") {
-      throw new LocalInputError("L’interesse deve essere un valore booleano.");
-    }
+    const patch = structuredClone(changes);
 
     return inTransaction(this.database, [
       "config_snapshots", "app_meta", "stand_preferences", "outbox",
@@ -190,25 +199,36 @@ export class LocalRepository {
         scope.profileId, scope.eventId, "catalog", identity,
       ]));
 
-      if (previous?.interested === interested) {
-        return previous;
-      }
-      // Only intentional overrides enter the payload: starring never freezes the seed priority or visit status.
-      const payload: StandPreferencesData = {
+      const seed = catalog.interests.find((entry) => entry.profileId === scope.profileId
+        && entry.standRef.eventId === scope.eventId && entry.standRef.standId === identity);
+      const previousData: StandPreferencesData = {
         ...scope,
         standRef: {
           source: "catalog",
           eventId: scope.eventId,
           standId: identity,
         },
-        interested,
+        ...(previous?.interested === undefined ? {} : {
+          interested: previous.interested,
+        }),
         ...(previous?.priority === undefined ? {} : {
           priority: previous.priority,
         }),
         ...(previous?.visitStatus === undefined ? {} : {
           visitStatus: previous.visitStatus,
         }),
+        ...(previous?.checklist === undefined ? {} : {
+          checklist: previous.checklist,
+        }),
+        ...(previous?.checklistDone === undefined ? {} : {
+          checklistDone: previous.checklistDone,
+        }),
       };
+      const payload = applyStandPatch(previousData, seed?.checklist ?? [], patch);
+
+      if (previous !== undefined && JSON.stringify(payload) === JSON.stringify(previousData)) {
+        return previous;
+      }
       const operationId = createLocalId();
       const now = new Date().toISOString();
       const record: LocalStandPreferences = {

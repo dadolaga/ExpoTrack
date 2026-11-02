@@ -14,6 +14,16 @@ function historyData(): Record<string, unknown> {
   return typeof state === "object" && state !== null ? state as Record<string, unknown> : {};
 }
 
+const scrollStoragePrefix = "expotrack:stand-scroll:";
+
+export function resetStandListScroll() {
+  try {
+    sessionStorage.removeItem(scrollStoragePrefix);
+  } catch {
+    // History remains available when session storage is denied.
+  }
+}
+
 export function useStandFilters(context: LocalContext, ready: boolean) {
   const params = useSearchParams();
   const filters = readStandFilters(new URLSearchParams(params.toString()), context);
@@ -28,18 +38,46 @@ export function useStandFilters(context: LocalContext, ready: boolean) {
     if (main === null) {
       return;
     }
-    const stored = historyData();
+    let stored = historyData();
+    const storageKey = `${scrollStoragePrefix}${window.location.search}`;
+
+    try {
+      const remembered: unknown = JSON.parse(sessionStorage.getItem(storageKey) ?? "null");
+
+      if (typeof remembered === "object" && remembered !== null) {
+        stored = {
+          ...stored,
+          ...remembered,
+        };
+      }
+    } catch {
+      // Fall back to the history entry without blocking the list.
+    }
     const top = stored.standsScope === scope && typeof stored.standsScroll === "number" ? stored.standsScroll : 0;
+    let restoring = true;
     const frame = requestAnimationFrame(() => {
       main.scrollTop = top;
+      restoring = false;
     });
 
     function rememberScroll() {
-      window.history.replaceState({
-        ...historyData(),
+      if (window.location.pathname !== "/stands" || restoring) {
+        return;
+      }
+      const scroll = {
         standsScope: scope,
         standsScroll: main?.scrollTop ?? 0,
+      };
+
+      window.history.replaceState({
+        ...historyData(),
+        ...scroll,
       }, "");
+      try {
+        sessionStorage.setItem(storageKey, JSON.stringify(scroll));
+      } catch {
+        // A scroll preference must not prevent navigation or saving personal data.
+      }
     }
 
     main.addEventListener("scroll", rememberScroll, {
@@ -60,6 +98,11 @@ export function useStandFilters(context: LocalContext, ready: boolean) {
       ...changes,
     };
 
+    try {
+      sessionStorage.removeItem(`${scrollStoragePrefix}?${standFiltersQuery(next, context)}`);
+    } catch {
+      // The explicit filter change still resets the current scroll.
+    }
     window.history.replaceState({
       standsScope: scope,
       standsScroll: 0,

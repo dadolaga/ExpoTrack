@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { IDBFactory, IDBObjectStore } from "fake-indexeddb";
 
-import { resolveStandList } from "../../src/features/stands/stand-list";
+import { resolveStandDetail, resolveStandList } from "../../src/features/stands/stand-list";
 import { loadCatalog } from "../../src/lib/config/load-catalog";
 import { inTransaction, openLocalDatabase, readRequest } from "../../src/lib/offline/database";
 import { LocalInputError } from "../../src/lib/offline/product-input";
@@ -269,4 +269,166 @@ void test("migrazione v1 → v2 conserva catalogo, profilo, prodotti e operazion
   await upgraded.setStandInterest(scope, "demo-bags", false);
   assert.equal((await upgraded.listOutbox(scope)).length, 2);
   assert.deepEqual(await upgraded.getProduct(scope, "legacy"), product);
+});
+
+void test("dettaglio: spunte con ID stabili, visita manuale, prodotti separati e isolamento dopo riapertura", async (context) => {
+  const { catalog, repository, connect } = await fixture(context);
+  const seed = catalog.interests.find((entry) => entry.profileId === scope.profileId && entry.standRef.standId === "demo-bags");
+
+  assert.ok(seed);
+  seed.checklist.push({
+    id: "second-check",
+    text: "Secondo controllo",
+  });
+  await repository.saveCatalog(catalog);
+  const firstId = seed.checklist[0].id;
+
+  await repository.saveStandPreferences(scope, "demo-bags", {
+    visitStatus: "visited",
+    priority: 7,
+  });
+  const peer = await connect();
+
+  await Promise.all([
+    repository.saveStandPreferences(scope, "demo-bags", {
+      checklistChange: {
+        id: firstId,
+        checked: true,
+      },
+    }),
+    peer.saveStandPreferences(scope, "demo-bags", {
+      checklistChange: {
+        id: "second-check",
+        checked: true,
+      },
+    }),
+  ]);
+  await repository.setStandInterest(scope, "demo-bags", false);
+  await repository.saveStandPreferences(scope, "demo-bags", {
+    addChecklistItem: {
+      id: "personal-check",
+      text: "Controllo personale",
+    },
+  });
+  await repository.saveStandPreferences(scope, "demo-bags", {
+    priority: null,
+  });
+  await repository.saveProduct(scope, "registered", {
+    name: "Prodotto registrato",
+    categoryId: "bags",
+    standRef: {
+      source: "catalog",
+      eventId: scope.eventId,
+      standId: "demo-bags",
+    },
+  });
+  repository.close();
+  const reopened = await connect();
+  const preferences = await reopened.listStandPreferences(scope);
+  const products = await reopened.listRegisteredProducts(scope);
+  const detail = resolveStandDetail(catalog, scope, "demo-bags", preferences, products);
+
+  assert.ok(detail);
+  assert.equal(detail.completed, 2);
+  assert.equal(detail.checklist.length, 3);
+  assert.equal(detail.visitStatus, "visited");
+  assert.equal(detail.interested, false);
+  assert.equal(detail.priority, null);
+  assert.equal(detail.planned.length, 1);
+  assert.equal(detail.registered.length, 1);
+  assert.notEqual(detail.planned[0].id, detail.registered[0].id);
+  const father = resolveStandDetail(catalog, {
+    ...scope,
+    profileId: "father",
+  }, "demo-bags", preferences, products);
+  const otherStand = resolveStandDetail(catalog, scope, "demo-lights", preferences, products);
+
+  assert.ok(father);
+  assert.equal(father.completed, 0);
+  assert.equal(father.visitStatus, "to_visit");
+  assert.equal(father.registered.length, 0);
+  assert.equal(otherStand?.registered.length, 0);
+  const otherEvent = {
+    ...scope,
+    eventId: "other-demo",
+  };
+
+  assert.deepEqual(await reopened.listStandPreferences(otherEvent), []);
+  const changed = structuredClone(catalog);
+
+  changed.interests[0].checklist.reverse();
+  await reopened.saveCatalog(changed);
+  const stillChecked = resolveStandDetail(changed, scope, "demo-bags", preferences, products);
+
+  assert.ok(stillChecked);
+  assert.equal(stillChecked.checklist.find((item) => item.id === firstId)?.checked, true);
+  assert.equal(stillChecked.completed, 2);
+});
+
+void test("patch dettaglio invalide e quota non cambiano record/coda; le spunte seguono gli ID del seed", async (context) => {
+  const { catalog, repository } = await fixture(context);
+  const item = catalog.interests[0].checklist[0];
+
+  await repository.saveStandPreferences(scope, "demo-bags", {
+    checklistChange: {
+      id: item.id,
+      checked: true,
+    },
+  });
+  const changed = structuredClone(catalog);
+
+  changed.interests[0].checklist.unshift({
+    id: "new-first",
+    text: "Nuovo primo elemento",
+  });
+  await repository.saveCatalog(changed);
+  const before = await repository.listStandPreferences(scope);
+  const queue = await repository.listOutbox(scope);
+  const detail = resolveStandDetail(changed, scope, "demo-bags", before, []);
+
+  assert.ok(detail);
+  assert.equal(detail.checklist[0].checked, false);
+  assert.equal(detail.checklist.find((entry) => entry.id === item.id)?.checked, true);
+  assert.equal(detail.completed, 1);
+  for (const priority of [
+    0, 11, 1.5, Number.NaN,
+  ]) {
+    await assert.rejects(repository.saveStandPreferences(scope, "demo-bags", {
+      priority,
+    }), LocalInputError);
+  }
+  await assert.rejects(repository.saveStandPreferences(scope, "demo-bags", {
+    checklistChange: {
+      id: "missing",
+      checked: true,
+    },
+  }), LocalInputError);
+  const add = Reflect.get(IDBObjectStore.prototype, "add");
+  const quota = context.mock.method(IDBObjectStore.prototype, "add", function(this: IDBObjectStore, value: unknown) {
+    if (this.name === "outbox") {
+      throw new DOMException("Quota simulata.", "QuotaExceededError");
+    }
+
+    return add.call(this, value);
+  });
+
+  await assert.rejects(repository.saveStandPreferences(scope, "demo-bags", {
+    visitStatus: "visited",
+    priority: 5,
+  }));
+  quota.mock.restore();
+  assert.deepEqual(await repository.listStandPreferences(scope), before);
+  assert.deepEqual(await repository.listOutbox(scope), queue);
+  const saved = await repository.saveStandPreferences(scope, "demo-bags", {
+    visitStatus: "to_revisit",
+    priority: 5,
+  });
+
+  assert.equal(saved.visitStatus, "to_revisit");
+  assert.equal(saved.priority, 5);
+  await repository.saveStandPreferences(scope, "demo-bags", {
+    visitStatus: "to_revisit",
+    priority: 5,
+  });
+  assert.equal((await repository.listOutbox(scope)).length, queue.length + 1);
 });

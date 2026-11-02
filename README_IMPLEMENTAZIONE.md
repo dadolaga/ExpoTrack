@@ -2,7 +2,7 @@
 
 Questo README definisce **come lavoriamo**, un passo alla volta, sulla parte web mobile da fiera. Ogni step parte da una domanda concreta, produce un’implementazione circoscritta e termina con un risultato verificabile. Non autorizza a implementare l’intera applicazione in un’unica sessione.
 
-**Stato corrente:** step da 00 a 07 accettati dall’utente; gli step dal 08 in avanti non sono iniziati. Le cartelle indicate qui sono destinazioni da creare quando servono, non funzionalità già presenti. Gli esiti sono riportati nel registro della singola consegna.
+**Stato corrente:** step da 00 a 08 accettati dall’utente. Gli step dal 09 in avanti non sono iniziati. Le cartelle indicate qui sono destinazioni da creare quando servono, non funzionalità già presenti. Gli esiti sono riportati nel registro della singola consegna.
 
 ## Riferimenti e priorità
 
@@ -119,7 +119,7 @@ L’ordine è intenzionale: prima fondamenta e funzioni locali verificabili, poi
 | 05 | Persistenza locale e outbox | Accettato |
 | 06 | Selezione e cambio profilo | Accettato |
 | 07 | Lista stand e interessi | Accettato |
-| 08 | Dettaglio stand e checklist | Da iniziare |
+| 08 | Dettaglio stand e checklist | Accettato |
 | 09 | Note dello stand | Da iniziare |
 | 10 | Stand personali | Da iniziare |
 | 11 | Dashboard con conteggi reali | Da iniziare |
@@ -674,3 +674,17 @@ Le suite permanenti usano fixture e database IndexedDB emulati isolati; i nuovi 
 **Punto di commit:** solo i file dello step elencati sopra; titolo suggerito `feat: add stand discovery and persistent personal interests`. Nessun commit o push effettuato.
 
 **Riscontro dell’utente / correzioni:** l’utente ha richiesto maggiore fedeltà al mockup durante l’implementazione; disposizione e densità sono state riviste. Successivamente conferma «Va bene»: step 07 accettato. Richiesta inoltre priorità a sviluppo rapido, pochi token e manutenibilità essenziale per un’app destinata a un solo utilizzo; indicazione registrata sopra. Lo step 08 non è stato avviato.
+
+### Consegna step 08 — Dettaglio stand e checklist
+
+- **Data / stato:** 1 novembre 2026; Accettato.
+- **Risultato:** la riga stand apre `/stands/[standId]`. Dettaglio ispirato al mockup 04 con testata compatta, fallback logo, posizione, stella, priorità 1–10 rimovibile e visita manuale. Checklist con spunte e aggiunta di voci a ID stabili, contatore reale e salvataggio locale atomico con outbox. Le sezioni «Prodotti da vedere» e «Prodotti registrati» mostrano soltanto i dati del profilo/evento/stand attivi. Errori con retry e accesso diretto/stand mancante gestiti.
+- **File nuovi:** `src/app/(app)/stands/[standId]/page.tsx`, `src/components/stands/{StandDetail,StandChecklist}.tsx`, `src/features/stands/use-stand-detail.ts`, `src/lib/offline/stand-input.ts`.
+- **File aggiornati:** `src/types/offline.ts`, `src/lib/offline/repository.ts`, `src/features/stands/{stand-list,use-stand-filters}.ts`, `src/components/stands/{StandHeader,StandRow}.tsx`, `src/components/layout/{AppShell,BottomNav,NavigationIcon}.tsx`, `src/app/globals.css`, `tests/integration/stand-interests.test.ts`, `src/components/README.md`, `src/lib/offline/README.md`, `docs/development.md`, `docs/final-validation.md`, questo README. Working tree iniziale pulito; nessuna dipendenza aggiunta.
+- **Riuso e scelte:** stella condivisa fra riga e dettaglio, Button per retry, selettori estesi e repository/schema IndexedDB 2 esistenti. Patch validate e rilette nella transazione: interesse, priorità, visita e checklist si preservano a vicenda. Le spunte seguono gli ID, senza copiare il seed finché non si modifica la lista aggiungendo una voce. Nessuna spunta o attività prodotto cambia automaticamente visita o interesse. Nessuna nuova infrastruttura di test.
+- **Verifiche:** `npm run lint:fix`, `npm run lint`, `npm run typecheck`, `npm run test:integration`, `npm run test:unit` superati, codice 0. Due scenari aggiunti alla suite stand già collegata al manifest: riapertura, ID/checklist/concorrenza, contatori, rimozione priorità, profili/eventi, separazione prodotti, patch invalide e quota/rollback/retry. Tutte le suite preesistenti passano. `git diff --check` superato.
+- **Browser:** prova temporanea Chromium su copia isolata dell’app, porta 3108, senza `.env`, database o media reali: apertura, modifiche e refresh, errore quota/retry, ritorno con ricerca e scroll anche dopo refresh del dettaglio, stella separata dal link, cambio profilo, posizione assente, accesso diretto e stand mancante verificati. Lo scroll ha un recupero in sessione per URL/contesto, azzerato dal nuovo ingresso sul tab Stand. Anteprime chiara/scura ispezionate manualmente; nessun test grafico automatico.
+- **Come provarlo:** aprire Stand con Io · demo e toccare Borse Demo. Cambiare priorità/stato, spuntare una voce e aggiungerne una; ricaricare per verificarne il recupero. Rimuovere la priorità scegliendo «—». Tornare alla lista con la freccia: ricerca e filtri precedenti restano. Cambiare a Papà · demo: priorità, visita e checklist sono indipendenti. Luci Demo mostra posizione assente e checklist vuota. Prodotti pianificati e registrati hanno sezioni/conteggi distinti; i demo non vengono trasformati in registrati.
+- **Limiti:** note dedicate allo step 09; azioni/editor prodotto allo step 12. Non sono mostrati pulsanti senza funzione, mappe o fotografie stand. Nessuna build o validazione finale dello step 28 eseguita; nessuna certificazione su telefono reale, produzione o riavvio PWA offline. L’area E2E `stands` resta pendente; la suite di integrazione estesa è già collegata a `local-persistence` e `profile-event-isolation`.
+- **Commit suggerito:** `feat: add stand details and persistent checklist`. Nessun commit o push effettuato.
+- **Riscontro:** l’utente conferma «Va bene»; step 08 accettato. Step 09 non avviato.
