@@ -1,7 +1,10 @@
+import { parseQuestionnaireInputs } from "./questionnaire-input";
+
 import type { CatalogSnapshot, StandReference } from "../../types/catalog";
 import type {
   LocalContext, LocalProduct, PersonalStandData, ProductData, ProductInput, ProductIssues,
 } from "../../types/offline";
+import type { QuestionnaireAnswers } from "../../types/questionnaires";
 
 export class LocalInputError extends Error {
   constructor(message: string) {
@@ -68,6 +71,9 @@ export function parseProductPatch(value: unknown): Partial<ProductInput> {
 
   for (const [key, field] of Object.entries(value)) {
     switch (key) {
+      case "questionnaireInputs":
+        result.questionnaireInputs = parseQuestionnaireInputs(field);
+        break;
       case "name":
       case "description":
       case "price":
@@ -88,11 +94,12 @@ export function parseProductPatch(value: unknown): Partial<ProductInput> {
         }
         result.rating = field;
         break;
+      case "plannedProductId":
       case "categoryId":
         if (field !== null && typeof field !== "string") {
           throw new LocalInputError("categoryId: atteso un ID o null.");
         }
-        result.categoryId = field;
+        result[key] = field;
         break;
       case "standRef":
         result.standRef = parseStand(field);
@@ -165,6 +172,7 @@ export function nextProductData(
   context: LocalContext,
   id: string,
   now: string,
+  questionnaireAnswers: QuestionnaireAnswers[] = [],
 ): ProductData | null {
   const lastValid = previous?.lastValid ?? null;
 
@@ -189,6 +197,8 @@ export function nextProductData(
     price: issues.price === undefined ? parsePrice(input.price ?? "") ?? null : lastValid?.price ?? null,
     rating: issues.rating === undefined ? input.rating ?? null : lastValid?.rating ?? null,
     favorite: input.favorite ?? false,
+    plannedProductId: input.plannedProductId ?? null,
+    questionnaireAnswers,
     createdAt: previous?.createdAt ?? now,
     updatedAt: now,
   };
@@ -198,5 +208,15 @@ export function sameProduct(first: ProductData | null, second: ProductData): boo
   return first !== null && first.name === second.name && first.categoryId === second.categoryId
     && sameStand(first.standRef, second.standRef) && first.description === second.description
     && (first.price ?? null) === (second.price ?? null) && (first.rating ?? null) === (second.rating ?? null)
-    && (first.favorite ?? false) === (second.favorite ?? false);
+    && (first.favorite ?? false) === (second.favorite ?? false)
+    && JSON.stringify(first.questionnaireAnswers ?? []) === JSON.stringify(second.questionnaireAnswers ?? [])
+    && (first.plannedProductId ?? null) === (second.plannedProductId ?? null);
+}
+
+export function isProductDeleted(record: LocalProduct | undefined): boolean {
+  return typeof record?.deletedAt === "string" || typeof record?.lastValid?.deletedAt === "string";
+}
+
+export function matchesPlannedProduct(record: Pick<LocalProduct, "id" | "input">, plannedId: string): boolean {
+  return record.input.plannedProductId === plannedId || record.id === `planned:${plannedId}`;
 }

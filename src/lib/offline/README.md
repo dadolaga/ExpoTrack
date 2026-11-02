@@ -212,3 +212,52 @@ valido; nome/voto invalidi seguono la stessa regola per campo. Descrizione e alt
 modifiche valide continuano a essere accodate atomicamente. Nessun nuovo store.
 I pianificati usano l’ID locale stabile `planned:<id catalogo>` nel contesto
 profilo/evento; l’apertura legge soltanto, la prima modifica avvia la raccolta.
+
+Step 14: `duplicateProduct` legge il prodotto e scrive copia/outbox nella stessa
+transazione, con ID nuovo, dati dell’ultima versione valida, descrizione, prezzo,
+voto e preferito. Copia esplicita dei campi attuali: identità, collegamento al
+pianificato e allegati non vengono trasferiti. Questionari e fotografie non sono
+ancora raccolti in questo step.
+
+`deleteProduct` conserva un tombstone (`deletedAt`, opzionale per compatibilità)
+e, per un prodotto già registrato, accoda un delete dipendente dall’ultima
+operazione. Input mai registrati conservano solo un tombstone locale: nessun
+payload incompleto raggiunge l’outbox. Ripetere delete non accoda duplicati;
+salvataggio e duplicazione di un tombstone sono respinti. Le letture per viste e
+conteggi escludono i cancellati. Uno stand personale senza altri prodotti attivi
+può essere eliminato; il suo delete dipende anche dai delete dei prodotti collegati.
+
+Il collegamento `plannedProductId` è opzionale e stabile dopo il primo input;
+resta compatibile con gli ID `planned:<id>` precedenti. Un pianificato già
+registrato compare una volta nella raccolta. Dopo una cancellazione il seed di
+catalogo resta disponibile; riaprirlo sceglie una nuova identità deterministica
+basata sul tombstone, senza resuscitare il vecchio prodotto né creare record alla
+sola apertura. Non servono nuovi store o migrazioni dello schema IndexedDB.
+
+
+## Questionari e risposte — step 15
+
+`ProductInput.questionnaireInputs` conserva insiemi di input identificati dallo
+snapshot completo della definizione; `ProductData.questionnaireAnswers` contiene
+soltanto valori validi. Entrambi i campi sono opzionali per i record preesistenti.
+Input, ultima versione valida, snapshot e outbox restano nel record prodotto e
+si scrivono nella stessa transazione IndexedDB. Nessun nuovo store.
+
+`questionnaire-input.ts` risolve per profilo/categoria esatti, riusa il parser
+editoriale al confine di ingresso e rifiuta snapshot inventati, duplicati,
+domande ignote e modifiche allo storico. Ogni risposta è facoltativa: chiave
+assente = non compilato, `false` = No, `0` = numero valido. I numeri di input
+restano testuali, anche invalidi; il payload contiene numeri finiti con min/max/step
+della definizione. Un errore preserva la risposta valida precedente per quella
+domanda e non impedisce alle altre modifiche valide di avanzare. Le cancellazioni
+esplicite rimuovono la chiave e sono sincronizzabili.
+
+Ogni versione usa il proprio snapshot senza riciclare risposte precedenti.
+Dopo aggiornamento o rimozione del JSON lo storico è in sola lettura e segue
+le modifiche valide del prodotto senza reinterpretazione. Un cambio categoria
+prima della prima registrazione conserva gli altri input localmente, escludendoli
+dal payload valido. `duplicateProduct` copia le sole risposte valide con i relativi
+snapshot, senza input invalidi e senza legami con l’originale. Delete e protezioni
+tombstone includono le risposte insieme agli altri dati prodotto. I controlli UI
+rating/scelte sono previsti nello step 16; il validatore riconosce già i sei tipi
+canonici per interpretare tutti gli snapshot.

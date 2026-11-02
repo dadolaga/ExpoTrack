@@ -4,6 +4,7 @@ import { inTransaction, openLocalDatabase, readRequest } from "./database";
 import { createLocalId } from "./identity";
 import { parsePersonalStandPatch, validatePersonalStand } from "./personal-stand-input";
 import {
+  isProductDeleted,
   LocalInputError,
   nextProductData,
   parseProductPatch,
@@ -14,6 +15,7 @@ import {
   validateProduct,
 } from "./product-input";
 import { profileContextForSelection, resolveProfileSession } from "./profile-session";
+import { checkQuestionnaireInputs, validateQuestionnaireAnswers } from "./questionnaire-input";
 import { applyStandPatch } from "./stand-input";
 
 import type { LocalDatabaseOptions } from "./database";
@@ -24,6 +26,7 @@ import type {
   StandPreferencesPatch,
 } from "../../types/offline";
 import type { ProfileSession } from "../../types/profiles";
+import type { QuestionnaireInput } from "../../types/questionnaires";
 
 type StoredCatalog = {
   id: string;
@@ -139,6 +142,113 @@ async function writeStandPreferences(
     status: "pending",
     queuedAt: now,
   } satisfies OutboxOperation);
+
+  return record;
+}
+
+async function writeProduct(
+  transaction: IDBTransaction,
+  scope: LocalContext,
+  identity: string,
+  patch: Partial<ProductInput>,
+  copiedQuestionnaires: QuestionnaireInput[] = [],
+): Promise<LocalProduct> {
+  const catalog = await readCatalog(transaction);
+
+  if (catalog === null) {
+    throw new LocalInputError("Carica un catalogo valido prima di registrare dati personali.");
+  }
+  if (!catalog.profiles.some((profile) => profile.id === scope.profileId && profile.enabled)
+    || !catalog.config.events.some((event) => event.id === scope.eventId && event.enabled)) {
+    throw new LocalInputError("Seleziona un profilo e un evento disponibili.");
+  }
+  const store = transaction.objectStore("products");
+  const previous = await readRequest<LocalProduct | undefined>(
+    store.get([
+      scope.profileId, scope.eventId, identity,
+    ]),
+  );
+
+  if (isProductDeleted(previous)) {
+    throw new LocalInputError("Il prodotto è stato eliminato.");
+  }
+  if (previous !== undefined && patch.plannedProductId !== undefined
+    && patch.plannedProductId !== (previous.input.plannedProductId ?? null)) {
+    throw new LocalInputError("Il collegamento al prodotto pianificato non è modificabile.");
+  }
+  if (typeof patch.plannedProductId === "string"
+    && !catalog.plannedProducts.some((planned) => planned.id === patch.plannedProductId
+      && planned.profileId === scope.profileId && planned.standRef.eventId === scope.eventId)) {
+    throw new LocalInputError("Prodotto pianificato non disponibile in questo contesto.");
+  }
+  const input: ProductInput = {
+    name: "",
+    categoryId: null,
+    standRef: null,
+    description: "",
+    ...previous?.input,
+    ...patch,
+  };
+  const now = new Date().toISOString();
+  const questionnaireInputs = input.questionnaireInputs ?? [];
+
+  checkQuestionnaireInputs(
+    questionnaireInputs,
+    previous?.input.questionnaireInputs ?? copiedQuestionnaires,
+    catalog,
+    scope.profileId,
+    input.categoryId,
+  );
+  const questionnaire = validateQuestionnaireAnswers(
+    questionnaireInputs,
+    previous?.lastValid?.questionnaireAnswers ?? [],
+    input.categoryId,
+  );
+  const personal = input.standRef?.source === "personal"
+    ? await readRequest<LocalPersonalStand | undefined>(transaction.objectStore("personal_stands")
+      .get([
+        scope.profileId, scope.eventId, input.standRef.standId,
+      ])) : undefined;
+  const issues = validateProduct(input, scope, catalog, personal?.lastValid ?? null);
+
+  if (Object.keys(questionnaire.issues).length > 0) {
+    issues.questionnaires = questionnaire.issues;
+  }
+  const candidate = nextProductData(previous, input, issues, scope, identity, now, questionnaire.answers);
+  const lastValid = previous?.lastValid ?? null;
+  const changed = candidate !== null && !sameProduct(lastValid, candidate);
+  const operationId = changed ? createLocalId() : previous?.latestOperationId ?? null;
+  const record: LocalProduct = {
+    ...scope,
+    id: identity,
+    input,
+    lastValid: changed ? candidate : lastValid,
+    issues,
+    localSequence: (previous?.localSequence ?? 0) + 1,
+    serverRevision: previous?.serverRevision ?? null,
+    latestOperationId: operationId,
+    createdAt: previous?.createdAt ?? now,
+    updatedAt: now,
+  };
+
+  store.put(record);
+
+  if (changed && operationId !== null) {
+    transaction.objectStore("outbox").add({
+      operationId,
+      ...scope,
+      entityType: "product",
+      entityId: identity,
+      action: lastValid === null ? "create" : "update",
+      localSequence: record.localSequence,
+      baseRevision: record.serverRevision,
+      dependsOn: [previous?.latestOperationId, personal?.latestOperationId]
+        .filter((dependency): dependency is string => typeof dependency === "string"),
+      payload: candidate,
+      status: "pending",
+      queuedAt: now,
+    } satisfies OutboxOperation);
+  }
 
   return record;
 }
@@ -320,7 +430,8 @@ export class LocalRepository {
         preferences,
         personalStands: personal.flatMap((record) => record.lastValid !== null
           && record.lastValid.deletedAt === null ? [record.lastValid] : []),
-        products: products.flatMap((record) => record.lastValid === null ? [] : [record.lastValid]),
+        products: products.flatMap((record) => record.lastValid === null || isProductDeleted(record)
+          ? [] : [record.lastValid]),
       };
     });
   }
@@ -457,8 +568,10 @@ export class LocalRepository {
       const products = await readRequest<LocalProduct[]>(transaction.objectStore("products")
         .index("by_context").getAll([scope.profileId, scope.eventId]));
 
-      if (products.some((product) => sameStand(product.input.standRef, standRef)
-        || (product.lastValid !== null && sameStand(product.lastValid.standRef, standRef)))) {
+      const linkedProducts = products.filter((product) => sameStand(product.input.standRef, standRef)
+        || (product.lastValid !== null && sameStand(product.lastValid.standRef, standRef)));
+
+      if (linkedProducts.some((product) => !isProductDeleted(product))) {
         throw new LocalInputError("Questo stand ha prodotti collegati. Gestiscili prima di eliminare lo stand.");
       }
       const preferences = transaction.objectStore("stand_preferences");
@@ -497,7 +610,11 @@ export class LocalRepository {
         action: "delete",
         localSequence: record.localSequence,
         baseRevision: record.serverRevision,
-        dependsOn: [previous.latestOperationId, preference?.latestOperationId]
+        dependsOn: [
+          previous.latestOperationId,
+          preference?.latestOperationId,
+          ...linkedProducts.map((product) => product.latestOperationId),
+        ]
           .filter((dependency): dependency is string => dependency !== null && dependency !== undefined),
         payload,
         status: "pending",
@@ -518,7 +635,7 @@ export class LocalRepository {
   async listRegisteredProducts(context: LocalContext) {
     const records = await this.listProducts(context);
 
-    return records.flatMap((record) => record.lastValid === null ? [] : [record.lastValid]);
+    return records.flatMap((record) => record.lastValid === null || isProductDeleted(record) ? [] : [record.lastValid]);
   }
 
   async listOutbox(context: LocalContext): Promise<OutboxOperation[]> {
@@ -535,6 +652,86 @@ export class LocalRepository {
     });
   }
 
+  async duplicateProduct(context: LocalContext, id: string): Promise<LocalProduct> {
+    const scope = validateContext(context);
+    const identity = validateIdentity(id);
+
+    return inTransaction(this.database, [
+      "config_snapshots", "app_meta", "personal_stands", "products", "outbox",
+    ], "readwrite", async (transaction) => {
+      const source = await readRequest<LocalProduct | undefined>(transaction.objectStore("products").get([
+        scope.profileId, scope.eventId, identity,
+      ]));
+      const data = source?.lastValid;
+
+      if (source === undefined || isProductDeleted(source) || data === undefined || data === null) {
+        throw new LocalInputError("Puoi duplicare soltanto un prodotto registrato disponibile.");
+      }
+
+      // Explicitly copy editable data; identity, plan association and media never follow the source.
+      const questionnaireInputs = structuredClone(data.questionnaireAnswers ?? []);
+
+      return writeProduct(transaction, scope, createLocalId(), {
+        name: data.name,
+        categoryId: data.categoryId,
+        standRef: data.standRef,
+        description: data.description,
+        price: data.price === undefined || data.price === null ? "" : String(data.price),
+        rating: data.rating ?? null,
+        favorite: data.favorite ?? false,
+        questionnaireInputs,
+      }, questionnaireInputs);
+    });
+  }
+
+  async deleteProduct(context: LocalContext, id: string): Promise<void> {
+    const scope = validateContext(context);
+    const identity = validateIdentity(id);
+
+    await inTransaction(this.database, ["products", "outbox"], "readwrite", async (transaction) => {
+      const store = transaction.objectStore("products");
+      const previous = await readRequest<LocalProduct | undefined>(store.get([
+        scope.profileId, scope.eventId, identity,
+      ]));
+
+      if (previous === undefined || isProductDeleted(previous)) {
+        return;
+      }
+      const now = new Date().toISOString();
+      const payload = previous.lastValid === null ? null : {
+        ...previous.lastValid,
+        deletedAt: now,
+        updatedAt: now,
+      };
+      const operationId = payload === null ? null : createLocalId();
+      const record: LocalProduct = {
+        ...previous,
+        deletedAt: now,
+        updatedAt: now,
+        lastValid: payload,
+        localSequence: previous.localSequence + 1,
+        latestOperationId: operationId,
+      };
+
+      store.put(record);
+      if (operationId !== null && payload !== null) {
+        transaction.objectStore("outbox").add({
+          ...scope,
+          operationId,
+          entityType: "product",
+          entityId: identity,
+          action: "delete",
+          localSequence: record.localSequence,
+          baseRevision: record.serverRevision,
+          dependsOn: previous.latestOperationId === null ? [] : [previous.latestOperationId],
+          payload,
+          status: "pending",
+          queuedAt: now,
+        } satisfies OutboxOperation);
+      }
+    });
+  }
+
   async saveProduct(context: LocalContext, id: string, changes: Partial<ProductInput>): Promise<LocalProduct> {
     const scope = validateContext(context);
     const identity = validateIdentity(id);
@@ -543,73 +740,7 @@ export class LocalRepository {
     return inTransaction(this.database, [
       "config_snapshots", "app_meta", "personal_stands", "products", "outbox",
     ], "readwrite", async (transaction) => {
-      const catalog = await readCatalog(transaction);
-
-      if (catalog === null) {
-        throw new LocalInputError("Carica un catalogo valido prima di registrare dati personali.");
-      }
-      if (!catalog.profiles.some((profile) => profile.id === scope.profileId && profile.enabled)
-        || !catalog.config.events.some((event) => event.id === scope.eventId && event.enabled)) {
-        throw new LocalInputError("Seleziona un profilo e un evento disponibili.");
-      }
-      const store = transaction.objectStore("products");
-      const previous = await readRequest<LocalProduct | undefined>(
-        store.get([
-          scope.profileId, scope.eventId, identity,
-        ]),
-      );
-      const input: ProductInput = {
-        name: "",
-        categoryId: null,
-        standRef: null,
-        description: "",
-        ...previous?.input,
-        ...patch,
-      };
-      const now = new Date().toISOString();
-      const personal = input.standRef?.source === "personal"
-        ? await readRequest<LocalPersonalStand | undefined>(transaction.objectStore("personal_stands")
-          .get([
-            scope.profileId, scope.eventId, input.standRef.standId,
-          ])) : undefined;
-      const issues = validateProduct(input, scope, catalog, personal?.lastValid ?? null);
-      const candidate = nextProductData(previous, input, issues, scope, identity, now);
-      const lastValid = previous?.lastValid ?? null;
-      const changed = candidate !== null && !sameProduct(lastValid, candidate);
-      const operationId = changed ? createLocalId() : previous?.latestOperationId ?? null;
-      const record: LocalProduct = {
-        ...scope,
-        id: identity,
-        input,
-        lastValid: changed ? candidate : lastValid,
-        issues,
-        localSequence: (previous?.localSequence ?? 0) + 1,
-        serverRevision: previous?.serverRevision ?? null,
-        latestOperationId: operationId,
-        createdAt: previous?.createdAt ?? now,
-        updatedAt: now,
-      };
-
-      store.put(record);
-
-      if (changed && operationId !== null) {
-        transaction.objectStore("outbox").add({
-          operationId,
-          ...scope,
-          entityType: "product",
-          entityId: identity,
-          action: lastValid === null ? "create" : "update",
-          localSequence: record.localSequence,
-          baseRevision: record.serverRevision,
-          dependsOn: [previous?.latestOperationId, personal?.latestOperationId]
-            .filter((dependency): dependency is string => typeof dependency === "string"),
-          payload: candidate,
-          status: "pending",
-          queuedAt: now,
-        } satisfies OutboxOperation);
-      }
-
-      return record;
+      return writeProduct(transaction, scope, identity, patch);
     });
   }
 }

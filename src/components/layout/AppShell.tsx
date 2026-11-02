@@ -54,7 +54,7 @@ export function AppShell({ children }: AppShellProps) {
     );
   }
   const { profile, event } = state.session;
-  const productEditor = pathname.startsWith("/products/");
+  const productEditor = pathname === "/products" || pathname.startsWith("/products/");
 
   return (
     <div

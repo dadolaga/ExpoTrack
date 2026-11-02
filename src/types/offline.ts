@@ -1,4 +1,5 @@
 import type { ChecklistSeedItem, StandReference } from "./catalog";
+import type { QuestionnaireAnswers, QuestionnaireInput, QuestionnaireIssues } from "./questionnaires";
 
 export type LocalContext = {
   profileId: string;
@@ -14,9 +15,12 @@ export type ProductInput = {
   price?: string;
   rating?: number | null;
   favorite?: boolean;
+  plannedProductId?: string | null;
+  questionnaireInputs?: QuestionnaireInput[];
 };
 
 export type ProductData = LocalContext & {
+  deletedAt?: string | null;
   id: string;
   name: string;
   categoryId: string;
@@ -25,13 +29,18 @@ export type ProductData = LocalContext & {
   price?: number | null;
   rating?: number | null;
   favorite?: boolean;
+  plannedProductId?: string | null;
+  questionnaireAnswers?: QuestionnaireAnswers[];
   createdAt: string;
   updatedAt: string;
 };
 
-export type ProductIssues = Partial<Record<"name" | "categoryId" | "standRef" | "price" | "rating", string>>;
+export type ProductIssues = Partial<Record<"name" | "categoryId" | "standRef" | "price" | "rating", string>> & {
+  questionnaires?: QuestionnaireIssues;
+};
 
 export type LocalProduct = LocalContext & {
+  deletedAt?: string | null;
   id: string;
   input: ProductInput;
   lastValid: ProductData | null;

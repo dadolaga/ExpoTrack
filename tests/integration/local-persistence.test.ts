@@ -7,6 +7,7 @@ import { IDBFactory, IDBObjectStore } from "fake-indexeddb";
 import { loadCatalog } from "../../src/lib/config/load-catalog";
 import { openLocalDatabase, readRequest } from "../../src/lib/offline/database";
 import { LocalInputError } from "../../src/lib/offline/product-input";
+import { questionnaireKey, resolveQuestionnaire } from "../../src/lib/offline/questionnaire-input";
 import { openLocalRepository } from "../../src/lib/offline/repository";
 
 import type { LocalRepository } from "../../src/lib/offline/repository";
@@ -84,6 +85,307 @@ async function fixture(context: TestContext) {
     connect,
   };
 }
+
+void test("risposte facoltative: refresh, input invalido recuperabile e ultima risposta valida in outbox", async (context) => {
+  const { repository, catalog, connect } = await fixture(context);
+  const definitionSnapshot = resolveQuestionnaire(catalog, "me", "bags");
+
+  assert.ok(definitionSnapshot);
+  const original = await repository.saveProduct(firstContext, "answers", productInput(firstContext));
+
+  assert.ok(original.lastValid);
+  assert.deepEqual(original.lastValid.questionnaireAnswers, []);
+  assert.equal(original.input.questionnaireInputs, undefined);
+  const queueBefore = await repository.listOutbox(firstContext);
+  const invalidFirst = await repository.saveProduct(firstContext, "answers", {
+    questionnaireInputs: [
+      {
+        definitionSnapshot,
+        answers: {
+          capacity_litres: "1,",
+        },
+      },
+    ],
+  });
+
+  assert.deepEqual(invalidFirst.lastValid, original.lastValid);
+  assert.deepEqual(await repository.listOutbox(firstContext), queueBefore);
+  const text = "È comoda?\n<script>test</script> ".repeat(1000);
+  const valid = await repository.saveProduct(firstContext, "answers", {
+    questionnaireInputs: [
+      {
+        definitionSnapshot,
+        answers: {
+          capacity_litres: "0",
+          waterproof: false,
+          impression: text,
+        },
+      },
+    ],
+  });
+
+  assert.deepEqual(valid.lastValid?.questionnaireAnswers?.[0]?.answers, {
+    impression: text,
+    capacity_litres: 0,
+    waterproof: false,
+  });
+  const invalid = await repository.saveProduct(firstContext, "answers", {
+    name: "",
+    favorite: true,
+    questionnaireInputs: [
+      {
+        definitionSnapshot,
+        answers: {
+          capacity_litres: "abc",
+          waterproof: true,
+          impression: "Nuova impressione",
+        },
+      },
+    ],
+  });
+
+  assert.notEqual(
+    invalid.issues.questionnaires?.[questionnaireKey(definitionSnapshot)]?.capacity_litres,
+    undefined,
+  );
+  assert.ok(invalid.lastValid);
+  assert.ok(invalid.lastValid.questionnaireAnswers);
+  assert.equal(invalid.lastValid.name, original.lastValid.name);
+  assert.equal(invalid.lastValid.favorite, true);
+  assert.deepEqual(invalid.lastValid.questionnaireAnswers[0]?.answers, {
+    impression: "Nuova impressione",
+    capacity_litres: 0,
+    waterproof: true,
+  });
+  const queue = await repository.listOutbox(firstContext);
+  const update = queue.find((entry) => entry.operationId === invalid.latestOperationId);
+
+  assert.equal(update?.entityType, "product");
+  assert.deepEqual(update.payload.questionnaireAnswers, invalid.lastValid.questionnaireAnswers);
+  repository.close();
+  const reopened = await connect();
+  const recovered = await reopened.getProduct(firstContext, "answers");
+
+  assert.deepEqual(recovered, invalid);
+  const cleared = await reopened.saveProduct(firstContext, "answers", {
+    name: "Ripristinato",
+    questionnaireInputs: [
+      {
+        definitionSnapshot,
+        answers: {},
+      },
+    ],
+  });
+
+  assert.deepEqual(cleared.issues, {});
+  assert.deepEqual(cleared.lastValid?.questionnaireAnswers?.[0]?.answers, {});
+});
+
+void test("versioni questionario indipendenti e storico conservato dopo rimozione, copia ed eliminazione", async (context) => {
+  const { repository, catalog, connect } = await fixture(context);
+  const definitionSnapshot = resolveQuestionnaire(catalog, "me", "bags");
+
+  assert.ok(definitionSnapshot);
+  const first = {
+    definitionSnapshot,
+    answers: {
+      waterproof: false,
+      impression: "Risposta originale",
+    },
+  };
+
+  await repository.saveProduct(firstContext, "history", {
+    ...productInput(firstContext),
+    questionnaireInputs: [first],
+  });
+  const secondDefinition = structuredClone(definitionSnapshot);
+
+  secondDefinition.version = 2;
+  secondDefinition.title = "Nuova prova";
+  secondDefinition.questions = [
+    {
+      id: "impression",
+      label: "Una domanda diversa",
+      type: "text",
+    },
+  ];
+  catalog.questionnaires = catalog.questionnaires.map((definition) => definition.id === definitionSnapshot.id
+    ? secondDefinition : definition);
+  await repository.saveCatalog(catalog, "v2");
+  const second = {
+    definitionSnapshot: secondDefinition,
+    answers: {
+      impression: "Risposta versione 2",
+    },
+  };
+  const updated = await repository.saveProduct(firstContext, "history", {
+    questionnaireInputs: [first, second],
+  });
+
+  assert.equal(updated.lastValid?.questionnaireAnswers?.length, 2);
+  assert.equal(updated.lastValid.questionnaireAnswers[0]?.definitionSnapshot.title, definitionSnapshot.title);
+  await assert.rejects(repository.saveProduct(firstContext, "history", {
+    questionnaireInputs: [
+      {
+        ...first,
+        answers: {
+          waterproof: true,
+        },
+      }, second,
+    ],
+  }), /storico/u);
+  await assert.rejects(repository.saveProduct(firstContext, "history", {
+    questionnaireInputs: [second],
+  }), /conservate/u);
+  catalog.questionnaires = [];
+  await repository.saveCatalog(catalog, "removed");
+  await repository.saveProduct(firstContext, "history", {
+    description: "Le risposte restano intatte",
+  });
+  const copy = await repository.duplicateProduct(firstContext, "history");
+
+  assert.deepEqual(copy.lastValid?.questionnaireAnswers, updated.lastValid.questionnaireAnswers);
+  assert.notEqual(copy.id, updated.id);
+  repository.close();
+  const reopened = await connect();
+  const recovered = await reopened.getProduct(firstContext, "history");
+
+  assert.ok(recovered);
+  assert.deepEqual(recovered.input.questionnaireInputs, updated.input.questionnaireInputs);
+  assert.deepEqual(recovered.lastValid?.questionnaireAnswers, updated.lastValid.questionnaireAnswers);
+  await reopened.deleteProduct(firstContext, "history");
+  await assert.rejects(reopened.saveProduct(firstContext, "history", {
+    questionnaireInputs: [first, second],
+  }), LocalInputError);
+  assert.deepEqual(
+    (await reopened.getProduct(firstContext, copy.id))?.lastValid?.questionnaireAnswers,
+    copy.lastValid.questionnaireAnswers,
+  );
+});
+
+void test("risposte e snapshot isolati per profilo/evento e categoria prima della registrazione", async (context) => {
+  const { repository, catalog } = await fixture(context);
+  const me = resolveQuestionnaire(catalog, "me", "bags");
+  const father = resolveQuestionnaire(catalog, "father", "bags");
+
+  assert.ok(me);
+  assert.ok(father);
+  const inputs = [
+    {
+      definitionSnapshot: me,
+      answers: {
+        waterproof: false,
+      },
+    },
+  ];
+  const partial = await repository.saveProduct(firstContext, "scope", {
+    ...productInput(firstContext),
+    name: "",
+    questionnaireInputs: inputs,
+  });
+
+  assert.equal(partial.lastValid, null);
+  await repository.saveProduct(firstContext, "scope", {
+    categoryId: "lights",
+  });
+  const registered = await repository.saveProduct(firstContext, "scope", {
+    name: "Luce",
+  });
+
+  assert.deepEqual(registered.lastValid?.questionnaireAnswers, []);
+  assert.deepEqual(registered.input.questionnaireInputs, inputs);
+  for (const scope of [
+    {
+      ...firstContext,
+      profileId: "father",
+    }, {
+      ...firstContext,
+      eventId: secondEvent,
+    },
+  ]) {
+    assert.equal(await repository.getProduct(scope, "scope"), undefined);
+  }
+  const fatherContext = {
+    ...firstContext,
+    profileId: "father",
+  };
+
+  await assert.rejects(repository.saveProduct(fatherContext, "scope", {
+    ...productInput(fatherContext),
+    questionnaireInputs: inputs,
+  }), /profilo e categoria/u);
+  const savedFather = await repository.saveProduct(fatherContext, "scope", {
+    ...productInput(fatherContext),
+    questionnaireInputs: [
+      {
+        definitionSnapshot: father,
+        answers: {
+          easy_opening: false,
+        },
+      },
+    ],
+  });
+
+  assert.equal(savedFather.lastValid?.questionnaireAnswers?.[0]?.answers.easy_opening, false);
+  const fabricated = structuredClone(me);
+
+  fabricated.questions[0] = {
+    id: "invented",
+    label: "Domanda inventata",
+    type: "text",
+  };
+  await assert.rejects(repository.saveProduct(firstContext, "forged", {
+    ...productInput(firstContext),
+    questionnaireInputs: [
+      {
+        definitionSnapshot: fabricated,
+        answers: {
+          invented: "Test",
+        },
+      },
+    ],
+  }), /profilo e categoria/u);
+  assert.equal(await repository.getProduct(firstContext, "forged"), undefined);
+});
+
+void test("quota sulle risposte annulla record e outbox, retry senza perdita", async (context) => {
+  const { repository, catalog } = await fixture(context);
+  const definitionSnapshot = resolveQuestionnaire(catalog, "me", "bags");
+
+  assert.ok(definitionSnapshot);
+  const original = await repository.saveProduct(firstContext, "quota-answers", productInput(firstContext));
+  const before = await repository.listOutbox(firstContext);
+  const add = Reflect.get(IDBObjectStore.prototype, "add");
+  const mocked = context.mock.method(IDBObjectStore.prototype, "add", function(this: IDBObjectStore, value: unknown, key?: IDBValidKey) {
+    if (this.name === "outbox") {
+      throw new DOMException("Quota simulata nel test isolato.", "QuotaExceededError");
+    }
+
+    return add.call(this, value, key);
+  });
+  const patch = {
+    questionnaireInputs: [
+      {
+        definitionSnapshot,
+        answers: {
+          waterproof: false,
+          capacity_litres: "12,5",
+        },
+      },
+    ],
+  };
+
+  await assert.rejects(repository.saveProduct(firstContext, "quota-answers", patch), {
+    name: "QuotaExceededError",
+  });
+  assert.deepEqual(await repository.getProduct(firstContext, "quota-answers"), original);
+  assert.deepEqual(await repository.listOutbox(firstContext), before);
+  mocked.mock.restore();
+  const saved = await repository.saveProduct(firstContext, "quota-answers", patch);
+
+  assert.equal(saved.lastValid?.questionnaireAnswers?.[0]?.answers.capacity_litres, 12.5);
+  assert.equal((await repository.listOutbox(firstContext)).length, before.length + 1);
+});
 
 void test("input incompleti si recuperano alla riapertura e solo il minimo valido entra in outbox", async (context) => {
   const { repository, connect } = await fixture(context);
@@ -512,4 +814,146 @@ void test("descrizione lunga e preferito salvano anche con nome temporaneamente 
   assert.equal(latest.payload.description, notes);
   assert.equal(latest.payload.name, "Prodotto di prova");
   assert.equal(latest.payload.favorite, true);
+});
+
+void test("duplicazione atomica copia i dati validi ma separa identità e pianificazione, con rollback su quota", async (context) => {
+  const { repository, catalog, connect } = await fixture(context);
+  const planned = catalog.plannedProducts.find((entry) => entry.profileId === firstContext.profileId);
+
+  assert.ok(planned);
+  const source = await repository.saveProduct(firstContext, "original", {
+    ...productInput(firstContext),
+    description: "Descrizione da conservare",
+    price: "0",
+    rating: 1,
+    favorite: true,
+    plannedProductId: planned.id,
+  });
+
+  await repository.saveProduct(firstContext, "original", {
+    name: "",
+    price: "12,",
+  });
+  const before = await repository.listProducts(firstContext);
+  const queue = await repository.listOutbox(firstContext);
+  const add = Reflect.get(IDBObjectStore.prototype, "add");
+  const mocked = context.mock.method(IDBObjectStore.prototype, "add", function(this: IDBObjectStore, value: unknown, key?: IDBValidKey) {
+    if (this.name === "outbox") {
+      throw new DOMException("Quota simulata", "QuotaExceededError");
+    }
+
+    return add.call(this, value, key);
+  });
+
+  await assert.rejects(repository.duplicateProduct(firstContext, "original"), {
+    name: "QuotaExceededError",
+  });
+  mocked.mock.restore();
+  assert.deepEqual(await repository.listProducts(firstContext), before);
+  assert.deepEqual(await repository.listOutbox(firstContext), queue);
+  const copy = await repository.duplicateProduct(firstContext, "original");
+
+  assert.notEqual(copy.id, source.id);
+  assert.equal(copy.lastValid?.name, source.lastValid?.name);
+  assert.equal(copy.input.price, "0");
+  assert.equal(copy.input.rating, 1);
+  assert.equal(copy.input.favorite, true);
+  assert.equal(copy.input.description, "Descrizione da conservare");
+  assert.equal(copy.input.plannedProductId, undefined);
+  assert.equal(copy.lastValid?.plannedProductId, null);
+  assert.equal(copy.localSequence, 1);
+  assert.equal(copy.serverRevision, null);
+  const operations = (await repository.listOutbox(firstContext)).filter((entry) => entry.entityId === copy.id);
+
+  assert.equal(operations.length, 1);
+  assert.equal(operations[0]?.action, "create");
+  const reopened = await connect();
+
+  assert.deepEqual(await reopened.getProduct(firstContext, copy.id), copy);
+  assert.equal(await reopened.getProduct({
+    ...firstContext,
+    profileId: "father",
+  }, copy.id), undefined);
+  assert.deepEqual(await reopened.listStandPreferences(firstContext), []);
+});
+
+void test("eliminazione atomica idempotente esclude il prodotto dalle viste e blocca scritture tardive", async (context) => {
+  const { repository, connect } = await fixture(context);
+
+  await repository.saveProduct(firstContext, "delete-me", productInput(firstContext));
+  const before = await repository.getProduct(firstContext, "delete-me");
+  const queue = await repository.listOutbox(firstContext);
+  const add = Reflect.get(IDBObjectStore.prototype, "add");
+  const mocked = context.mock.method(IDBObjectStore.prototype, "add", function(this: IDBObjectStore, value: unknown, key?: IDBValidKey) {
+    if (this.name === "outbox") {
+      throw new DOMException("Quota simulata", "QuotaExceededError");
+    }
+
+    return add.call(this, value, key);
+  });
+
+  await assert.rejects(repository.deleteProduct(firstContext, "delete-me"), {
+    name: "QuotaExceededError",
+  });
+  mocked.mock.restore();
+  assert.deepEqual(await repository.getProduct(firstContext, "delete-me"), before);
+  assert.deepEqual(await repository.listOutbox(firstContext), queue);
+  await repository.deleteProduct({
+    ...firstContext,
+    profileId: "father",
+  }, "delete-me");
+  assert.deepEqual(await repository.getProduct(firstContext, "delete-me"), before);
+  await repository.deleteProduct(firstContext, "delete-me");
+  await repository.deleteProduct(firstContext, "delete-me");
+  const reopened = await connect();
+  const removed = await reopened.getProduct(firstContext, "delete-me");
+
+  assert.equal(typeof removed?.deletedAt, "string");
+  assert.equal(removed?.lastValid?.deletedAt, removed?.deletedAt);
+  assert.deepEqual(await reopened.listRegisteredProducts(firstContext), []);
+  assert.deepEqual((await reopened.getVisitData(firstContext)).products, []);
+  const operations = await reopened.listOutbox(firstContext);
+  const deletion = operations.find((entry) => entry.action === "delete");
+
+  assert.equal(operations.length, queue.length + 1);
+  assert.equal(deletion?.entityType, "product");
+  assert.deepEqual(deletion.dependsOn, [before?.latestOperationId]);
+  await assert.rejects(reopened.saveProduct(firstContext, "delete-me", {
+    name: "Scrittura tardiva",
+  }), LocalInputError);
+  await assert.rejects(reopened.duplicateProduct(firstContext, "delete-me"), LocalInputError);
+  assert.deepEqual(await reopened.listStandPreferences(firstContext), []);
+});
+
+void test("eliminare input parziali non accoda dati invalidi e i tombstone liberano lo stand con dipendenze", async (context) => {
+  const { repository } = await fixture(context);
+
+  await repository.saveProduct(firstContext, "partial-remove", {
+    name: "Parziale",
+  });
+  await repository.deleteProduct(firstContext, "partial-remove");
+  assert.equal(typeof (await repository.getProduct(firstContext, "partial-remove"))?.deletedAt, "string");
+  assert.deepEqual(await repository.listOutbox(firstContext), []);
+  await assert.rejects(repository.saveProduct(firstContext, "partial-remove", productInput(firstContext)), LocalInputError);
+  await repository.savePersonalStand(firstContext, "owned-stand", {
+    name: "Stand personale",
+  });
+  await repository.saveProduct(firstContext, "owned-product", {
+    ...productInput(firstContext),
+    standRef: {
+      source: "personal",
+      eventId: firstContext.eventId,
+      standId: "owned-stand",
+    },
+  });
+  await assert.rejects(repository.deletePersonalStand(firstContext, "owned-stand"), LocalInputError);
+  await repository.deleteProduct(firstContext, "owned-product");
+  await repository.deletePersonalStand(firstContext, "owned-stand");
+  const operations = await repository.listOutbox(firstContext);
+  const productDeletion = operations.find((entry) => entry.entityType === "product" && entry.action === "delete");
+  const standDeletion = operations.find((entry) => entry.entityType === "personal-stand" && entry.action === "delete");
+
+  assert.ok(productDeletion);
+  assert.ok(standDeletion?.dependsOn.includes(productDeletion.operationId) === true);
+  assert.deepEqual((await repository.getVisitData(firstContext)).personalStands, []);
 });

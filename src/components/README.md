@@ -161,3 +161,26 @@ navigazione. `forms/RatingSlider` rappresenta l’assenza senza valore preassegn
 il tap Aggiungi voto assegna esplicitamente 1; slider 1–10 e rimozione.
 `TextField.requiredIndicator="asterisk"` mostra l’asterisco mantenendo l’indicazione
 accessibile di campo obbligatorio.
+
+### Raccolta prodotti (step 14)
+
+`products/ProductCatalog` coordina sessione, caricamento e filtri; `ProductRow`
+presenta la riga compatta con fallback, tipo, voto, prezzo e preferito.
+`ProductListControls` riceve dati/callback e compone ricerca, contatori, filtri e
+ordinamenti. `ui/Sheet` riusa il dialogo nativo per i due pannelli, con titolo,
+Escape, chiusura e ripristino del focus. `ConfirmDialog.confirmLabel` consente
+la stessa conferma per stand e prodotti, mantenendo il valore precedente di default.
+Le azioni prodotto restano nell’editor 05; nessun percorso verso 08.
+
+
+### Questionari inline (step 15)
+
+`questionnaires/ProductQuestionnaire` risolve il questionario esatto per profilo e
+categoria e compone la sezione espandibile, corrente e storica. `QuestionRenderer`
+riceve definizione, valore e callback senza leggere lo storage: testo multilinea,
+numero con validazione immediata e sì/no con Non compilato esplicito. Etichette,
+help e placeholder provengono dal JSON. Testo storico reso come testo React;
+risposte e snapshot precedenti restano in sola lettura dopo aggiornamento o
+rimozione del questionario. Rating/scelte e dettaglio focalizzato 05a saranno
+completati nello step 16. Stato autosalvataggio, retry e protezione della
+navigazione sono quelli condivisi dell’editor prodotto.

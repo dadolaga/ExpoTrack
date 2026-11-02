@@ -7,6 +7,7 @@ import { NavigationIcon } from "@/components/layout/NavigationIcon";
 import { useProfileSession } from "@/components/profiles/ProfileProvider";
 import { StandRow } from "@/components/stands/StandRow";
 import { Button } from "@/components/ui/Button";
+import { defaultProductFilters, productFiltersQuery } from "@/features/products/product-list";
 import {
   defaultStandFilters, selectDashboard, standFiltersQuery, standKey,
 } from "@/features/stands/stand-list";
@@ -66,7 +67,10 @@ function ContextDashboard({ repository, catalog, context }: {
         <div className="dashboard-metrics">
           {metrics.map((metric) => {
             const count = metric.key === "products" ? summary.products : summary.counts[metric.key];
-            const href = metric.key === "products" ? "/products"
+            const href = metric.key === "products" ? `/products?${productFiltersQuery({
+              ...defaultProductFilters(),
+              status: "registered",
+            }, context)}`
               : `/stands?${standFiltersQuery({
                 ...defaultStandFilters(),
                 status: metric.key,

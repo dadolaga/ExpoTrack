@@ -5,8 +5,9 @@ import { useEffect, useId, useRef } from "react";
 import { Button } from "@/components/ui/Button";
 
 export function ConfirmDialog({
-  open, title, description, busy, error, onConfirm, onCancel,
+  open, title, description, busy, error, onConfirm, onCancel, confirmLabel = "Elimina stand",
 }: {
+  confirmLabel?: string;
   open: boolean;
   title: string;
   description: string;
@@ -59,7 +60,7 @@ export function ConfirmDialog({
         <Button
           disabled={busy}
           onClick={onConfirm}
-        >Elimina stand
+        >{confirmLabel}
         </Button>
       </div>
     </dialog>

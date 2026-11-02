@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
+import { ConfirmDialog } from "@/components/feedback/ConfirmDialog";
 import { SaveStatus } from "@/components/feedback/SaveStatus";
 import { RatingSlider } from "@/components/forms/RatingSlider";
 import { SelectField } from "@/components/forms/SelectField";
 import { TextField } from "@/components/forms/TextField";
 import { NavigationIcon } from "@/components/layout/NavigationIcon";
 import { useProfileSession } from "@/components/profiles/ProfileProvider";
+import { ProductQuestionnaire } from "@/components/questionnaires/ProductQuestionnaire";
 import { Button } from "@/components/ui/Button";
 import { useProductEditor, useProductLoader } from "@/features/products/use-product-editor";
 import { standHref } from "@/features/stands/stand-list";
@@ -40,7 +42,9 @@ function Editor({
   const router = useRouter();
   const params = useSearchParams();
   const { leave } = useProfileSession();
-  const { autosave, record } = useProductEditor(repository, context, loaded);
+  const {
+    autosave, record, busy, confirm, actionError, duplicate, remove, openConfirm, cancel,
+  } = useProductEditor(repository, context, loaded);
   const data = useStandList(repository, catalog, context);
   const input = autosave.value;
   const locked = record?.lastValid !== undefined && record.lastValid !== null;
@@ -106,6 +110,7 @@ function Editor({
       >
         <button
           type="button"
+          disabled={busy}
           aria-label={view !== null ? "Torna al prodotto" : "Torna indietro"}
           onClick={() => {
             if (view !== null) {
@@ -160,7 +165,11 @@ function Editor({
         />
       )}
       {view !== "description" && (view !== "stands" || locked) && (
-        <div className="product-fields">
+        <fieldset
+          className="product-fields"
+          disabled={busy}
+          aria-label="Modifica prodotto"
+        >
           <div className="product-stand-field">
             <span>Stand *</span>
             <button
@@ -263,6 +272,17 @@ function Editor({
             <span><strong>Descrizione personale</strong><span className="product-description-preview">{input.description.trim() === "" ? "Nessuna descrizione" : input.description}</span></span>
             <span aria-hidden="true">›</span>
           </button>
+          <ProductQuestionnaire
+            catalog={catalog}
+            profileId={context.profileId}
+            categoryId={input.categoryId}
+            inputs={input.questionnaireInputs ?? []}
+            onChange={(questionnaireInputs) => {
+              change({
+                questionnaireInputs,
+              });
+            }}
+          />
           <SaveStatus
             status={autosave.status}
             onRetry={() => {
@@ -274,8 +294,41 @@ function Editor({
             disabled={!locked || input.name.trim() === "" || parsePrice(input.price ?? "") === undefined}
           >✓ Fine
           </Button>
-        </div>
+          {locked && (
+            <Button
+              variant="secondary"
+              onClick={duplicate}
+            >Duplica prodotto
+            </Button>
+          )}
+          {record !== undefined && (
+            <Button
+              variant="secondary"
+              className="product-delete-action"
+              onClick={openConfirm}
+            >Elimina prodotto
+            </Button>
+          )}
+          {actionError !== null && !confirm && (
+            <p
+              role="alert"
+              className="text-danger"
+            >{actionError}
+            </p>
+          )}
+          {busy && <p role="status">Operazione in corso…</p>}
+        </fieldset>
       )}
+      <ConfirmDialog
+        open={confirm}
+        title="Eliminare il prodotto?"
+        confirmLabel="Elimina prodotto"
+        description="Il prodotto verrà rimosso dalla tua raccolta. L’operazione non può essere annullata."
+        busy={busy}
+        error={actionError}
+        onConfirm={remove}
+        onCancel={cancel}
+      />
     </section>
   );
 }

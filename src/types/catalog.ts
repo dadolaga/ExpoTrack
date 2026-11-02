@@ -116,10 +116,17 @@ export type Question = QuestionBase & (
     step?: number;
   }
   | {
-    type: "boolean" | "rating_1_10";
+    type: "boolean";
   }
   | {
-    type: "single_choice" | "multiple_choice";
+    type: "rating_1_10";
+  }
+  | {
+    type: "single_choice";
+    options: QuestionOption[];
+  }
+  | {
+    type: "multiple_choice";
     options: QuestionOption[];
   }
 );

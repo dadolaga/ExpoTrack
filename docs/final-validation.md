@@ -152,3 +152,29 @@ ultima versione valida, descrizione lunga e preferito con nome temporaneamente
 vuoto, outbox valida e isolamento. Le prove temporanee Chromium del flusso editor
 non sono una suite E2E di produzione: `products-and-questionnaires` resta pendente
 fino agli step pertinenti. Nessuna verifica grafica automatica introdotta.
+
+**Copertura estesa nello step 14:** `tests/unit/product-list.test.ts` è collegato
+all’area `catalog-and-domain` e verifica raccolta unificata, associazioni ai
+pianificati vecchie/nuove, tombstone, isolamento, ricerca normalizzata, filtri
+combinati, importi zero/assenti e ordinamenti. Tre scenari aggiunti a
+`tests/integration/local-persistence.test.ts`, già collegato a `local-persistence`
+e `profile-event-isolation`, verificano duplicazione indipendente, rollback
+copia/delete, cancellazione idempotente, dipendenze outbox, scritture tardive,
+input parziali e rimozione dello stand dopo i prodotti. Le prove temporanee
+Chromium esercitano i flussi UI e il ritorno con filtri/scroll; non sostituiscono
+una suite E2E della build di produzione. `products-and-questionnaires` e le prove
+fisiche restano pendenti. Nessun test grafico introdotto.
+
+
+**Copertura introdotta nello step 15:** `tests/unit/questionnaires.test.ts`,
+eseguito da `test:unit`, è collegato a `catalog-and-domain`: risoluzione esatta
+profilo/categoria senza ereditarietà, assenza di questionario, testo integro,
+No/assenza, numeri con virgola/zero/min/max/step e rifiuto di input strutturali
+invalidi. Quattro scenari aggiunti a `tests/integration/local-persistence.test.ts`,
+già collegato a `local-persistence` e `profile-event-isolation`, coprono input
+invalidi recuperati dopo riapertura, ultima risposta valida e altre modifiche,
+outbox atomica, versioni/snapshot storici dopo rimozione, duplicazione indipendente,
+tombstone, isolamento profili/eventi/categorie, snapshot inventati e quota/retry.
+Le prove Chromium su copia isolata verificano il flusso UI senza costituire una
+suite E2E di produzione. Controlli rating/scelte, dettaglio 05a, prove su telefono
+e completamento delle aree E2E restano pendenti. Nessun test grafico introdotto.

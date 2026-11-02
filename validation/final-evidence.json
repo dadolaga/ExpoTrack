@@ -2,7 +2,9 @@
   "automated": {
     "catalog-and-domain": [
       "tests/unit/catalog.test.ts",
-      "tests/unit/stand-list.test.ts"
+      "tests/unit/stand-list.test.ts",
+      "tests/unit/product-list.test.ts",
+      "tests/unit/questionnaires.test.ts"
     ],
     "profile-event-isolation": [
       "tests/integration/local-persistence.test.ts",
