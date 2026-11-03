@@ -1,4 +1,4 @@
-# Archivio server — step 18
+# Archivio server — step 18–19
 
 `pg` è il solo driver aggiunto, senza ORM. `runtime.ts` è marcato `server-only`:
 crea il pool da `DATABASE_URL` e lo riusa anche durante il reload di sviluppo.
@@ -36,9 +36,11 @@ Le cancellazioni personali sono tombstone, senza delete fisici o riattivazione.
 `server_state.revision` è un contatore transazionale: serializza l’accettazione,
 non avanza dopo rollback e alimenta `server_changes`. `server_operations` conserva
 ID univoco, proprietario/evento, hash payload e risposta, predisponendo il replay
-idempotente dello step 19. I metadati media distinguono `pending` e `ready`; una
-foto pronta richiede una chiave storage. Upload, verifica dei byte e pubblicazione
-atomica degli originali saranno introdotti nello step 19.
+idempotente. Dallo step 19 le mutazioni sono applicate da `ServerSync` con LWW
+per record vivo, verifiche dei vincoli e protezione delle tombstone. Un ID
+operazione ripetuto con hash diverso è rifiutato; gli esiti sono persistenti.
+I metadati media distinguono `pending` e `ready`; una foto pronta richiede una
+chiave storage e la verifica dell’originale.
 
 ## API disponibili
 
@@ -52,13 +54,13 @@ atomica degli originali saranno introdotti nello step 19.
 Le collezioni contengono record `{data, revision}`; le foto aggiungono `mediaStatus`.
 La lettura della raccolta usa una transazione `REPEATABLE READ READ ONLY`, senza
 mescolare versioni di record letti durante scritture concorrenti. Non applica
-questi dati a IndexedDB: download e riconciliazione sono dello step 19.
-Le raccolte sono vuote finché non saranno inviate tramite il futuro push.
+questi dati a IndexedDB direttamente: dallo step 19 il motore usa il feed
+incrementale `/sync/pull`, con applicazione locale atomica e cursore persistente.
 
 Tutte le risposte usano `Cache-Control: private, no-store`; nessun percorso media,
 credenziale o errore interno nelle risposte. Scope malformato: 400; profilo/evento
-inesistente: 404; database/schema/catalogo indisponibile: 503. Nessun endpoint di
-scrittura introdotto. Come previsto dal progetto, scegliere un profilo separa
+inesistente: 404; database/schema/catalogo indisponibile: 503. Come previsto dal
+progetto, scegliere un profilo separa
 logicamente i dati e non autentica: l’app privata dipende dal perimetro di accesso.
 
 ## Test
@@ -77,3 +79,37 @@ Non modifica il database indicato dall’URL di test o quello di sviluppo. Le fi
 JSON e le migrazioni di prova sono copie temporanee. Variabile mancante o test
 fallito interrompono la suite, senza skip. Il runner finale controlla l’URL prima
 di sostituire `DATABASE_URL` con quello di test.
+
+## Scritture e media dello step 19
+
+- `POST /api/v1/sync/push`: una operazione outbox completa per richiesta; risposta
+  `{operationId,status,code?,current?}`. Le dipendenze devono essere già accettate.
+  `status=retry` non rimuove la coda; `rejected` conserva il payload per il recupero.
+  Le ricevute conservano anche i tentativi riferiti a proprietari/eventi mancanti.
+  I record di dominio mantengono le chiavi esterne di proprietà.
+- `GET /api/v1/sync/pull?cursor=...`: `{changes,cursor,hasMore}` in ordine di
+  revisione. Il cursore include l’epoca dell’archivio; cursore invalido/scaduto: 410
+  e rilettura completa senza cancellare dati locali. Log, ricevute e tombstone
+  sono conservati senza scadenza automatica in questa versione.
+- `PUT /api/v1/profiles/:profileId/events/:eventId/photos/:photoId/original`:
+  originale binario dopo accettazione dei metadati; risposta con record `ready`
+  solo dopo file completo e verifica. Retry completo del file, senza promessa
+  di ripresa dal singolo byte. Nessuna cancellazione automatica dei byte locali.
+- `GET` sullo stesso percorso: originale; `?variant=thumbnail` o `preview` per
+  derivate JPEG. Verifica proprietario/evento/prodotto vivo; media pendente non
+  scaricabile, media cancellato non pubblicato. Niente percorsi storage in risposta.
+
+`MEDIA_ROOT` sceglie la directory persistente (default `.media` nella root app,
+ignorata da Git e fuori da `public`). In devcontainer è sul volume dei sorgenti;
+su un server deve puntare a un volume persistente e rientrare nel backup insieme
+al database. Migrare con `npm run db:migrate` dopo l’aggiornamento allo step 19.
+Non serve reimportare un catalogo già presente e invariato.
+
+I file arrivano in una directory temporanea, con limite di 64 MiB, hash SHA-256,
+firma/dimensioni e decodifica Sharp (già dipendenza Next.js, ora dichiarata
+esplicitamente). Originali invariati; anteprime orientate separate. File e
+cartelle sono sincronizzati su disco prima della conferma DB. Un errore o upload
+interrotto non pubblica un file incompleto. La visibilità richiede metadati `ready`
+e proprietari ancora vivi anche se il file è già stato scritto. Gli orfani non
+vengono rimossi automaticamente: si preservano originali e possibilità di recupero.
+Spazio esaurito durante scrittura: 507; errori di integrità: 422; nessun falso ack.

@@ -15,6 +15,7 @@ import { ProductPhotos } from "@/components/photos/ProductPhotos";
 import { ProductBudget } from "@/components/profiles/BudgetSettings";
 import { useProfileSession } from "@/components/profiles/ProfileProvider";
 import { ProductQuestionnaire } from "@/components/questionnaires/ProductQuestionnaire";
+import { SyncIndicator } from "@/components/sync/SyncStatus";
 import { Button } from "@/components/ui/Button";
 import { useProductPhotos } from "@/features/photos/use-product-photos";
 import { useProductEditor, useProductLoader } from "@/features/products/use-product-editor";
@@ -137,6 +138,7 @@ function Editor({
         </button>
         <div>
           {view === null && <p className="stand-wordmark">Expo<span>Track</span></p>}
+          <SyncIndicator />
           <h1 id="product-title">{title}</h1>
           <p className="product-context">{subtitle}</p>
         </div>
@@ -353,7 +355,7 @@ function Editor({
               aria-hidden="true"
             >▧
             </span>
-            <span><strong>Fotografie</strong><span className="product-description-preview">{photos.items.length === 0 ? "Scatta o aggiungi dalla galleria" : `${photos.items.length} foto sul dispositivo`}</span></span>
+            <span><strong>Fotografie</strong><span className="product-description-preview">{photos.items.length === 0 ? "Scatta o aggiungi dalla galleria" : `${photos.items.length} fotografie`}</span></span>
             <span aria-hidden="true">›</span>
           </button>
           {photos.items.length > 0 && (

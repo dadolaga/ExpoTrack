@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { ConfirmDialog } from "@/components/feedback/ConfirmDialog";
 import { SaveStatus } from "@/components/feedback/SaveStatus";
@@ -39,6 +39,25 @@ export function PersonalProfileEditor({ repository, profile }: {
     name: profile?.name ?? "",
     color: profile?.color ?? "#0866E8",
   }, write, "/profiles?manage=1");
+
+  const reset = autosave.reset;
+
+  useEffect(() => repository.subscribe((kind) => {
+    if (kind === "remote") {
+      void repository.getCatalog().then((catalog) => {
+        const updated = catalog?.profiles.find((entry) => entry.id === id);
+
+        if (updated !== undefined) {
+          reset({
+            name: updated.name,
+            color: updated.color,
+          });
+        }
+      }).catch(() => undefined);
+    }
+  }), [
+    repository, id, reset,
+  ]);
 
   async function remove() {
     if (confirmation === 1) {

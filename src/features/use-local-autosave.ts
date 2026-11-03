@@ -134,6 +134,14 @@ export function useLocalAutosave<T>(
     flush, registerBeforeLeave, leave, router,
   ]);
 
+  const reset = useCallback((next: T) => {
+    if (pending.current === null && latest.current === committed.current) {
+      latest.current = next;
+      committed.current = next;
+      setValue(next);
+    }
+  }, []);
+
   function change(next: T) {
     latest.current = next;
     setValue(next);
@@ -160,6 +168,7 @@ export function useLocalAutosave<T>(
 
   return {
     value,
+    reset,
     status,
     change,
     retry: flush,

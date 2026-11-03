@@ -329,4 +329,17 @@ il primo avvio resta in errore con retry. `initializeProfileSession(catalog, has
 attiva snapshot e hash nello stesso commit senza modificare raccolte, asset,
 preferenze, profili personali, budget o outbox. Collisioni annullano il commit.
 `saveCatalog` e l’inizializzazione senza hash invalidano l’ETag precedente.
-La rilettura dei dati personali server e la sincronizzazione arrivano nello step 19.
+Dallo step 19 la rilettura dei dati personali e la sincronizzazione sono gestite
+da `LocalSyncStore` e dal [motore sync](../sync/README.md).
+
+## Sincronizzazione (step 19)
+
+IndexedDB v5 aggiunge `sync_receipts` e `sync_recovery` senza cancellare store
+precedenti. Ack, revisione e rimozione dalla coda condividono il commit. Ogni
+pagina di pull aggiorna record e cursore nella stessa transazione. Modifiche
+locali pendenti, input invalidi e versioni questionario restano recuperabili;
+una conferma vecchia non sostituisce input o mutazioni locali successive.
+Il recupero conserva payload, input e riferimenti agli originali, creando ID nuovi.
+Le notifiche delle viste arrivano dopo il commit e non possono farlo risultare
+fallito. Notifiche tra schede opzionali; coordinamento e idempotenza non dipendono
+dalla sola memoria di un componente React.

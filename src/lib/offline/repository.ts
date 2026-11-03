@@ -1,6 +1,7 @@
 import { validateReferences } from "../config/validate-references";
 
 import { inTransaction, openLocalDatabase, readRequest } from "./database";
+import { subscribeLocalChanges } from "./events";
 import { createLocalId } from "./identity";
 import { parsePersonalStandPatch, validatePersonalStand } from "./personal-stand-input";
 import { validatePreparedPhoto } from "./photo-input";
@@ -25,6 +26,7 @@ import {
 } from "./profile-settings";
 import { checkQuestionnaireInputs, validateQuestionnaireAnswers } from "./questionnaire-input";
 import { applyStandPatch } from "./stand-input";
+import { LocalSyncStore } from "./sync-store";
 
 import type { LocalDatabaseOptions } from "./database";
 import type { CatalogSnapshot, StandReference } from "../../types/catalog";
@@ -282,8 +284,15 @@ async function writeProduct(
 export class LocalRepository {
   private readonly database: IDBDatabase;
 
+  readonly sync: LocalSyncStore;
+
   constructor(database: IDBDatabase) {
     this.database = database;
+    this.sync = new LocalSyncStore(database);
+  }
+
+  subscribe(listener: (kind: "local" | "remote") => void) {
+    return subscribeLocalChanges(this.database.name, listener);
   }
 
   close(): void {
@@ -893,12 +902,9 @@ export class LocalRepository {
         const asset = await readRequest<PhotoAsset | undefined>(transaction.objectStore("photo_assets")
           .get(photoKey(scope, record.id)));
 
-        if (asset === undefined) {
-          throw new Error("Originale foto non disponibile sul dispositivo.");
-        }
         items.push({
           ...record,
-          thumbnail: asset.thumbnail,
+          thumbnail: asset?.thumbnail,
         });
       }
 
@@ -1035,6 +1041,18 @@ export class LocalRepository {
     return inTransaction(this.database, [
       "photos", "photo_assets", "outbox",
     ], "readwrite", collectPhotoOrphans);
+  }
+
+  async restoreProduct(context: LocalContext, id: string, input: ProductInput) {
+    return inTransaction(this.database, [
+      "config_snapshots", "app_meta", "personal_stands", "products", "photos", "outbox",
+    ], "readwrite", (transaction) => writeProduct(
+      transaction,
+      context,
+      id,
+      parseProductPatch(input),
+      input.questionnaireInputs ?? [],
+    ));
   }
 
   async saveProduct(context: LocalContext, id: string, changes: Partial<ProductInput>): Promise<LocalProduct> {

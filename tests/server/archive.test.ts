@@ -116,7 +116,7 @@ void test("migrazioni ripetibili, checksum protetto e rollback dell’intera mig
   const migrations = path.join(directory, "migrations");
 
   await writeFile(
-    path.join(migrations, "002_failure.sql"),
+    path.join(migrations, "003_failure.sql"),
     "CREATE TABLE must_rollback(id text); SELECT * FROM missing_table;",
   );
   await assert.rejects(migrate(pool, migrations));
@@ -125,10 +125,10 @@ void test("migrazioni ripetibili, checksum protetto e rollback dell’intera mig
   }>(
     "SELECT to_regclass('must_rollback') AS name",
   )).rows[0].name, null);
-  await rm(path.join(migrations, "002_failure.sql"));
+  await rm(path.join(migrations, "003_failure.sql"));
   await appendFile(path.join(migrations, "001_archive.sql"), "\n-- changed\n");
   await assert.rejects(migrate(pool, migrations), /modificata/u);
-  assert.equal((await pool.query("SELECT * FROM schema_migrations")).rowCount, 1);
+  assert.equal((await pool.query("SELECT * FROM schema_migrations")).rowCount, 2);
 });
 
 void test("importazione atomica: JSON invalidi, riferimenti mancanti, storia questionari e catalogo rimosso", async (context) => {

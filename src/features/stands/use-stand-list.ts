@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { useRemoteRevision } from "@/features/use-local-revision";
+
 import { resolveStandList, standKey } from "./stand-list";
 
 import type { LocalRepository } from "../../lib/offline/repository";
@@ -31,6 +33,7 @@ export function useStandList(repository: LocalRepository, catalog: CatalogSnapsh
   const [saved, setSaved] = useState(false);
   const pending = useRef(new Set<string>());
   const active = useRef(false);
+  const remoteRevision = useRemoteRevision(repository);
   const { profileId, eventId } = context;
 
   useEffect(() => {
@@ -67,7 +70,7 @@ export function useStandList(repository: LocalRepository, catalog: CatalogSnapsh
       active.current = false;
     };
   }, [
-    repository, profileId, eventId, attempt,
+    repository, profileId, eventId, attempt, remoteRevision,
   ]);
 
   async function changeInterest(standId: string, interested: boolean, source: StandReference["source"]) {

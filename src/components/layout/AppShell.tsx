@@ -25,14 +25,14 @@ export function AppShell({ children }: AppShellProps) {
   const missingProfile = state.status === "ready" && state.session.profile === null;
 
   useEffect(() => {
-    if (missingProfile && pathname !== "/profiles") {
+    if (missingProfile && pathname !== "/profiles" && pathname !== "/sync") {
       router.replace("/profiles");
     }
   }, [
     missingProfile, pathname, router,
   ]);
 
-  if (state.status !== "ready" || (missingProfile && pathname !== "/profiles")) {
+  if (state.status !== "ready" || (missingProfile && pathname !== "/profiles" && pathname !== "/sync")) {
     return (
       <main className="profile-selection mx-auto flex min-h-dvh w-full max-w-2xl flex-col gap-section">
         <Card>

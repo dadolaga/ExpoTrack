@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { SyncIndicator } from "@/components/sync/SyncStatus";
 import { Card } from "@/components/ui/Card";
 
 import { PersonalProfileEditor } from "./PersonalProfileEditor";
@@ -75,6 +76,7 @@ export function ProfilePicker() {
           loading="eager"
           className="mx-auto rounded-card"
         />
+        <SyncIndicator />
         <h1>{managing ? "Gestione profili" : "Chi sta usando ExpoTrack?"}</h1>
         <p className="text-text-muted">{managing ? "Apri un profilo per consultarne i dettagli." : "Seleziona il tuo profilo per continuare."}</p>
       </header>

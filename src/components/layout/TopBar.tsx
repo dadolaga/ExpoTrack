@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 
+import { SyncIndicator } from "@/components/sync/SyncStatus";
 import { Button } from "@/components/ui/Button";
 
 import { destinations, isDestinationActive } from "./navigation";
@@ -35,8 +36,9 @@ export function TopBar({
         )}
         <div className="min-w-0 flex-1">
           <p className="text-caption font-medium text-primary">{subtitle}</p>
-          <h1>{title ?? destination?.label ?? "ExpoTrack"}</h1>
+          <h1>{title ?? (pathname === "/sync" ? "Sincronizzazione" : destination?.label) ?? "ExpoTrack"}</h1>
         </div>
+        <SyncIndicator />
         {actions}
         {context !== undefined && <div className="min-w-0 basis-full">{context}</div>}
       </div>

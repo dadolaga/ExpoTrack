@@ -1,3 +1,5 @@
+import { notifyLocalChange } from "./events";
+
 export type LocalDatabaseOptions = {
   name?: string;
   factory?: IDBFactory;
@@ -13,7 +15,7 @@ export function openLocalDatabase(options: LocalDatabaseOptions = {}): Promise<I
 
       return;
     }
-    const request = factory.open(options.name ?? "expotrack-local", 4);
+    const request = factory.open(options.name ?? "expotrack-local", 5);
     let blocked = false;
 
     request.onblocked = () => {
@@ -98,6 +100,14 @@ export function openLocalDatabase(options: LocalDatabaseOptions = {}): Promise<I
           "profileId", "eventId", "productId",
         ]);
       }
+      if (event.oldVersion < 5) {
+        database.createObjectStore("sync_receipts", {
+          keyPath: "operationId",
+        });
+        database.createObjectStore("sync_recovery", {
+          keyPath: "operationId",
+        });
+      }
     };
     request.onsuccess = () => {
       const database = request.result;
@@ -139,6 +149,7 @@ export async function inTransaction<T>(
   stores: string[],
   mode: IDBTransactionMode,
   work: (transaction: IDBTransaction) => T | Promise<T>,
+  notify = true,
 ): Promise<T> {
   const transaction = database.transaction(stores, mode);
   const completion = new Promise<void>((resolve, reject) => {
@@ -159,6 +170,9 @@ export async function inTransaction<T>(
     const result = await work(transaction);
 
     await completion;
+    if (notify && mode === "readwrite") {
+      notifyLocalChange(database.name, "local");
+    }
 
     return result;
   } catch (error) {

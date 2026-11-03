@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 
 import { useLocalAutosave } from "@/features/use-local-autosave";
 
@@ -32,6 +32,24 @@ export function useStandNotes(
     id: standId,
     source,
   }));
+
+  const reset = state.reset;
+
+  useEffect(() => repository.subscribe((kind) => {
+    if (kind === "remote") {
+      void repository.listStandPreferences({
+        profileId,
+        eventId,
+      }).then((entries) => {
+        const entry = entries.find((candidate) => candidate.standRef.source === source
+          && candidate.standRef.standId === standId);
+
+        reset(entry?.notes ?? "");
+      }).catch(() => undefined);
+    }
+  }), [
+    repository, profileId, eventId, standId, source, reset,
+  ]);
 
   return {
     ...state,

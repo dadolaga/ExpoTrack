@@ -16,7 +16,7 @@ export function PhotoImage({
   const url = useBlobUrl(blob);
 
   if (url === undefined) {
-    return <span role="status">Caricamento immagine…</span>;
+    return <span role="status">{blob === undefined ? "Foto non disponibile sul dispositivo" : "Caricamento immagine…"}</span>;
   }
 
   return (

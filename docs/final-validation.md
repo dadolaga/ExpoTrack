@@ -228,3 +228,22 @@ e li elimina al termine; servono permessi di creazione database. Il database di
 sviluppo non è usato per fixture o cleanup. Il runner finale mantiene il controllo
 della distinzione dagli URL di sviluppo prima di avviare i comandi. Questa
 copertura non dichiara completate sync, media remoti, PWA o prove su dispositivo.
+
+## Copertura introdotta nello step 19
+
+`tests/server/sync.test.ts` è incluso in `test:server` e quindi `test:integration`.
+Sei scenari integrano PostgreSQL reale, IndexedDB isolato e media temporanei:
+risposta persa dopo commit e retry, ripresa da nuova istanza del motore, raccolta
+completa e originali byte per byte da secondo dispositivo, LWW, ID riusato con
+payload diverso, input modificati durante conferma, rollback locale delle conferme e del
+cursore per quota, resync, cancellazioni concorrenti e recupero con nuovo ID/allegati,
+spazio server esaurito e hash discordante senza falso ack, isolamento di profili,
+stand personali e budget fra eventi, profilo remoto cancellato e recuperato,
+upload a stream interrotto e cancellazione durante invio. Le suite preesistenti
+rimangono attive. Nessun nuovo unit test richiesto o introdotto.
+
+Il file è collegato a `server-contracts`, `sync-integrity`, `media-integrity`,
+`profile-event-isolation` e `local-persistence`. La copertura rimane parziale
+rispetto alla validazione finale: PWA, prove fisiche ed E2E della build di
+produzione saranno completati negli step 20–21. Le prove browser temporanee non
+sostituiscono questi requisiti e non introducono asserzioni grafiche.

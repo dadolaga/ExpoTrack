@@ -5,6 +5,7 @@ import {
 } from "react";
 
 import { useLocalAutosave } from "@/features/use-local-autosave";
+import { useRemoteRevision } from "@/features/use-local-revision";
 import { createLocalId } from "@/lib/offline/identity";
 
 import { preparePhoto } from "./prepare-photo";
@@ -32,6 +33,7 @@ export function useProductPhotos(
   beforeWrite: () => Promise<boolean>,
   refreshProduct: () => Promise<void>,
 ) {
+  const remoteRevision = useRemoteRevision(repository);
   const { profileId, eventId } = context;
   const [items, setItems] = useState<PhotoItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,7 +71,7 @@ export function useProductPhotos(
       active = false;
     };
   }, [
-    repository, profileId, eventId, productId, attempt,
+    repository, profileId, eventId, productId, attempt, remoteRevision,
   ]);
 
   useEffect(() => {
@@ -95,7 +97,7 @@ export function useProductPhotos(
       active = false;
     };
   }, [
-    repository, profileId, eventId, activePhotoId, attempt,
+    repository, profileId, eventId, activePhotoId, attempt, remoteRevision,
   ]);
 
   const write = useCallback(async (action: PhotoAction | null) => {

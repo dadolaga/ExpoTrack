@@ -17,6 +17,7 @@ export type PhotoData = LocalContext & {
 };
 
 export type LocalPhoto = PhotoData & {
+  remoteMediaStatus?: "pending" | "ready";
   localSequence: number;
   serverRevision: number | null;
   latestOperationId: string | null;
@@ -34,5 +35,5 @@ export type PhotoAsset = LocalContext & PreparedPhoto & {
 };
 
 export type PhotoItem = LocalPhoto & {
-  thumbnail: Blob;
+  thumbnail?: Blob;
 };

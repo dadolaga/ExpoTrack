@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 import { NavigationIcon } from "@/components/layout/NavigationIcon";
 import { useProfileSession } from "@/components/profiles/ProfileProvider";
+import { SyncIndicator } from "@/components/sync/SyncStatus";
 
 import type { ProfileSummary } from "@/types/profiles";
 
@@ -80,16 +80,10 @@ export function StandHeader({
           </p>
         </div>
         {dashboard ? (
-          <>
-            <span className="dashboard-local-indicator">Dati locali</span>
-            <Link
-              href="/profile"
-              aria-label="Apri profilo"
-            ><NavigationIcon name="profile" />
-            </Link>
-          </>
+          <SyncIndicator />
         ) : (
           <>
+            <SyncIndicator />
             <button
               type="button"
               aria-label="Vai alla ricerca stand"

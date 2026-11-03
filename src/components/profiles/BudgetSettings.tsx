@@ -8,6 +8,7 @@ import { TextField } from "@/components/forms/TextField";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useLocalAutosave } from "@/features/use-local-autosave";
+import { useRemoteRevision } from "@/features/use-local-revision";
 import { parsePrice } from "@/lib/offline/product-input";
 import { effectiveBudget } from "@/lib/offline/profile-settings";
 
@@ -23,6 +24,7 @@ const money = (value: number) => new Intl.NumberFormat("it-IT", {
 }).format(value);
 
 function useBudgets(repository: LocalRepository) {
+  const remoteRevision = useRemoteRevision(repository);
   const [overrides, setOverrides] = useState<BudgetOverride[] | null>(null);
   const [error, setError] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -44,7 +46,9 @@ function useBudgets(repository: LocalRepository) {
     return () => {
       active = false;
     };
-  }, [repository, attempt]);
+  }, [
+    repository, attempt, remoteRevision,
+  ]);
 
   return {
     overrides,
@@ -77,6 +81,24 @@ function BudgetRow({
     repository, profileId, category.id,
   ]);
   const autosave = useLocalAutosave<string | null | undefined>(initial, write, "/profile");
+  const reset = autosave.reset;
+
+  useEffect(() => repository.subscribe((kind) => {
+    if (kind === "remote") {
+      void repository.listBudgetOverrides().then((entries) => {
+        const override = entries.find((entry) => entry.profileId === profileId
+          && entry.categoryId === category.id && !entry.removed);
+        let value: string | null | undefined;
+
+        if (override !== undefined) {
+          value = override.amount === null ? null : String(override.amount);
+        }
+        reset(value);
+      }).catch(() => undefined);
+    }
+  }), [
+    repository, profileId, category.id, reset,
+  ]);
   const seed = effectiveBudget(catalog, [], profileId, category.id);
   const inherited = autosave.value === undefined;
   const amount = inherited ? seed.amount : parsePrice(autosave.value ?? "") ?? null;

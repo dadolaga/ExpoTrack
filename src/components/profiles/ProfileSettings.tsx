@@ -68,9 +68,14 @@ export function ProfileSettings() {
       </Card>
       <Card>
         <h2>Informazioni app</h2>
+        <Link
+          href="/sync"
+          className="profile-action-link"
+        >Sincronizzazione <span aria-hidden="true">›</span>
+        </Link>
         <p>ExpoTrack · versione 0.1.0</p>
         <p className="text-label text-text-muted">Raccolta personale durante la visita in fiera.</p>
-        <p className="text-caption text-text-muted">I dati sono salvati su questo dispositivo. La sincronizzazione con il server sarà disponibile in uno step successivo.</p>
+        <p className="text-caption text-text-muted">I dati sono salvati sul dispositivo e inviati al server con l’app aperta e connessione disponibile. Controlla lo stato nella pagina Sincronizzazione.</p>
       </Card>
     </>
   );

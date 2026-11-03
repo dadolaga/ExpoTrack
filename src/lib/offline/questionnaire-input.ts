@@ -1,3 +1,4 @@
+import { canonicalJson } from "../config/canonical-json";
 import { parseQuestionnaires } from "../config/parse-questionnaires";
 
 import type { CatalogSnapshot, Question, Questionnaire } from "../../types/catalog";
@@ -21,7 +22,7 @@ export function questionnaireKey(definition: Questionnaire): string {
 }
 
 export function sameDefinition(first: Questionnaire, second: Questionnaire | undefined): boolean {
-  return second !== undefined && JSON.stringify(first) === JSON.stringify(second);
+  return second !== undefined && canonicalJson(first) === canonicalJson(second);
 }
 
 export function parseQuestionnaireInputs(value: unknown): QuestionnaireInput[] {

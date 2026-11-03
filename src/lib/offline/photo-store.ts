@@ -48,7 +48,7 @@ export function storePhoto(transaction: IDBTransaction, photo: LocalPhoto, paren
   transaction.objectStore("photos").put(record);
   if (queued && operationId !== null) {
     const {
-      localSequence, serverRevision, latestOperationId: _latest, ...payload
+      localSequence, serverRevision, latestOperationId: _latest, remoteMediaStatus: _mediaStatus, ...payload
     } = record;
 
     const mutation = photo.latestOperationId === null ? "create" : "update";

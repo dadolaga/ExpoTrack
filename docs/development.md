@@ -11,7 +11,8 @@ La dimostrazione dei componenti di base è in `/examples/components`.
 La lista Stand (`/stands`) offre interessi personali, catalogo completo, ricerca e
 filtri dallo step 07. Home mostra dallo step 11 quattro contatori reali e fino a
 cinque stand prioritari del profilo/evento; le card stand aprono liste filtrate.
-Elenco prodotti e sincronizzazione verranno implementati nelle fasi successive.
+Elenco prodotti disponibile dallo step 14; sincronizzazione automatica e pagina
+`/sync` con contatori reali dallo step 19.
 
 Dallo step 08 il tap sulla riga apre `/stands/[standId]`: priorità e stato visita
 manuali, checklist persistente e sezioni per prodotti pianificati/registrati.
@@ -230,7 +231,12 @@ scegliere la principale ed eliminare con conferma. La lista prodotti mostra la
 principale e supporta il filtro foto. Un prodotto incompleto resta recuperabile
 nel suo URL editor; per inserirlo nella raccolta completare i campi obbligatori.
 
-Nessun server media è necessario in questo step; l’upload arriva nello step 19.
+Dallo step 19 originali e derivate vengono trasferiti al server con app aperta.
+`MEDIA_ROOT` (default `.media`, ignorata da Git) deve restare persistente insieme
+al database. Dopo l’aggiornamento eseguire `npm run db:migrate` e riavviare Next.js.
+La raccolta e gli originali vengono riletti anche da un browser con archivio vuoto.
+Stato, errori, recuperi e comando manuale sono nella pagina `/sync`; la copia
+locale continua a funzionare quando le API non rispondono.
 Lo storage locale è distinto dalla shell PWA: riavviare l’intera app senza rete
 sarà garantito nello step 20. Prove fotocamera/permessi/quota sul telefono reale
 restano da eseguire; i file dei test sono isolati dai dati di sviluppo.

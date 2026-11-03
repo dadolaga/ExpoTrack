@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { useLocalAutosave } from "@/features/use-local-autosave";
+import { useRemoteRevision } from "@/features/use-local-revision";
 import { createLocalId } from "@/lib/offline/identity";
 
 import { standHref } from "./stand-list";
@@ -28,6 +29,7 @@ export function usePersonalStand(repository: LocalRepository, context: LocalCont
     status: "loading",
   });
   const [attempt, setAttempt] = useState(0);
+  const remoteRevision = useRemoteRevision(repository);
   const { profileId, eventId } = context;
 
   useEffect(() => {
@@ -73,7 +75,7 @@ export function usePersonalStand(repository: LocalRepository, context: LocalCont
       disposed = true;
     };
   }, [
-    repository, profileId, eventId, standId, attempt,
+    repository, profileId, eventId, standId, attempt, remoteRevision,
   ]);
 
   return {
@@ -120,6 +122,24 @@ export function usePersonalStandEditor(
     hall: null,
     booth: "",
   }, write, hasStand ? detailHref : "/stands");
+
+  const reset = autosave.reset;
+
+  useEffect(() => repository.subscribe((kind) => {
+    if (kind === "remote") {
+      void repository.getPersonalStand({
+        profileId,
+        eventId,
+      }, id).then((updated) => {
+        if (updated !== undefined) {
+          reset(updated.input);
+          setHasStand(updated.lastValid !== null);
+        }
+      }).catch(() => undefined);
+    }
+  }), [
+    repository, profileId, eventId, id, reset,
+  ]);
 
   async function remove() {
     setDeleting(true);

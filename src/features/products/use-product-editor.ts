@@ -6,6 +6,7 @@ import {
 } from "react";
 
 import { useLocalAutosave } from "@/features/use-local-autosave";
+import { useRemoteRevision } from "@/features/use-local-revision";
 import { createLocalId } from "@/lib/offline/identity";
 import { isProductDeleted } from "@/lib/offline/product-input";
 
@@ -34,6 +35,7 @@ export function useProductLoader(
     status: "loading",
   });
   const [attempt, setAttempt] = useState(0);
+  const remoteRevision = useRemoteRevision(repository);
   const { profileId, eventId } = context;
 
   useEffect(() => {
@@ -124,7 +126,7 @@ export function useProductLoader(
       disposed = true;
     };
   }, [
-    repository, catalog, profileId, eventId, productId, attempt,
+    repository, catalog, profileId, eventId, productId, attempt, remoteRevision,
   ]);
 
   return {
@@ -157,6 +159,24 @@ export function useProductEditor(repository: LocalRepository, context: LocalCont
     repository, profileId, eventId, loaded.id,
   ]);
   const autosave = useLocalAutosave(loaded.initial, write, loaded.returnHref);
+  const reset = autosave.reset;
+
+  useEffect(() => repository.subscribe((kind) => {
+    if (kind === "remote") {
+      void repository.getProduct({
+        profileId,
+        eventId,
+      }, loaded.id).then((updated) => {
+        setRecord(updated);
+        if (updated !== undefined) {
+          reset(updated.input);
+        }
+      }).catch(() => undefined);
+    }
+  }), [
+    repository, profileId, eventId, loaded.id, reset,
+  ]);
+
   const refreshRecord = useCallback(async () => {
     setRecord(await repository.getProduct({
       profileId,

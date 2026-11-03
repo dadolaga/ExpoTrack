@@ -3,6 +3,8 @@
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { useRemoteRevision } from "@/features/use-local-revision";
+
 import { productFiltersQuery, readProductFilters, resolveProductList } from "./product-list";
 
 import type { ProductFilters, ProductListItem } from "./product-list";
@@ -14,6 +16,7 @@ export function useProductList(repository: LocalRepository, catalog: CatalogSnap
   const [items, setItems] = useState<ProductListItem[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [attempt, setAttempt] = useState(0);
+  const remoteRevision = useRemoteRevision(repository);
   const { profileId, eventId } = context;
 
   useEffect(() => {
@@ -58,7 +61,7 @@ export function useProductList(repository: LocalRepository, catalog: CatalogSnap
       disposed = true;
     };
   }, [
-    repository, catalog, profileId, eventId, attempt,
+    repository, catalog, profileId, eventId, attempt, remoteRevision,
   ]);
 
   return {

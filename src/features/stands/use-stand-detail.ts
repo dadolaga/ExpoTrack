@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { useRemoteRevision } from "@/features/use-local-revision";
+
 import { resolveStandDetail, standKey } from "./stand-list";
 
 import type { LocalRepository } from "../../lib/offline/repository";
@@ -25,6 +27,7 @@ export function useStandDetail(
   const [saved, setSaved] = useState(false);
   const pending = useRef(false);
   const active = useRef(false);
+  const remoteRevision = useRemoteRevision(repository);
   const { profileId, eventId } = context;
 
   useEffect(() => {
@@ -57,7 +60,7 @@ export function useStandDetail(
       active.current = false;
     };
   }, [
-    repository, profileId, eventId, attempt,
+    repository, profileId, eventId, attempt, remoteRevision,
   ]);
 
   async function save(changes: StandPreferencesPatch): Promise<boolean> {

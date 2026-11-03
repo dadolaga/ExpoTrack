@@ -53,6 +53,7 @@ export function ProfileProvider({ children }: {
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const repositoryRef = useRef<LocalRepository | null>(null);
   const selectingRef = useRef(false);
+  const contextVersion = useRef(0);
   const guards = useRef(new Map<() => Promise<boolean>, (event: PopStateEvent) => void>());
   const leaving = useRef(false);
   const registerBeforeLeave = useCallback((
@@ -159,6 +160,7 @@ export function ProfileProvider({ children }: {
       return false;
     }
     selectingRef.current = true;
+    contextVersion.current += 1;
     setSelecting(true);
     setSelectionError(null);
 
@@ -198,9 +200,11 @@ export function ProfileProvider({ children }: {
     if (repository === null) {
       return;
     }
+    const version = contextVersion.current;
     const session = await repository.getProfileSession();
 
-    if (session !== null && repositoryRef.current === repository) {
+    if (session !== null && repositoryRef.current === repository
+      && !selectingRef.current && version === contextVersion.current) {
       setState({
         status: "ready",
         session,
