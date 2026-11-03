@@ -157,6 +157,14 @@ export function useProductEditor(repository: LocalRepository, context: LocalCont
     repository, profileId, eventId, loaded.id,
   ]);
   const autosave = useLocalAutosave(loaded.initial, write, loaded.returnHref);
+  const refreshRecord = useCallback(async () => {
+    setRecord(await repository.getProduct({
+      profileId,
+      eventId,
+    }, loaded.id));
+  }, [
+    repository, profileId, eventId, loaded.id,
+  ]);
 
   async function act(action: "duplicate" | "delete") {
     if (pending.current) {
@@ -191,6 +199,7 @@ export function useProductEditor(repository: LocalRepository, context: LocalCont
   return {
     autosave,
     record,
+    refreshRecord,
     busy,
     confirm,
     actionError,

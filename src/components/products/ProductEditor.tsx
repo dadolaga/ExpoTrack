@@ -10,10 +10,13 @@ import { RatingSlider } from "@/components/forms/RatingSlider";
 import { SelectField } from "@/components/forms/SelectField";
 import { TextField } from "@/components/forms/TextField";
 import { NavigationIcon } from "@/components/layout/NavigationIcon";
+import { PhotoImage } from "@/components/photos/PhotoImage";
+import { ProductPhotos } from "@/components/photos/ProductPhotos";
 import { ProductBudget } from "@/components/profiles/BudgetSettings";
 import { useProfileSession } from "@/components/profiles/ProfileProvider";
 import { ProductQuestionnaire } from "@/components/questionnaires/ProductQuestionnaire";
 import { Button } from "@/components/ui/Button";
+import { useProductPhotos } from "@/features/photos/use-product-photos";
 import { useProductEditor, useProductLoader } from "@/features/products/use-product-editor";
 import { standHref } from "@/features/stands/stand-list";
 import { useStandList } from "@/features/stands/use-stand-list";
@@ -44,10 +47,11 @@ function Editor({
   const params = useSearchParams();
   const { leave } = useProfileSession();
   const {
-    autosave, record, busy, confirm, actionError, duplicate, remove, openConfirm, cancel,
+    autosave, record, refreshRecord, busy, confirm, actionError, duplicate, remove, openConfirm, cancel,
   } = useProductEditor(repository, context, loaded);
   const data = useStandList(repository, catalog, context);
   const input = autosave.value;
+  const photos = useProductPhotos(repository, context, loaded.id, input, autosave.retry, refreshRecord);
   const locked = record?.lastValid !== undefined && record.lastValid !== null;
   const stand = data.items.find((item) => sameStand(input.standRef, {
     source: item.source,
@@ -61,6 +65,10 @@ function Editor({
   if (view === "stands") {
     title = "Seleziona stand";
     subtitle = `Nuovo prodotto · ${catalog.config.events.find((event) => event.id === context.eventId)?.name ?? ""}`;
+  }
+  if (view === "photos") {
+    title = "Fotografie";
+    subtitle = `${stand?.name ?? "Stand da selezionare"} · ${input.name.trim() === "" ? "Prodotto senza nome" : input.name}`;
   }
   if (view === "description" || view === "question") {
     title = view === "question" ? "Modifica risposta" : "Descrizione personale";
@@ -116,7 +124,7 @@ function Editor({
       >
         <button
           type="button"
-          disabled={busy}
+          disabled={busy || photos.busy}
           aria-label={view !== null ? "Torna al prodotto" : "Torna indietro"}
           onClick={() => {
             if (view !== null) {
@@ -133,6 +141,14 @@ function Editor({
           <p className="product-context">{subtitle}</p>
         </div>
       </header>
+      {view === "photos" && (
+        <ProductPhotos
+          workflow={photos}
+          onBack={() => {
+            show(null, true);
+          }}
+        />
+      )}
       {view === "description" && (
         <ProductDescription
           value={input.description}
@@ -199,10 +215,10 @@ function Editor({
           }}
         />
       )}
-      {view !== "description" && view !== "question" && (view !== "stands" || locked) && (
+      {view !== "photos" && view !== "description" && view !== "question" && (view !== "stands" || locked) && (
         <fieldset
           className="product-fields"
-          disabled={busy}
+          disabled={busy || photos.busy}
           aria-label="Modifica prodotto"
         >
           <div className="product-stand-field">
@@ -325,6 +341,37 @@ function Editor({
               });
             }}
           />
+          <button
+            type="button"
+            className="product-section-link"
+            onClick={() => {
+              show("photos");
+            }}
+          >
+            <span
+              className="product-section-icon"
+              aria-hidden="true"
+            >▧
+            </span>
+            <span><strong>Fotografie</strong><span className="product-description-preview">{photos.items.length === 0 ? "Scatta o aggiungi dalla galleria" : `${photos.items.length} foto sul dispositivo`}</span></span>
+            <span aria-hidden="true">›</span>
+          </button>
+          {photos.items.length > 0 && (
+            <div
+              className="product-photo-preview"
+              aria-label="Anteprime fotografie"
+            >
+              {photos.items.slice(0, 3).map((photo) => (
+                <PhotoImage
+                  key={photo.id}
+                  blob={photo.thumbnail}
+                  alt={photo.filename}
+                  width={160}
+                  height={160}
+                />
+              ))}
+            </div>
+          )}
           <SaveStatus
             status={autosave.status}
             onRetry={() => {

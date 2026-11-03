@@ -25,10 +25,24 @@ export function useProductList(repository: LocalRepository, catalog: CatalogSnap
           profileId,
           eventId,
         };
-        const [products, visit] = await Promise.all([repository.listProducts(scope), repository.getVisitData(scope)]);
+        const [
+          products, visit, photos,
+        ] = await Promise.all([
+          repository.listProducts(scope), repository.getVisitData(scope), repository.listPhotos(scope),
+        ]);
+        const resolved = resolveProductList(catalog, scope, products, visit.personalStands, photos);
+        const withThumbnails = await Promise.all(resolved.map(async (item) => {
+          const asset = item.primaryPhotoId === undefined ? undefined
+            : await repository.getPhotoAsset(scope, item.primaryPhotoId);
+
+          return {
+            ...item,
+            thumbnail: asset?.thumbnail,
+          };
+        }));
 
         if (!disposed) {
-          setItems(resolveProductList(catalog, scope, products, visit.personalStands));
+          setItems(withThumbnails);
           setStatus("ready");
         }
       } catch {

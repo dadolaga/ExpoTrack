@@ -1,6 +1,6 @@
 # Persistenza locale — step 05
 
-`openLocalRepository()` apre IndexedDB `expotrack-local`, versione **3**. Non apre
+`openLocalRepository()` apre IndexedDB `expotrack-local`, versione **4**. Non apre
 connessioni a database server e non esegue richieste di rete. Importare i tipi da
 `src/types/offline.ts`; aprire il repository soltanto nel browser. L’importazione
 del modulo non accede alle API browser durante il rendering server di Next.js.
@@ -14,6 +14,8 @@ del modulo non accede alle API browser durante il rendering server di Next.js.
 | `products` | `[profileId, eventId, id]` | Input corrente, errori, ultima versione valida e sequenza locale. |
 | `stand_preferences` | `[profileId, eventId, standRef.source, standRef.standId]` | Override personali degli stand; l’assenza di un campo conserva il seed. |
 | `personal_stands` | `[profileId, eventId, id]` | Input e ultima versione valida degli stand personali; tombstone dopo eliminazione. |
+| `photos` | `[profileId, eventId, id]` | Metadati foto, proprietario prodotto, principale, sequenza e tombstone. |
+| `photo_assets` | `[profileId, eventId, id]` | Originale immutabile, anteprima e miniatura separate. |
 | `outbox` | `operationId` | Mutazioni valide da inviare in futuro; indice univoco su contesto/tipo entità/entità/sequenza. |
 
 Tutte le letture e scritture personali richiedono esplicitamente profilo ed evento.
@@ -284,3 +286,37 @@ Profili/budget e relativa outbox sono atomici; le operazioni globali non conteng
 conserva il contratto di sola visita. Le creazioni di prodotti/stand/preferenze e budget
 personali dipendono dall’operazione del profilo. `selectEvent` valida e ricorda l’evento
 senza alterare raccolte, input o code; il provider attende tutte le guardie di autosalvataggio.
+
+## Fotografie prodotto — step 17
+
+La migrazione v4 aggiunge soltanto `photos` e `photo_assets`, mantenendo record e
+code preesistenti. `addProductPhoto(context, productId, photoId, prepared, input)`
+salva originale, derivate, metadati e outbox in un’unica transazione. Se il prodotto
+non esiste, il suo input viene creato nella stessa transazione, soltanto dopo una
+selezione file valida; aprire la galleria non scrive nulla. Un errore annulla anche
+la creazione del padre. Le foto di prodotti incompleti restano locali e diventano
+operazioni `photo` quando il padre raggiunge la prima versione valida, con
+`dependsOn` verso la relativa operazione prodotto. Retry con stesso ID/hash non
+duplica la foto; riuso con hash/proprietario diverso o dopo delete viene respinto.
+
+`listProductPhotos` restituisce foto attive ordinate per aggiunta e miniature;
+`listPhotos(context)` espone i metadati del solo contesto, anche tombstone;
+`getPhotoAsset(context, id)` legge originale e derivate senza rete.
+`changeProductPhoto(..., "primary" | "delete")` mantiene una sola selezione esplicita.
+Prima di selezionarla si usa la prima foto; eliminando la principale si sceglie
+la prima residua, o nessuna quando la griglia è vuota. La cancellazione prodotto
+include le foto e le dipendenze dei loro tombstone nella stessa transazione.
+La duplicazione conserva il comportamento senza allegati.
+
+`collectPhotoOrphans()` considera riferimenti sia nei metadati sia nell’outbox,
+compresi payload eliminati recuperabili. Elimina soltanto asset privi di entrambi.
+La rimozione di una foto mai accodata e mai confermata può liberare subito i suoi
+blob; gli originali accodati rimangono disponibili dopo delete, fino alla futura
+conferma/retention server. Nessun invio o conferma viene simulato nello step 17.
+
+La preparazione verifica firma, byte, dimensioni prima della decodifica e decoder
+browser; JPEG, PNG e WebP statico. Limiti tecnici: 64 MiB per file, 100 megapixel e
+20.000 pixel per lato; nessun limite al numero di foto. Miniatura JPEG fino a 480 px,
+anteprima JPEG fino a 2048 px, orientamento del decoder e nessun EXIF nelle derivate.
+L’originale conserva tutti i byte, inclusi eventuali EXIF/GPS. SHA-256 usa Web Crypto
+quando disponibile e un fallback verificato sulle origini HTTP locali.

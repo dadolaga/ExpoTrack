@@ -3,6 +3,7 @@ import { standKey } from "../stands/stand-list";
 
 import type { CatalogSnapshot, StandReference } from "../../types/catalog";
 import type { LocalContext, LocalProduct, PersonalStandData } from "../../types/offline";
+import type { LocalPhoto } from "../../types/photos";
 
 export type ProductListItem = {
   id: string;
@@ -18,6 +19,8 @@ export type ProductListItem = {
   price: number | null;
   createdAt: string | null;
   hasPhotos: boolean;
+  primaryPhotoId?: string;
+  thumbnail?: Blob;
 };
 
 export type ProductFilters = {
@@ -53,6 +56,7 @@ export function resolveProductList(
   context: LocalContext,
   records: LocalProduct[],
   personalStands: PersonalStandData[],
+  photos: LocalPhoto[] = [],
 ): ProductListItem[] {
   const own = records.filter((record) => record.profileId === context.profileId
     && record.eventId === context.eventId && !isProductDeleted(record));
@@ -76,6 +80,16 @@ export function resolveProductList(
       : personalStands.find((item) => item.id === entry.standRef.standId && item.profileId === context.profileId
         && item.eventId === context.eventId && item.deletedAt === null);
 
+    const ownerId = kind === "registered" ? entry.id : own.find((record) => matchesPlannedProduct(record, entry.id))?.id;
+    const attached = photos.filter((photo) => photo.profileId === context.profileId
+      && photo.eventId === context.eventId && photo.productId === ownerId && photo.deletedAt === null)
+      .sort((first, second) => {
+        const order = first.addedOrder - second.addedOrder;
+
+        return order === 0 ? first.id.localeCompare(second.id) : order;
+      });
+    const primary = attached.find((photo) => photo.isPrimary) ?? attached.at(0);
+
     return {
       id: entry.id,
       plannedId: kind === "planned" ? entry.id : null,
@@ -89,8 +103,10 @@ export function resolveProductList(
       rating: entry.rating ?? null,
       price: entry.price ?? null,
       createdAt: entry.createdAt ?? null,
-      // No photo records exist before the photo workflow (step 17).
-      hasPhotos: false,
+      hasPhotos: primary !== undefined,
+      ...(primary === undefined ? {} : {
+        primaryPhotoId: primary.id,
+      }),
     };
   }
 

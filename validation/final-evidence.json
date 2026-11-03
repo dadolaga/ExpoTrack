@@ -10,17 +10,21 @@
       "tests/integration/local-persistence.test.ts",
       "tests/integration/profile-selection.test.ts",
       "tests/integration/stand-interests.test.ts",
-      "tests/integration/visit-settings.test.ts"
+      "tests/integration/visit-settings.test.ts",
+      "tests/integration/photos.test.ts"
     ],
     "local-persistence": [
       "tests/integration/local-persistence.test.ts",
       "tests/integration/profile-selection.test.ts",
       "tests/integration/stand-interests.test.ts",
-      "tests/integration/visit-settings.test.ts"
+      "tests/integration/visit-settings.test.ts",
+      "tests/integration/photos.test.ts"
     ],
     "server-contracts": [],
     "sync-integrity": [],
-    "media-integrity": [],
+    "media-integrity": [
+      "tests/integration/photos.test.ts"
+    ],
     "profiles-and-dashboard": [],
     "stands": [],
     "products-and-questionnaires": [],

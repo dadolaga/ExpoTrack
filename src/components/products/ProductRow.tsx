@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { NavigationIcon } from "@/components/layout/NavigationIcon";
+import { PhotoImage } from "@/components/photos/PhotoImage";
 
 import type { ProductListItem } from "@/features/products/product-list";
 
@@ -18,7 +19,14 @@ export function ProductRow({ product, href }: {
       <span
         className="product-row-thumbnail"
         aria-hidden="true"
-      ><NavigationIcon name="products" />
+      >{product.thumbnail === undefined ? <NavigationIcon name="products" /> : (
+          <PhotoImage
+            blob={product.thumbnail}
+            alt=""
+            width={80}
+            height={80}
+          />
+        )}
       </span>
       <div className="product-row-info">
         <h2>

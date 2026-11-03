@@ -2,7 +2,7 @@
 
 Questo README definisce **come lavoriamo**, un passo alla volta, sulla parte web mobile da fiera. Ogni step parte da una domanda concreta, produce un’implementazione circoscritta e termina con un risultato verificabile. Non autorizza a implementare l’intera applicazione in un’unica sessione.
 
-**Stato corrente:** implementazione arrivata allo step 16, da verificare dall’utente; la richiesta di proseguire conferma lo step 15. Restano **cinque step, dal 17 al 21**, tutti da iniziare, del piano ridotto che sostituisce i precedenti step 16–28.
+**Stato corrente:** implementazione arrivata allo step 17, da verificare dall’utente; la richiesta di proseguire conferma lo step 16 con la rimozione di «Apri risposta». Restano **quattro step, dal 18 al 21**, tutti da iniziare, del piano ridotto che sostituisce i precedenti step 16–28.
 
 ## Riferimenti e priorità
 
@@ -132,7 +132,7 @@ L’ordine è intenzionale: prima fondamenta e funzioni locali verificabili, poi
 | 14 | Lista prodotti, duplicazione ed eliminazione | Accettato |
 | 15 | Motore questionari e primi controlli | Accettato |
 | 16 | Completamento questionari, budget e impostazioni | Accettato |
-| 17 | Fotografie complete sul dispositivo | Da iniziare |
+| 17 | Fotografie complete sul dispositivo | Accettato |
 | 18 | PostgreSQL, importazione catalogo e API di lettura | Da iniziare |
 | 19 | Sincronizzazione completa di dati e fotografie | Da iniziare |
 | 20 | Apertura e riapertura dell’app senza rete | Da iniziare |
@@ -756,3 +756,16 @@ Le suite permanenti usano fixture e database IndexedDB emulati isolati; i nuovi 
 - **Come provarlo:** `npm run dev`; in Profilo aprire «Budget per categoria», provare `0`, «Nessun budget» e «Rimuovi override», poi controllare il budget nell’editor della stessa categoria con prezzo. Nel questionario scegliere opzioni e voto direttamente nella scheda, ricaricare e verificare le risposte conservate. Da «Tutti i profili» aggiungere/modificare un personale, selezionarlo e verificare catalogo senza interessi/questionari ereditati; annullare la seconda conferma di eliminazione prima di confermarla. Cambiare evento in Profilo e tornare al precedente per ritrovare la raccolta.
 - **Limiti:** sync server, foto e shell offline restano agli step 17–20; il refresh senza rete dell’intera app non è ancora garantito. Prove su telefono e suite E2E di produzione pendenti. Nessuna build o `validate:final` eseguita.
 - **Punto di commit suggerito:** `Complete visit questionnaires, budgets and personal profiles`; soli file indicati sopra e nel diff dello step, nessun commit eseguito.
+
+### Consegna step 17 — Fotografie sul telefono
+
+- **Stato:** implementato su richiesta, da verificare dall’utente. Step 16 confermato con la correzione richiesta; step 18 non avviato.
+- **Risultato:** vista Fotografie 06 nell’editor (`view=photos`), acquisizione fotocamera/galleria multipla, griglia e viewer modale con anteprima, originale, zoom e navigazione miniature/tastiera. Principale persistente, prima foto come fallback e sostituzione alla cancellazione; delete con conferma, ritorno del focus e griglia vuota. Nessuna pagina 08 o Informazioni foto; la rimozione di «Apri risposta» resta applicata.
+- **Integrità:** originale conservato byte per byte con SHA-256, derivate JPEG separate e orientate (miniatura 480 px, anteprima 2048 px). Firma e dimensioni controllate prima del decoder, JPEG/PNG/WebP statico; HEIC/HEIF con messaggio di conversione, quota/formato/decoder senza falso successo e retry con stesso ID. Limiti tecnici documentati: 64 MiB, 100 MP, 20.000 px/lato; nessun limite numerico alle foto. Originale con eventuali EXIF; derivate senza GPS.
+- **Persistenza:** IndexedDB v4 aggiunge soltanto metadati e asset, senza cancellare gli archivi esistenti. Commit atomico di originale/derivate/metadati/outbox e, se necessario, input prodotto. Foto disponibili anche per prodotti incompleti; primo prodotto valido accoda le foto con dipendenze. Delete prodotto include tombstone foto; duplicazione senza allegati. Pulizia soltanto degli asset senza riferimenti in record o operazioni pendenti/recuperabili; foto mai accodate eliminabili subito, originali pendenti conservati.
+- **Lista prodotti:** miniatura principale e filtro con/senza foto collegati ai metadati reali del contesto; nessun dato fotografico dimostrativo nel markup.
+- **File:** nuovi `src/components/photos/{ProductPhotos,PhotoGrid,PhotoViewer,PhotoImage}.tsx`, `src/features/photos/{prepare-photo,use-product-photos,use-blob-url}.ts`, `src/lib/offline/{photo-input,photo-hash,photo-store}.ts`, `src/types/photos.ts`, `tests/integration/photos.test.ts`. Aggiornati editor/riga e selettori/hook prodotti, database/repository/tipi offline, CSS, evidenze e documentazione.
+- **Verifiche eseguite:** `npm run lint`, `npm run typecheck`, `npm run test:integration`, suite unit esistente (`npm run test:unit`) e `git diff --check` superati, exit 0. Solo tre nuovi scenari di integrazione collegati alle evidenze, nessun nuovo unit test. Prova Chromium su copia isolata in `/tmp` e fixture fittizie: PNG/JPEG/WebP, nessuna scrittura alla sola apertura, foto con prodotto incompleto, originale invariato/riapribile dopo refresh, scelta principale persistente, viewer/focus, cancellazione annullata/confermata e griglia vuota, rete assente con app aperta, quota con retry, firma ingannevole rifiutata, accodamento differito e filtro foto della lista. Anteprima viewer ispezionata manualmente, nessun test grafico. Log `/tmp/expotrack-17-{lint-final,typecheck-final,integration-final,unit-final,browser-final}.log`. Nessun dato di sviluppo modificato; niente build o `validate:final`.
+- **Come provarlo:** `npm run dev` → prodotto nuovo o esistente → Fotografie → Scatta foto/Dalla galleria. Attendere salvataggio, ricaricare, aprire il viewer e «Mostra originale», scegliere un’altra principale, annullare e confermare una cancellazione. Provare prima di compilare nome/categoria, poi completare i campi e controllare lista e filtro con foto. Per un prodotto ancora incompleto conservare il suo URL editor. Su quota fallita riprovare dopo aver liberato spazio, oppure ignorare esplicitamente l’operazione non salvata.
+- **Limiti:** fotocamera/permessi e pressione reale sullo storage da provare sul telefono; test browser con file e database fittizi isolati. Upload/archivio server e riavvio dell’intera app offline restano agli step 18–20. Suite E2E di produzione e prove fisiche pendenti.
+- **Punto di commit suggerito:** `Add offline product photos with original preservation and gallery`; soli file dello step elencati sopra, nessun commit o push eseguito.

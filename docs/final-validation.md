@@ -190,3 +190,17 @@ outbox, cancellazione senza perdita dei dati necessari e rifiuto di scritture
 tardive; rating e scelte per ID, rimozione e valori invalidi. Nessun nuovo unit test.
 La prova temporanea Chromium su `next dev` e fixture isolate verifica i flussi UI;
 non costituisce una suite E2E di produzione. Prove fisiche e aree E2E restano pendenti.
+
+**Copertura introdotta nello step 17:** tre scenari di integrazione in
+`tests/integration/photos.test.ts`, collegati a `media-integrity`,
+`local-persistence` e `profile-event-isolation`: originale/hash e riapertura,
+prodotto incompleto e accodamento differito con dipendenze, isolamento e retry
+idempotente; principale/delete atomici, sostituzione, duplicazione senza allegati,
+tombstone prodotto e conservazione di asset referenziati soltanto dalla coda;
+quota/rollback/retry, pulizia di foto mai accodate, firme/dimensioni e fallback hash.
+Nessun nuovo unit test. La prova Chromium temporanea su copia isolata e fixture
+verifica PNG/JPEG/WebP, viewer/originale/focus, refresh, principale, delete
+annullata/confermata e griglia vuota, rete assente con app aperta, quota/retry,
+formato invalido e lista filtrata con foto. L’ispezione di un’anteprima è manuale,
+senza asserzioni grafiche. Non è una suite E2E di produzione: `photo-workflow`,
+prove fisiche e contratti di upload rimangono pendenti per gli step pertinenti.

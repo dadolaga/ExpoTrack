@@ -1,4 +1,5 @@
 import type { ChecklistSeedItem, PersonalProfile, StandReference } from "./catalog";
+import type { PhotoData } from "./photos";
 import type { QuestionnaireAnswers, QuestionnaireInput, QuestionnaireIssues } from "./questionnaires";
 
 export type LocalContext = {
@@ -141,6 +142,10 @@ type OutboxMetadata = {
 };
 
 type VisitOperation = LocalContext & (
+  | {
+    entityType: "photo";
+    payload: PhotoData;
+  }
   | {
     entityType: "product";
     payload: ProductData;

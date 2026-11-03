@@ -3,6 +3,11 @@ import { validateReferences } from "../config/validate-references";
 import { inTransaction, openLocalDatabase, readRequest } from "./database";
 import { createLocalId } from "./identity";
 import { parsePersonalStandPatch, validatePersonalStand } from "./personal-stand-input";
+import { validatePreparedPhoto } from "./photo-input";
+import {
+  collectPhotoOrphans, photoKey, photoParent, queueProductPhotos, readProductPhotos,
+  removePhoto, removeProductPhotos, storePhoto,
+} from "./photo-store";
 import {
   isProductDeleted,
   LocalInputError,
@@ -28,6 +33,9 @@ import type {
   VisitData, LocalStandPreferences, OutboxOperation, ProductInput, StandPreferencesData,
   StandPreferencesPatch,
 } from "../../types/offline";
+import type {
+  LocalPhoto, PhotoAsset, PhotoItem, PreparedPhoto,
+} from "../../types/photos";
 import type { ProfileSession } from "../../types/profiles";
 import type { QuestionnaireInput } from "../../types/questionnaires";
 
@@ -265,6 +273,7 @@ async function writeProduct(
       status: "pending",
       queuedAt: now,
     } satisfies OutboxOperation);
+    await queueProductPhotos(transaction, record);
   }
 
   return record;
@@ -757,7 +766,7 @@ export class LocalRepository {
     const identity = validateIdentity(id);
 
     return inTransaction(this.database, [
-      "config_snapshots", "app_meta", "personal_stands", "products", "outbox",
+      "config_snapshots", "app_meta", "personal_stands", "products", "photos", "outbox",
     ], "readwrite", async (transaction) => {
       const source = await readRequest<LocalProduct | undefined>(transaction.objectStore("products").get([
         scope.profileId, scope.eventId, identity,
@@ -788,7 +797,9 @@ export class LocalRepository {
     const scope = validateContext(context);
     const identity = validateIdentity(id);
 
-    await inTransaction(this.database, ["products", "outbox"], "readwrite", async (transaction) => {
+    await inTransaction(this.database, [
+      "products", "photos", "photo_assets", "outbox",
+    ], "readwrite", async (transaction) => {
       const store = transaction.objectStore("products");
       const previous = await readRequest<LocalProduct | undefined>(store.get([
         scope.profileId, scope.eventId, identity,
@@ -797,6 +808,7 @@ export class LocalRepository {
       if (previous === undefined || isProductDeleted(previous)) {
         return;
       }
+      const photoDependencies = await removeProductPhotos(transaction, previous);
       const now = new Date().toISOString();
       const payload = previous.lastValid === null ? null : {
         ...previous.lastValid,
@@ -823,7 +835,10 @@ export class LocalRepository {
           action: "delete",
           localSequence: record.localSequence,
           baseRevision: record.serverRevision,
-          dependsOn: previous.latestOperationId === null ? [] : [previous.latestOperationId],
+          dependsOn: [
+            ...(previous.latestOperationId === null ? [] : [previous.latestOperationId]),
+            ...photoDependencies,
+          ],
           payload,
           status: "pending",
           queuedAt: now,
@@ -832,13 +847,179 @@ export class LocalRepository {
     });
   }
 
+  async listProductPhotos(context: LocalContext, productId: string): Promise<PhotoItem[]> {
+    const scope = validateContext(context);
+
+    return inTransaction(this.database, [
+      "products", "photos", "photo_assets",
+    ], "readonly", async (transaction) => {
+      const parent = await readRequest<LocalProduct | undefined>(transaction.objectStore("products")
+        .get(photoKey(scope, productId)));
+
+      if (parent === undefined || isProductDeleted(parent)) {
+        return [];
+      }
+      const records = await readProductPhotos(transaction, scope, productId);
+      const items: PhotoItem[] = [];
+
+      for (const record of records) {
+        if (record.deletedAt !== null) {
+          continue;
+        }
+        const asset = await readRequest<PhotoAsset | undefined>(transaction.objectStore("photo_assets")
+          .get(photoKey(scope, record.id)));
+
+        if (asset === undefined) {
+          throw new Error("Originale foto non disponibile sul dispositivo.");
+        }
+        items.push({
+          ...record,
+          thumbnail: asset.thumbnail,
+        });
+      }
+
+      return items;
+    });
+  }
+
+  async listPhotos(context: LocalContext): Promise<LocalPhoto[]> {
+    const scope = validateContext(context);
+
+    return inTransaction(this.database, ["photos"], "readonly", (transaction) => {
+      return readRequest<LocalPhoto[]>(transaction.objectStore("photos").index("by_context")
+        .getAll([scope.profileId, scope.eventId]));
+    });
+  }
+
+  async getPhotoAsset(context: LocalContext, id: string): Promise<PhotoAsset | undefined> {
+    const scope = validateContext(context);
+
+    return inTransaction(this.database, ["photo_assets"], "readonly", (transaction) => {
+      return readRequest<PhotoAsset | undefined>(transaction.objectStore("photo_assets").get(photoKey(scope, id)));
+    });
+  }
+
+  async addProductPhoto(
+    context: LocalContext,
+    productId: string,
+    id: string,
+    photo: PreparedPhoto,
+    input: ProductInput,
+  ): Promise<void> {
+    const scope = validateContext(context);
+    const identity = validateIdentity(id);
+    const owner = validateIdentity(productId);
+
+    validatePreparedPhoto(photo);
+    await inTransaction(this.database, [
+      "config_snapshots", "app_meta", "personal_stands", "products", "photos", "photo_assets", "outbox",
+    ], "readwrite", async (transaction) => {
+      const catalog = await readCatalog(transaction);
+
+      if (catalog === null || !catalog.profiles.some((profile) => profile.id === scope.profileId && profile.enabled)
+        || !catalog.config.events.some((event) => event.id === scope.eventId && event.enabled)) {
+        throw new LocalInputError("Profilo o evento non disponibili.");
+      }
+      const existing = await readRequest<LocalPhoto | undefined>(transaction.objectStore("photos").get(photoKey(scope, identity)));
+
+      if (existing !== undefined) {
+        if (existing.productId !== owner || existing.sha256 !== photo.sha256 || existing.deletedAt !== null) {
+          throw new LocalInputError("ID foto già usato con dati diversi o eliminato.");
+        }
+        await photoParent(transaction, scope, owner);
+
+        return;
+      }
+      const current = await readRequest<LocalProduct | undefined>(transaction.objectStore("products").get(photoKey(scope, owner)));
+      const parent = current === undefined
+        ? await writeProduct(transaction, scope, owner, parseProductPatch(input))
+        : await photoParent(transaction, scope, owner);
+      const previous = await readProductPhotos(transaction, scope, owner);
+      const now = new Date().toISOString();
+      const {
+        original: _original, preview: _preview, thumbnail: _thumbnail, ...metadata
+      } = photo;
+      const record: LocalPhoto = {
+        ...metadata,
+        ...scope,
+        id: identity,
+        productId: owner,
+        isPrimary: false,
+        addedOrder: Math.max(0, ...previous.map((entry) => entry.addedOrder)) + 1,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+        localSequence: 0,
+        serverRevision: null,
+        latestOperationId: null,
+      };
+
+      transaction.objectStore("photo_assets").add({
+        ...photo,
+        ...scope,
+        id: identity,
+        productId: owner,
+      } satisfies PhotoAsset);
+      storePhoto(transaction, record, parent);
+    });
+  }
+
+  async changeProductPhoto(context: LocalContext, productId: string, id: string, action: "primary" | "delete"): Promise<void> {
+    const scope = validateContext(context);
+
+    await inTransaction(this.database, [
+      "config_snapshots", "app_meta", "products", "photos", "photo_assets", "outbox",
+    ], "readwrite", async (transaction) => {
+      const catalog = await readCatalog(transaction);
+
+      if (catalog?.profiles.some((profile) => profile.id === scope.profileId && profile.enabled) !== true) {
+        throw new LocalInputError("Profilo non disponibile.");
+      }
+      const parent = await photoParent(transaction, scope, productId);
+      const records = (await readProductPhotos(transaction, scope, productId))
+        .filter((photo) => photo.deletedAt === null);
+      const selected = records.find((photo) => photo.id === id);
+
+      if (selected === undefined) {
+        throw new LocalInputError("Foto non disponibile.");
+      }
+      if (action === "delete") {
+        await removePhoto(transaction, selected, parent);
+        if (!selected.isPrimary && records.some((photo) => photo.isPrimary)) {
+          return;
+        }
+      }
+      const primaryId = action === "primary" ? id : records.find((photo) => photo.id !== id)?.id;
+
+      for (const photo of records) {
+        if (action === "delete" && photo.id === id) {
+          continue;
+        }
+        const isPrimary = photo.id === primaryId;
+
+        if (photo.isPrimary !== isPrimary) {
+          storePhoto(transaction, {
+            ...photo,
+            isPrimary,
+          }, parent);
+        }
+      }
+    });
+  }
+
+  async collectPhotoOrphans(): Promise<number> {
+    return inTransaction(this.database, [
+      "photos", "photo_assets", "outbox",
+    ], "readwrite", collectPhotoOrphans);
+  }
+
   async saveProduct(context: LocalContext, id: string, changes: Partial<ProductInput>): Promise<LocalProduct> {
     const scope = validateContext(context);
     const identity = validateIdentity(id);
     const patch = parseProductPatch(changes);
 
     return inTransaction(this.database, [
-      "config_snapshots", "app_meta", "personal_stands", "products", "outbox",
+      "config_snapshots", "app_meta", "personal_stands", "products", "photos", "outbox",
     ], "readwrite", async (transaction) => {
       return writeProduct(transaction, scope, identity, patch);
     });

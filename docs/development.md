@@ -196,3 +196,18 @@ e [Dev Containers in VS Code](https://code.visualstudio.com/docs/devcontainers/c
 Il nome condiviso segue la [configurazione del progetto Compose in VS Code](https://code.visualstudio.com/remote/advancedcontainers/set-docker-compose-project-name).
 Per la persistenza del database, vedere anche la
 [documentazione dell'immagine ufficiale PostgreSQL](https://github.com/docker-library/docs/blob/master/postgres/README.md).
+
+## Fotografie locali (step 17)
+
+Nell’editor prodotto, aprire **Fotografie**: fotocamera del dispositivo o galleria,
+anche prima di compilare nome/categoria. JPEG, PNG e WebP; per HEIC/HEIF esportare
+una copia JPEG. Originale conservato con eventuali EXIF, anteprime separate.
+Dopo «Salvato sul dispositivo» si possono ricaricare la pagina, aprire l’originale,
+scegliere la principale ed eliminare con conferma. La lista prodotti mostra la
+principale e supporta il filtro foto. Un prodotto incompleto resta recuperabile
+nel suo URL editor; per inserirlo nella raccolta completare i campi obbligatori.
+
+Nessun server media è necessario in questo step; l’upload arriva nello step 19.
+Lo storage locale è distinto dalla shell PWA: riavviare l’intera app senza rete
+sarà garantito nello step 20. Prove fotocamera/permessi/quota sul telefono reale
+restano da eseguire; i file dei test sono isolati dai dati di sviluppo.

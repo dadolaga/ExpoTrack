@@ -1447,3 +1447,224 @@
   align-self: center;
   font-size: 2rem;
 }
+
+.product-photos {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.photo-count {
+  justify-self: end;
+  border-radius: var(--radius-input);
+  background: var(--surface-muted);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-caption);
+}
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.photo-tile,
+.photo-add-tile {
+  position: relative;
+  aspect-ratio: 1.25;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
+  background: var(--surface-muted);
+}
+
+.photo-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-primary-badge {
+  position: absolute;
+  bottom: var(--space-2);
+  left: var(--space-2);
+  border-radius: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: var(--font-size-caption);
+}
+
+.photo-tile-menu {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  border-radius: 50%;
+  padding: var(--space-1);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.photo-add-tile {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: var(--space-2);
+  border: 1px dashed var(--primary);
+  color: var(--primary);
+  font-size: var(--font-size-caption);
+}
+
+.photo-add-tile > span {
+  font-size: 2rem;
+}
+
+.photo-capture-actions,
+.photo-viewer-tools {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.photo-capture-actions > button {
+  flex: 1;
+}
+
+.product-photo-preview {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.product-photo-preview img {
+  width: 30%;
+  height: 80px;
+  object-fit: cover;
+  border-radius: var(--radius-input);
+}
+
+.photo-viewer {
+  width: 100dvw;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.photo-viewer-content {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-bottom: env(safe-area-inset-bottom, var(--space-3));
+}
+
+.photo-viewer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface);
+}
+
+.photo-viewer-header > button,
+.photo-actions summary {
+  display: grid;
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  place-items: center;
+}
+
+.photo-viewer-header h2 {
+  font-size: var(--font-size-label);
+}
+
+.photo-actions {
+  position: relative;
+}
+
+.photo-actions summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.photo-actions > div {
+  position: absolute;
+  right: 0;
+  z-index: 2;
+  display: grid;
+  width: min(280px, 85vw);
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 20%);
+}
+
+.photo-viewer-image {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  place-items: center;
+}
+
+.photo-viewer-image img {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: contain;
+}
+
+.photo-viewer-image[data-zoom="true"] {
+  display: block;
+}
+
+.photo-viewer-image[data-zoom="true"] img {
+  width: auto;
+  max-width: none;
+  height: auto;
+  max-height: none;
+}
+
+.photo-filmstrip {
+  display: flex;
+  justify-content: flex-start;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding: var(--space-2) var(--space-3);
+}
+
+.photo-filmstrip button {
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: var(--radius-input);
+}
+
+.photo-filmstrip button[aria-pressed="true"] {
+  border-color: var(--primary);
+}
+
+.photo-filmstrip img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-viewer-feedback {
+  padding-inline: var(--space-3);
+}
+
+.product-row-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}

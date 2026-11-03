@@ -195,3 +195,18 @@ navigazione sono quelli condivisi dell’editor prodotto.
 `BudgetSettings` offre importi EUR, esclusione e ripristino seed; `ProductBudget`
 mostra budget esatto e differenza dal prezzo. Il provider registra più guardie
 contemporanee per salvare tutte le righe prima della navigazione.
+
+### Fotografie (step 17)
+
+`ProductPhotos` compone acquisizione file nativa (`capture=environment` o galleria
+multipla), `PhotoGrid`, `PhotoViewer` e `ConfirmDialog`, ricevendo dati/callback
+senza accedere al repository. Il viewer modale usa anteprima/originale, zoom,
+miniature di navigazione, menu principale/elimina, Escape e ripristino focus.
+`PhotoImage` riusa `next/image` senza ottimizzazione server per URL blob locali;
+`useBlobUrl` li revoca alla sostituzione/smontaggio.
+
+`useProductPhotos` gestisce preparazione seriale, persistenza, retry dello stesso
+ID, errori, caricamento e guardie di navigazione. La vista `view=photos` appartiene
+all’editor 05/06; la sezione inferiore mostra conteggio e anteprime. Nessuna pagina
+08 o azione Informazioni. `ProductRow` mostra la miniatura principale; filtri
+con/senza foto leggono i metadati reali del profilo/evento.
