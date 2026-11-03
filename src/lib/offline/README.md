@@ -259,5 +259,28 @@ prima della prima registrazione conserva gli altri input localmente, escludendol
 dal payload valido. `duplicateProduct` copia le sole risposte valide con i relativi
 snapshot, senza input invalidi e senza legami con l’originale. Delete e protezioni
 tombstone includono le risposte insieme agli altri dati prodotto. I controlli UI
-rating/scelte sono previsti nello step 16; il validatore riconosce già i sei tipi
-canonici per interpretare tutti gli snapshot.
+rating/scelte e il dettaglio 05a sono operativi dallo step 16; il validatore
+riconosce i sei tipi canonici per interpretare tutti gli snapshot.
+
+## Profili personali e budget — step 16
+
+`profile-settings.ts` conserva profili e override nel record `profile-settings`
+di `app_meta`, senza modificare lo schema IndexedDB v3 o i file JSON. Il catalogo
+editoriale rimane separato; le letture aggiungono i profili personali e rifiutano
+collisioni di ID. `savePersonalProfile` accetta nome/colore validi e icona utente
+fissa; `deletePersonalProfile` scrive un tombstone e disabilita la selezione.
+I dati collegati e le operazioni pendenti restano intatti fino alla risoluzione
+server delle dipendenze. L’operazione di eliminazione dipende dalla coda del profilo
+in tutti gli eventi; nuove scritture prodotto/budget sul profilo eliminato falliscono.
+
+`setBudget(profileId, categoryId, amount)` accetta testo EUR non negativo (massimo
+due decimali), `null` per esclusione esplicita o `undefined` per rimuovere l’override.
+La rimozione rimane come tombstone sincronizzabile e ripristina il seed JSON.
+Budget zero valido, nessuna ereditarietà e nessun evento nel contratto budget.
+`effectiveBudget` è condiviso da elenco e prodotto.
+
+Profili/budget e relativa outbox sono atomici; le operazioni globali non contengono
+`eventId`. `listPendingOperations()` legge anche queste operazioni; `listOutbox(context)`
+conserva il contratto di sola visita. Le creazioni di prodotti/stand/preferenze e budget
+personali dipendono dall’operazione del profilo. `selectEvent` valida e ricorda l’evento
+senza alterare raccolte, input o code; il provider attende tutte le guardie di autosalvataggio.

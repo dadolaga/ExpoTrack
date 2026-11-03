@@ -1382,3 +1382,68 @@
   .product-row { gap: var(--space-2); }
   .product-row-thumbnail { width: 44px; height: 44px; }
 }
+
+/* Profile settings and questionnaire detail share the existing semantic palette. */
+.profile-action-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: var(--touch-target);
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
+  color: var(--primary);
+}
+
+.profile-color-field {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+  min-height: var(--touch-target);
+}
+
+.profile-color-field input {
+  width: 4rem;
+  min-height: var(--touch-target);
+}
+
+.questionnaire-question,
+.questionnaire-answer {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.question-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: var(--touch-target);
+  padding: 0.5rem;
+}
+
+.question-option input {
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: var(--primary);
+}
+
+.product-budget {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface-muted);
+}
+
+.question-detail .product-rating-control {
+  flex-direction: column-reverse;
+  align-items: stretch;
+}
+
+.question-detail .product-rating-control output {
+  align-self: center;
+  font-size: 2rem;
+}

@@ -2,7 +2,7 @@
 
 Questo README definisce **come lavoriamo**, un passo alla volta, sulla parte web mobile da fiera. Ogni step parte da una domanda concreta, produce un’implementazione circoscritta e termina con un risultato verificabile. Non autorizza a implementare l’intera applicazione in un’unica sessione.
 
-**Stato corrente:** implementazione arrivata allo step 15; gli esiti e i riscontri sono riportati nel registro della singola consegna. Il lavoro restante è organizzato in **sei step, dal 16 al 21**, tutti da iniziare, che sostituiscono i precedenti step 16–28.
+**Stato corrente:** implementazione arrivata allo step 16, da verificare dall’utente; la richiesta di proseguire conferma lo step 15. Restano **cinque step, dal 17 al 21**, tutti da iniziare, del piano ridotto che sostituisce i precedenti step 16–28.
 
 ## Riferimenti e priorità
 
@@ -131,7 +131,7 @@ L’ordine è intenzionale: prima fondamenta e funzioni locali verificabili, poi
 | 13 | Modifica prodotto e descrizione | Accettato |
 | 14 | Lista prodotti, duplicazione ed eliminazione | Accettato |
 | 15 | Motore questionari e primi controlli | Accettato |
-| 16 | Completamento questionari, budget e impostazioni | Da iniziare |
+| 16 | Completamento questionari, budget e impostazioni | Accettato |
 | 17 | Fotografie complete sul dispositivo | Da iniziare |
 | 18 | PostgreSQL, importazione catalogo e API di lettura | Da iniziare |
 | 19 | Sincronizzazione completa di dati e fotografie | Da iniziare |
@@ -743,3 +743,16 @@ Le suite permanenti usano fixture e database IndexedDB emulati isolati; i nuovi 
 - **Come provarlo:** `npm run dev` → [http://localhost:3000/products](http://localhost:3000/products), profilo Io · demo. Aprire Borsa giornaliera · demo: la sola apertura non registra il prodotto. Compilare Prime impressioni, provare capienza `0`, `1,5`, `abc` e ricaricare: l’input errato resta visibile e l’ultima risposta valida resta conservata. Selezionare No, poi Non compilato, e ricaricare. Duplica conserva le risposte in una copia indipendente. Con Papà · demo, un nuovo prodotto Borse mostra le sue due domande; Illuminazione omette la sezione. Per lo storico usare una copia isolata del catalogo, incrementare la versione e poi rimuovere la definizione: le risposte precedenti restano consultabili.
 - **Limiti:** rating/scelte e 05a allo step 16; fotografie, API/sync server e shell PWA agli step previsti. Prove su telefono reale, altri motori e suite E2E di produzione pendenti. Nessuna build o `validate:final` eseguita.
 - **Punto di commit:** soltanto i file dello step elencati sopra; titolo suggerito `feat: add versioned inline questionnaires and autosaved answers`. Nessun commit o push effettuato.
+
+### Consegna step 16 — Funzioni durante la visita
+
+- **Stato:** implementato su richiesta, da verificare dall’utente. La richiesta conferma lo step 15; step 17 non avviato.
+- **Risultato:** sei tipi domanda operativi; rating facoltativo 1–10 con `RatingSlider` condiviso, scelte per ID e rimozione esplicita. Dettaglio 05a nello stesso editor tramite `view=question&question=ID`, autosalvataggio e ritorno senza conferma. Su correzione richiesta, rimosso il pulsante «Apri risposta» dalle schede: le risposte si modificano direttamente inline, senza domanda o commento aggiunto al JSON.
+- **Budget:** pagina `/profile/budgets`, importi EUR per categoria esatta e profilo, condivisi fra eventi. Zero valido, esclusione «Nessun budget» distinta da «Rimuovi override» che ripristina il seed; differenza dal prezzo in 05, senza sommare spese.
+- **Profili/impostazioni:** `/profiles?manage=1` per la gestione; `/profiles?edit=new` per aggiungere nome/colore con icona utente fissa. Identità JSON protetta, personali modificabili ed eliminabili con due conferme nominative. Evento da tendina, tema persistente e informazioni app in Profilo. Input e outbox protetti dalle guardie di autosalvataggio, ora multiple per le righe budget.
+- **Persistenza:** `app_meta` ospita profili e override senza migrazione distruttiva. Snapshot editoriali separati e collisioni rifiutate. Outbox globale per profili/budget senza `eventId`; le nuove entità dipendono dal profilo personale. Delete profilo accodato dopo tutte le sue operazioni pendenti, con tombstone e dati collegati conservati per risolvere le dipendenze.
+- **File:** route Profilo/profili e nuova route budget; `ProfileProvider`, `ProfilePicker`, nuovi `PersonalProfileEditor`, `ProfileSettings`, `BudgetSettings`/`ProductBudget`; `ProductEditor`, renderer questionari; `profile-settings.ts`, repository, tipi e CSS; tre scenari in `tests/integration/visit-settings.test.ts`, collegati a `validation/final-evidence.json`; documentazione aggiornata.
+- **Verifiche eseguite:** `npm run lint` e `npm run typecheck` terminati con exit 0; `npm run test:integration` e suite unit esistente (`npm run test:unit`) superate. Aggiunti soltanto tre scenari di integrazione, nessun nuovo unit test. Prova Chromium su copia isolata in `/tmp`, fixture fittizie e contesto browser nuovo: scelte/rating/dettaglio/refresh/ritorno, budget zero e refresh, più righe budget con blocco del ritorno su input invalido e recupero dopo correzione, creazione/modifica profilo, doppia conferma annullata/confermata, cambio evento e raccolta/coda conservate. Nessun dato di sviluppo modificato. Log in `/tmp/expotrack-16-{lint-final,typecheck-final,integration-final,unit-final,browser-final}.log`.
+- **Come provarlo:** `npm run dev`; in Profilo aprire «Budget per categoria», provare `0`, «Nessun budget» e «Rimuovi override», poi controllare il budget nell’editor della stessa categoria con prezzo. Nel questionario scegliere opzioni e voto direttamente nella scheda, ricaricare e verificare le risposte conservate. Da «Tutti i profili» aggiungere/modificare un personale, selezionarlo e verificare catalogo senza interessi/questionari ereditati; annullare la seconda conferma di eliminazione prima di confermarla. Cambiare evento in Profilo e tornare al precedente per ritrovare la raccolta.
+- **Limiti:** sync server, foto e shell offline restano agli step 17–20; il refresh senza rete dell’intera app non è ancora garantito. Prove su telefono e suite E2E di produzione pendenti. Nessuna build o `validate:final` eseguita.
+- **Punto di commit suggerito:** `Complete visit questionnaires, budgets and personal profiles`; soli file indicati sopra e nel diff dello step, nessun commit eseguito.

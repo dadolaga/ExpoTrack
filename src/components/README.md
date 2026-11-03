@@ -181,6 +181,17 @@ riceve definizione, valore e callback senza leggere lo storage: testo multilinea
 numero con validazione immediata e sì/no con Non compilato esplicito. Etichette,
 help e placeholder provengono dal JSON. Testo storico reso come testo React;
 risposte e snapshot precedenti restano in sola lettura dopo aggiornamento o
-rimozione del questionario. Rating/scelte e dettaglio focalizzato 05a saranno
-completati nello step 16. Stato autosalvataggio, retry e protezione della
+rimozione del questionario. Dallo step 16 sono operativi rating 1–10, scelta
+singola/multipla per ID e dettaglio 05a (`view=question&question=ID`), senza voto
+preassegnato e con cancellazione esplicita. `RatingSlider` è condiviso con il voto
+generale. Stato autosalvataggio, retry e protezione della
 navigazione sono quelli condivisi dell’editor prodotto.
+
+### Profili e budget (step 16)
+
+`PersonalProfileEditor` riusa campi, autosalvataggio e `ConfirmDialog` (due conferme).
+`ProfilePicker` distingue selezione, gestione e identità JSON protetta.
+`ProfileSettings` compone gestione, evento, tema e informazioni app.
+`BudgetSettings` offre importi EUR, esclusione e ripristino seed; `ProductBudget`
+mostra budget esatto e differenza dal prezzo. Il provider registra più guardie
+contemporanee per salvare tutte le righe prima della navigazione.

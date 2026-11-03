@@ -9,12 +9,14 @@
     "profile-event-isolation": [
       "tests/integration/local-persistence.test.ts",
       "tests/integration/profile-selection.test.ts",
-      "tests/integration/stand-interests.test.ts"
+      "tests/integration/stand-interests.test.ts",
+      "tests/integration/visit-settings.test.ts"
     ],
     "local-persistence": [
       "tests/integration/local-persistence.test.ts",
       "tests/integration/profile-selection.test.ts",
-      "tests/integration/stand-interests.test.ts"
+      "tests/integration/stand-interests.test.ts",
+      "tests/integration/visit-settings.test.ts"
     ],
     "server-contracts": [],
     "sync-integrity": [],

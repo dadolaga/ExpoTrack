@@ -10,8 +10,9 @@ import type { CatalogSnapshot, Questionnaire } from "@/types/catalog";
 import type { AnswerValue, QuestionnaireInput } from "@/types/questionnaires";
 
 export function ProductQuestionnaire({
-  catalog, profileId, categoryId, inputs, onChange,
+  catalog, profileId, categoryId, inputs, onChange, questionId,
 }: {
+  questionId?: string | null;
   catalog: CatalogSnapshot;
   profileId: string;
   categoryId: string | null;
@@ -31,15 +32,15 @@ export function ProductQuestionnaire({
     return null;
   }
 
-  function change(definition: Questionnaire, questionId: string, value: AnswerValue | undefined) {
+  function change(definition: Questionnaire, answerId: string, value: AnswerValue | undefined) {
     const answers = {
       ...active?.answers,
     };
 
     if (value === undefined) {
-      delete answers[questionId];
+      delete answers[answerId];
     } else {
-      answers[questionId] = value;
+      answers[answerId] = value;
     }
     const entry = {
       definitionSnapshot: definition,
@@ -48,6 +49,24 @@ export function ProductQuestionnaire({
 
     onChange(active === undefined ? [...inputs, entry]
       : inputs.map((item) => item === active ? entry : item));
+  }
+
+  if (questionId !== undefined && questionId !== null) {
+    const question = current?.questions.find((entry) => entry.id === questionId);
+
+    if (question === undefined || current === undefined || changedVersion) {
+      return <p role="status">Domanda non disponibile nella definizione corrente. Torna al prodotto per consultare lo storico.</p>;
+    }
+
+    return (
+      <QuestionRenderer
+        question={question}
+        value={getAnswer(active?.answers, question.id)}
+        onChange={(value) => {
+          change(current, question.id, value);
+        }}
+      />
+    );
   }
 
   return (
@@ -64,14 +83,18 @@ export function ProductQuestionnaire({
             {current.description !== undefined && <p>{current.description}</p>}
             <div className="questionnaire-questions">
               {current.questions.map((question) => (
-                <QuestionRenderer
+                <div
                   key={question.id}
-                  question={question}
-                  value={getAnswer(active?.answers, question.id)}
-                  onChange={(value) => {
-                    change(current, question.id, value);
-                  }}
-                />
+                  className="questionnaire-question"
+                >
+                  <QuestionRenderer
+                    question={question}
+                    value={getAnswer(active?.answers, question.id)}
+                    onChange={(value) => {
+                      change(current, question.id, value);
+                    }}
+                  />
+                </div>
               ))}
             </div>
           </section>

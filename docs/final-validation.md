@@ -180,3 +180,13 @@ tombstone, isolamento profili/eventi/categorie, snapshot inventati e quota/retry
 Le prove Chromium su copia isolata verificano il flusso UI senza costituire una
 suite E2E di produzione. Controlli rating/scelte, dettaglio 05a, prove su telefono
 e completamento delle aree E2E restano pendenti. Nessun test grafico introdotto.
+
+**Copertura introdotta nello step 16:** tre scenari in
+`tests/integration/visit-settings.test.ts`, collegati a `local-persistence` e
+`profile-event-isolation`, verificano budget esatto/zero/esclusione/ripristino,
+riapertura, riuso fra eventi, separazione profili, rollback su quota e retry;
+profili personali, identità JSON protette, collisioni con rollback, dipendenze
+outbox, cancellazione senza perdita dei dati necessari e rifiuto di scritture
+tardive; rating e scelte per ID, rimozione e valori invalidi. Nessun nuovo unit test.
+La prova temporanea Chromium su `next dev` e fixture isolate verifica i flussi UI;
+non costituisce una suite E2E di produzione. Prove fisiche e aree E2E restano pendenti.

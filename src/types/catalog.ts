@@ -42,6 +42,10 @@ export type ConfiguredProfile = {
   budgets: BudgetSeed[];
 };
 
+export type PersonalProfile = Omit<ConfiguredProfile, "origin"> & {
+  origin: "personal";
+};
+
 export type Category = {
   id: string;
   name: string;
@@ -143,7 +147,7 @@ export type Questionnaire = {
 
 export type CatalogSnapshot = {
   config: AppConfig;
-  profiles: ConfiguredProfile[];
+  profiles: (ConfiguredProfile | PersonalProfile)[];
   categories: Category[];
   pavilions: Pavilion[];
   stands: CatalogStand[];

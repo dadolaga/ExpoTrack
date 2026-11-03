@@ -1,4 +1,4 @@
-import type { ChecklistSeedItem, StandReference } from "./catalog";
+import type { ChecklistSeedItem, PersonalProfile, StandReference } from "./catalog";
 import type { QuestionnaireAnswers, QuestionnaireInput, QuestionnaireIssues } from "./questionnaires";
 
 export type LocalContext = {
@@ -111,7 +111,25 @@ export type LocalStandPreferences = StandPreferencesData & {
   updatedAt: string;
 };
 
-type OutboxMetadata = LocalContext & {
+export type LocalPersonalProfile = PersonalProfile & {
+  deletedAt: string | null;
+  localSequence: number;
+  serverRevision: number | null;
+  latestOperationId: string;
+};
+
+export type BudgetOverride = {
+  profileId: string;
+  categoryId: string;
+  amount: number | null;
+  currency: "EUR";
+  removed: boolean;
+  localSequence: number;
+  serverRevision: number | null;
+  latestOperationId: string;
+};
+
+type OutboxMetadata = {
   operationId: string;
   entityId: string;
   action: "create" | "update" | "delete";
@@ -122,7 +140,7 @@ type OutboxMetadata = LocalContext & {
   queuedAt: string;
 };
 
-export type OutboxOperation = OutboxMetadata & (
+type VisitOperation = LocalContext & (
   | {
     entityType: "product";
     payload: ProductData;
@@ -134,5 +152,21 @@ export type OutboxOperation = OutboxMetadata & (
   | {
     entityType: "personal-stand";
     payload: PersonalStandData;
+  }
+);
+
+export type OutboxOperation = OutboxMetadata & (
+  | VisitOperation
+  | {
+    profileId: string;
+    eventId?: never;
+    entityType: "profile";
+    payload: LocalPersonalProfile;
+  }
+  | {
+    profileId: string;
+    eventId?: never;
+    entityType: "budget";
+    payload: BudgetOverride;
   }
 );

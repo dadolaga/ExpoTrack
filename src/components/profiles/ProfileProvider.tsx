@@ -31,6 +31,8 @@ type ProfileContextValue = {
   selecting: boolean;
   selectionError: string | null;
   chooseProfile: (id: string) => Promise<boolean>;
+  chooseEvent: (id: string) => Promise<boolean>;
+  refreshSession: () => Promise<void>;
   retry: () => void;
   registerBeforeLeave: (
     handler: () => Promise<boolean>,
@@ -54,21 +56,16 @@ export function ProfileProvider({ catalog, children }: {
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const repositoryRef = useRef<LocalRepository | null>(null);
   const selectingRef = useRef(false);
-  const beforeLeave = useRef<(() => Promise<boolean>) | null>(null);
-  const popstateGuard = useRef<((event: PopStateEvent) => void) | null>(null);
+  const guards = useRef(new Map<() => Promise<boolean>, (event: PopStateEvent) => void>());
   const leaving = useRef(false);
   const registerBeforeLeave = useCallback((
     handler: () => Promise<boolean>,
     onPopstate: (event: PopStateEvent) => void,
   ) => {
-    beforeLeave.current = handler;
-    popstateGuard.current = onPopstate;
+    guards.current.set(handler, onPopstate);
 
     return () => {
-      if (beforeLeave.current === handler) {
-        beforeLeave.current = null;
-        popstateGuard.current = null;
-      }
+      guards.current.delete(handler);
     };
   }, []);
 
@@ -76,7 +73,12 @@ export function ProfileProvider({ catalog, children }: {
   // removed by the router's synchronous traversal before it receives popstate.
   useEffect(() => {
     function popstate(event: PopStateEvent) {
-      popstateGuard.current?.(event);
+      for (const guard of guards.current.values()) {
+        guard(event);
+        if (event.cancelBubble) {
+          break;
+        }
+      }
     }
 
     window.addEventListener("popstate", popstate, true);
@@ -91,7 +93,7 @@ export function ProfileProvider({ catalog, children }: {
     }
     leaving.current = true;
     try {
-      if (beforeLeave.current === null || await beforeLeave.current()) {
+      if ((await Promise.all([...guards.current.keys()].map((guard) => guard()))).every(Boolean)) {
         action();
       }
     } finally {
@@ -158,13 +160,10 @@ export function ProfileProvider({ catalog, children }: {
     };
   }, [catalog, attempt]);
 
-  async function chooseProfile(id: string): Promise<boolean> {
+  async function chooseContext(id: string, event = false): Promise<boolean> {
     const repository = repositoryRef.current;
 
     if (repository === null || selectingRef.current) {
-      return false;
-    }
-    if (beforeLeave.current !== null && !await beforeLeave.current()) {
       return false;
     }
     selectingRef.current = true;
@@ -172,7 +171,10 @@ export function ProfileProvider({ catalog, children }: {
     setSelectionError(null);
 
     try {
-      const session = await repository.selectProfile(id);
+      if (!(await Promise.all([...guards.current.keys()].map((guard) => guard()))).every(Boolean)) {
+        return false;
+      }
+      const session = await (event ? repository.selectEvent(id) : repository.selectProfile(id));
 
       if (repositoryRef.current !== repository) {
         return false;
@@ -186,7 +188,7 @@ export function ProfileProvider({ catalog, children }: {
       return true;
     } catch {
       if (repositoryRef.current === repository) {
-        setSelectionError("Impossibile ricordare il profilo sul dispositivo. La scelta precedente resta attiva: riprova.");
+        setSelectionError("Impossibile ricordare la scelta sul dispositivo. La scelta precedente resta attiva: riprova.");
       }
 
       return false;
@@ -197,6 +199,23 @@ export function ProfileProvider({ catalog, children }: {
       }
     }
   }
+
+  const refreshSession = useCallback(async () => {
+    const repository = repositoryRef.current;
+
+    if (repository === null) {
+      return;
+    }
+    const session = await repository.getProfileSession();
+
+    if (session !== null && repositoryRef.current === repository) {
+      setState({
+        status: "ready",
+        session,
+        repository,
+      });
+    }
+  }, []);
 
   function retry() {
     setState({
@@ -215,7 +234,9 @@ export function ProfileProvider({ catalog, children }: {
         state,
         selecting,
         selectionError,
-        chooseProfile,
+        chooseProfile: (id) => chooseContext(id),
+        chooseEvent: (id) => chooseContext(id, true),
+        refreshSession,
         retry,
         registerBeforeLeave,
         leave,

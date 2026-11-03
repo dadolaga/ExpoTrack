@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { ProfilePicker } from "@/components/profiles/ProfilePicker";
 
 import type { Metadata } from "next";
@@ -7,5 +9,5 @@ export const metadata: Metadata = {
 };
 
 export default function ProfilesPage() {
-  return <ProfilePicker />;
+  return <Suspense fallback={<p>Caricamento profili…</p>}><ProfilePicker /></Suspense>;
 }

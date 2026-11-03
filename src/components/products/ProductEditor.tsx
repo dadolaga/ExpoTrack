@@ -10,6 +10,7 @@ import { RatingSlider } from "@/components/forms/RatingSlider";
 import { SelectField } from "@/components/forms/SelectField";
 import { TextField } from "@/components/forms/TextField";
 import { NavigationIcon } from "@/components/layout/NavigationIcon";
+import { ProductBudget } from "@/components/profiles/BudgetSettings";
 import { useProfileSession } from "@/components/profiles/ProfileProvider";
 import { ProductQuestionnaire } from "@/components/questionnaires/ProductQuestionnaire";
 import { Button } from "@/components/ui/Button";
@@ -61,8 +62,8 @@ function Editor({
     title = "Seleziona stand";
     subtitle = `Nuovo prodotto · ${catalog.config.events.find((event) => event.id === context.eventId)?.name ?? ""}`;
   }
-  if (view === "description") {
-    title = "Descrizione personale";
+  if (view === "description" || view === "question") {
+    title = view === "question" ? "Modifica risposta" : "Descrizione personale";
     subtitle = `${stand?.name ?? "Stand da selezionare"} · ${input.name.trim() === "" ? "Prodotto senza nome" : input.name}`;
   }
 
@@ -73,13 +74,18 @@ function Editor({
     });
   }
 
-  function show(viewName: string | null, replace = false) {
+  function show(viewName: string | null, replace = false, questionId?: string) {
     const url = new URL(window.location.href);
 
     if (viewName === null) {
       url.searchParams.delete("view");
     } else {
       url.searchParams.set("view", viewName);
+    }
+    if (questionId === undefined) {
+      url.searchParams.delete("question");
+    } else {
+      url.searchParams.set("question", questionId);
     }
     void leave(() => {
       if (replace) {
@@ -144,6 +150,35 @@ function Editor({
           }}
         />
       )}
+      {view === "question" && (
+        <div className="product-fields question-detail">
+          <ProductQuestionnaire
+            catalog={catalog}
+            profileId={context.profileId}
+            categoryId={input.categoryId}
+            inputs={input.questionnaireInputs ?? []}
+            questionId={params.get("question") ?? ""}
+            onChange={(questionnaireInputs) => {
+              change({
+                questionnaireInputs,
+              });
+            }}
+          />
+          <SaveStatus
+            status={autosave.status}
+            onRetry={() => {
+              void autosave.retry();
+            }}
+          />
+          <Button
+            variant="secondary"
+            onClick={() => {
+              show(null, true);
+            }}
+          >Torna al prodotto
+          </Button>
+        </div>
+      )}
       {view === "stands" && autosave.status === "error" && (
         <SaveStatus
           status={autosave.status}
@@ -164,7 +199,7 @@ function Editor({
           }}
         />
       )}
-      {view !== "description" && (view !== "stands" || locked) && (
+      {view !== "description" && view !== "question" && (view !== "stands" || locked) && (
         <fieldset
           className="product-fields"
           disabled={busy}
@@ -240,6 +275,13 @@ function Editor({
               }}
             />
           </div>
+          <ProductBudget
+            repository={repository}
+            catalog={catalog}
+            profileId={context.profileId}
+            categoryId={input.categoryId}
+            price={input.price ?? ""}
+          />
           <label className="product-favorite">
             <span
               aria-hidden="true"

@@ -42,8 +42,10 @@ API aggiuntivo. Nome e colore del profilo attivo compaiono nell’header.
 Per provare il primo avvio, usare un contesto browser nuovo o una finestra privata,
 senza cancellare archivi già usati. Se il browser impedisce IndexedDB, viene mostrato
 un errore con **Riprova**. Se un profilo ricordato non è più disponibile, la pagina
-richiede una nuova scelta senza eliminare i dati personali. La sezione dei profili
-personali rimane vuota fino allo step 16 del piano ridotto.
+richiede una nuova scelta senza eliminare i dati personali. Dallo step 16, «Aggiungi profilo» crea un profilo personale con nome e colore;
+«Tutti i profili» apre la gestione dedicata. Da Profilo sono disponibili budget
+per categoria, selezione evento, tema e informazioni app. Le modifiche valide
+salvano localmente e accodano le operazioni server previste dallo step 19.
 
 ## Avvio con devcontainer
 

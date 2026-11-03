@@ -15,6 +15,9 @@ import {
   validateProduct,
 } from "./product-input";
 import { profileContextForSelection, resolveProfileSession } from "./profile-session";
+import {
+  profileDependencies, readSettings, withPersonalProfiles, writeBudget, writePersonalProfile,
+} from "./profile-settings";
 import { checkQuestionnaireInputs, validateQuestionnaireAnswers } from "./questionnaire-input";
 import { applyStandPatch } from "./stand-input";
 
@@ -39,7 +42,7 @@ type ActiveCatalog = {
   snapshotId: string;
 };
 
-async function readCatalog(transaction: IDBTransaction): Promise<CatalogSnapshot | null> {
+async function readConfiguredCatalog(transaction: IDBTransaction): Promise<CatalogSnapshot | null> {
   const active = await readRequest<ActiveCatalog | undefined>(
     transaction.objectStore("app_meta").get("active-catalog"),
   );
@@ -56,6 +59,12 @@ async function readCatalog(transaction: IDBTransaction): Promise<CatalogSnapshot
   }
 
   return stored.data;
+}
+
+async function readCatalog(transaction: IDBTransaction): Promise<CatalogSnapshot | null> {
+  const catalog = await readConfiguredCatalog(transaction);
+
+  return catalog === null ? null : withPersonalProfiles(transaction, catalog);
 }
 
 function activateCatalog(transaction: IDBTransaction, data: CatalogSnapshot, snapshotId: string) {
@@ -137,7 +146,11 @@ async function writeStandPreferences(
     action: previous === undefined ? "create" : "update",
     localSequence: record.localSequence,
     baseRevision: record.serverRevision,
-    dependsOn: [...(previous === undefined ? [] : [previous.latestOperationId]), ...dependencies],
+    dependsOn: [
+      ...(previous === undefined ? [] : [previous.latestOperationId]),
+      ...dependencies,
+      ...profileDependencies(catalog, scope.profileId),
+    ],
     payload,
     status: "pending",
     queuedAt: now,
@@ -242,7 +255,11 @@ async function writeProduct(
       action: lastValid === null ? "create" : "update",
       localSequence: record.localSequence,
       baseRevision: record.serverRevision,
-      dependsOn: [previous?.latestOperationId, personal?.latestOperationId]
+      dependsOn: [
+        ...profileDependencies(catalog, scope.profileId),
+        previous?.latestOperationId,
+        personal?.latestOperationId,
+      ]
         .filter((dependency): dependency is string => typeof dependency === "string"),
       payload: candidate,
       status: "pending",
@@ -288,14 +305,14 @@ export class LocalRepository {
     return inTransaction(this.database, [
       "config_snapshots", "app_meta", "products", "outbox",
     ], "readwrite", async (transaction) => {
-      const current = await readCatalog(transaction);
+      const current = await readConfiguredCatalog(transaction);
 
       if (JSON.stringify(current) !== JSON.stringify(data)) {
         activateCatalog(transaction, data, createLocalId());
       }
       const stored = await readRequest<unknown>(transaction.objectStore("app_meta").get("active-context"));
 
-      return resolveProfileSession(data, stored);
+      return resolveProfileSession(await withPersonalProfiles(transaction, data), stored);
     });
   }
 
@@ -332,6 +349,83 @@ export class LocalRepository {
       store.put(selected);
 
       return resolveProfileSession(catalog, selected);
+    });
+  }
+
+  async selectEvent(eventId: string): Promise<ProfileSession> {
+    return inTransaction(this.database, [
+      "config_snapshots", "app_meta", "products", "outbox",
+    ], "readwrite", async (transaction) => {
+      const catalog = await readCatalog(transaction);
+      const store = transaction.objectStore("app_meta");
+      const stored = await readRequest<unknown>(store.get("active-context"));
+      const session = catalog === null ? null : resolveProfileSession(catalog, stored);
+
+      if (catalog === null || session?.profile === undefined || session.profile === null
+        || !catalog.config.events.some((event) => event.id === eventId && event.enabled)) {
+        throw new LocalInputError("Seleziona un profilo e un evento disponibili.");
+      }
+      const selected = {
+        key: "active-context",
+        profileId: session.profile.id,
+        eventId,
+      };
+
+      store.put(selected);
+
+      return resolveProfileSession(catalog, selected);
+    });
+  }
+
+  async savePersonalProfile(id: string, input: {
+    name: string;
+    color: string;
+  }): Promise<void> {
+    await this.changePersonalProfile(validateIdentity(id), structuredClone(input));
+  }
+
+  async deletePersonalProfile(id: string): Promise<void> {
+    await this.changePersonalProfile(validateIdentity(id), null);
+  }
+
+  private async changePersonalProfile(id: string, input: {
+    name: string;
+    color: string;
+  } | null) {
+    await inTransaction(this.database, [
+      "config_snapshots", "app_meta", "products", "personal_stands", "stand_preferences", "outbox",
+    ], "readwrite", async (transaction) => {
+      const catalog = await readCatalog(transaction);
+
+      if (catalog === null) {
+        throw new LocalInputError("Catalogo non disponibile.");
+      }
+      await writePersonalProfile(transaction, catalog, id, input);
+    });
+  }
+
+  async listBudgetOverrides() {
+    return inTransaction(this.database, ["app_meta"], "readonly", async (transaction) => {
+      return (await readSettings(transaction)).budgets;
+    });
+  }
+
+  async setBudget(profileId: string, categoryId: string, amount: string | null | undefined) {
+    await inTransaction(this.database, [
+      "config_snapshots", "app_meta", "outbox",
+    ], "readwrite", async (transaction) => {
+      const catalog = await readCatalog(transaction);
+
+      if (catalog === null) {
+        throw new LocalInputError("Catalogo non disponibile.");
+      }
+      await writeBudget(transaction, catalog, profileId, categoryId, amount);
+    });
+  }
+
+  async listPendingOperations(): Promise<OutboxOperation[]> {
+    return inTransaction(this.database, ["outbox"], "readonly", (transaction) => {
+      return readRequest<OutboxOperation[]>(transaction.objectStore("outbox").getAll());
     });
   }
 
@@ -465,6 +559,9 @@ export class LocalRepository {
       if (catalog === null) {
         throw new LocalInputError("Catalogo non disponibile.");
       }
+      if (!catalog.profiles.some((profile) => profile.id === scope.profileId && profile.enabled)) {
+        throw new LocalInputError("Profilo non disponibile.");
+      }
       const store = transaction.objectStore("personal_stands");
       const previous = await readRequest<LocalPersonalStand | undefined>(store.get([
         scope.profileId, scope.eventId, identity,
@@ -527,7 +624,10 @@ export class LocalRepository {
           action: last === null ? "create" : "update",
           localSequence: record.localSequence,
           baseRevision: record.serverRevision,
-          dependsOn: typeof previous?.latestOperationId !== "string" ? [] : [previous.latestOperationId],
+          dependsOn: [
+            ...(typeof previous?.latestOperationId !== "string" ? [] : [previous.latestOperationId]),
+            ...profileDependencies(catalog, scope.profileId),
+          ],
           payload: candidate,
           status: "pending",
           queuedAt: now,
