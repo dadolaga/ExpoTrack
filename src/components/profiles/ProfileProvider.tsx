@@ -1,14 +1,13 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import {
   createContext, useCallback, useContext, useEffect, useRef, useState,
 } from "react";
 
+import { initializeServerCatalog } from "@/lib/offline/catalog-bootstrap";
 import { openLocalRepository } from "@/lib/offline/repository";
 
 import type { LocalRepository } from "@/lib/offline/repository";
-import type { CatalogSnapshot } from "@/types/catalog";
 import type { ProfileSession } from "@/types/profiles";
 import type { ReactNode } from "react";
 
@@ -43,11 +42,9 @@ type ProfileContextValue = {
 
 const ProfileContext = createContext<ProfileContextValue | null>(null);
 
-export function ProfileProvider({ catalog, children }: {
-  catalog: CatalogSnapshot | null;
+export function ProfileProvider({ children }: {
   children: ReactNode;
 }) {
-  const router = useRouter();
   const [state, setState] = useState<ProfileState>({
     status: "loading",
   });
@@ -111,9 +108,6 @@ export function ProfileProvider({ catalog, children }: {
 
     async function initialize() {
       try {
-        if (catalog === null) {
-          throw new Error("Catalogo non disponibile.");
-        }
         repository = await openLocalRepository();
 
         if (!isActive()) {
@@ -121,7 +115,7 @@ export function ProfileProvider({ catalog, children }: {
 
           return;
         }
-        const session = await repository.initializeProfileSession(catalog);
+        const session = await initializeServerCatalog(repository);
 
         if (isActive()) {
           repositoryRef.current = repository;
@@ -140,9 +134,7 @@ export function ProfileProvider({ catalog, children }: {
         if (isActive()) {
           setState({
             status: "error",
-            message: catalog === null
-              ? "Il catalogo dei profili non è disponibile. Riprova tra poco."
-              : "Non è stato possibile preparare i profili sul dispositivo. Consenti l’archiviazione nel browser e riprova.",
+            message: "Non è stato possibile preparare i profili. Al primo avvio serve il catalogo server; consenti l’archiviazione nel browser e riprova.",
           });
         }
       }
@@ -158,7 +150,7 @@ export function ProfileProvider({ catalog, children }: {
         repositoryRef.current = null;
       }
     };
-  }, [catalog, attempt]);
+  }, [attempt]);
 
   async function chooseContext(id: string, event = false): Promise<boolean> {
     const repository = repositoryRef.current;
@@ -222,10 +214,6 @@ export function ProfileProvider({ catalog, children }: {
       status: "loading",
     });
     setAttempt((current) => current + 1);
-
-    if (catalog === null) {
-      router.refresh();
-    }
   }
 
   return (

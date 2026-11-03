@@ -14,11 +14,16 @@
     "typecheck": "next typegen && tsc --noEmit",
     "validate:config": "node scripts/run-config-tools.mjs validate",
     "test:unit": "node scripts/run-config-tools.mjs test",
-    "test:integration": "node scripts/run-config-tools.mjs integration",
-    "validate:final": "node scripts/validate-final.mjs"
+    "test:integration": "npm run test:local && npm run test:server",
+    "validate:final": "node scripts/validate-final.mjs",
+    "db:migrate": "node --env-file-if-exists=.env.local scripts/run-config-tools.mjs migrate",
+    "db:import": "node --env-file-if-exists=.env.local scripts/run-config-tools.mjs import",
+    "test:server": "node scripts/run-config-tools.mjs server",
+    "test:local": "node scripts/run-config-tools.mjs integration"
   },
   "dependencies": {
     "next": "16.4.3",
+    "pg": "8.23.1",
     "react": "19.3.1",
     "react-dom": "19.3.1"
   },
@@ -27,6 +32,7 @@
     "@stylistic/eslint-plugin": "5.10.0",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "^22",
+    "@types/pg": "8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

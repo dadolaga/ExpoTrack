@@ -6,7 +6,7 @@ Il comando unico è:
 npm run validate:final
 ```
 
-**Responsabile: l’assistente.** Lo eseguirà al termine dell’intera implementazione nello step 21 (ex step 28), correggerà gli errori e riporterà gli esiti. Preparare lo script ora non completa né avvia gli step applicativi successivi. `test:unit` copre i contratti e il loader; dallo step 05 `test:integration` copre il repository locale con IndexedDB emulato. API/PostgreSQL ed E2E non sono ancora disponibili. I prerequisiti incompleti devono produrre `not-ready`, senza dichiarare validata l’app.
+**Responsabile: l’assistente.** Lo eseguirà al termine dell’intera implementazione nello step 21 (ex step 28), correggerà gli errori e riporterà gli esiti. Preparare lo script ora non completa né avvia gli step applicativi successivi. `test:unit` copre i contratti e il loader; dallo step 05 `test:integration` copre il repository locale con IndexedDB emulato. Dallo step 18 `test:integration` include anche API/PostgreSQL isolati; gli E2E non sono ancora disponibili. I prerequisiti incompleti devono produrre `not-ready`, senza dichiarare validata l’app.
 
 La fonte dei requisiti è [la specifica mobile corrente, §§6–7](27_Specifiche_UI_Mobile.md#6-accessibilità-prestazioni-e-verifiche). Le indicazioni precedenti su bozze, conferma Salva, pagina 08, foto stand o conflitti manuali non sono criteri di accettazione attivi.
 
@@ -204,3 +204,27 @@ annullata/confermata e griglia vuota, rete assente con app aperta, quota/retry,
 formato invalido e lista filtrata con foto. L’ispezione di un’anteprima è manuale,
 senza asserzioni grafiche. Non è una suite E2E di produzione: `photo-workflow`,
 prove fisiche e contratti di upload rimangono pendenti per gli step pertinenti.
+
+## Copertura introdotta nello step 18
+
+`tests/server/archive.test.ts` è eseguito da `test:server`, incluso in
+`test:integration`, e collegato a `server-contracts` e `profile-event-isolation`.
+Cinque scenari integrati verificano migrazioni/checksum/rollback, import JSON
+valido/invalido e ripetibile, snapshot atomici, versioni questionari, catalogo
+rimosso senza perdita delle raccolte, vincoli/proprietà, categoria/stand bloccati,
+budget e checklist, profili personali/tombstone, registri revisioni/idempotenza,
+riferimenti media e risposte HTTP 200/304/400/404/503 senza credenziali.
+Il replay delle operazioni e i trasferimenti binari restano allo step 19.
+
+`tests/integration/catalog-bootstrap.test.ts`, due scenari inclusi in `test:local`
+e quindi `test:integration`, è collegato a `local-persistence` e
+`profile-event-isolation`: primo bootstrap, refresh/304, aggiornamento dei seed
+con prodotti/profili/override/coda conservati, server assente, risposta invalida,
+rollback con collisione e hash precedente conservato. Nessun test grafico.
+
+La suite PostgreSQL richiede `TEST_DATABASE_URL` con segmento `test` nel nome,
+crea database `expotrack_test_<UUID>` tramite il database di manutenzione `postgres`
+e li elimina al termine; servono permessi di creazione database. Il database di
+sviluppo non è usato per fixture o cleanup. Il runner finale mantiene il controllo
+della distinzione dagli URL di sviluppo prima di avviare i comandi. Questa
+copertura non dichiara completate sync, media remoti, PWA o prove su dispositivo.

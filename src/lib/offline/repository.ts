@@ -299,6 +299,7 @@ export class LocalRepository {
     validateReferences(data);
     await inTransaction(this.database, ["config_snapshots", "app_meta"], "readwrite", (transaction) => {
       activateCatalog(transaction, data, snapshotId);
+      transaction.objectStore("app_meta").delete("server-catalog-hash");
     });
   }
 
@@ -306,7 +307,22 @@ export class LocalRepository {
     return inTransaction(this.database, ["config_snapshots", "app_meta"], "readonly", readCatalog);
   }
 
-  async initializeProfileSession(catalog: CatalogSnapshot): Promise<ProfileSession> {
+  async getServerCatalogHash(): Promise<string | null> {
+    return inTransaction(this.database, ["app_meta"], "readonly", async (transaction) => {
+      const record = await readRequest<{
+        value: string;
+      } | undefined>(
+        transaction.objectStore("app_meta").get("server-catalog-hash"),
+      );
+
+      return record?.value ?? null;
+    });
+  }
+
+  async initializeProfileSession(
+    catalog: CatalogSnapshot,
+    serverHash?: string,
+  ): Promise<ProfileSession> {
     const data = structuredClone(catalog);
 
     validateReferences(data);
@@ -318,6 +334,14 @@ export class LocalRepository {
 
       if (JSON.stringify(current) !== JSON.stringify(data)) {
         activateCatalog(transaction, data, createLocalId());
+      }
+      if (serverHash === undefined) {
+        transaction.objectStore("app_meta").delete("server-catalog-hash");
+      } else {
+        transaction.objectStore("app_meta").put({
+          key: "server-catalog-hash",
+          value: serverHash,
+        });
       }
       const stored = await readRequest<unknown>(transaction.objectStore("app_meta").get("active-context"));
 

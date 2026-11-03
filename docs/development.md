@@ -35,9 +35,10 @@ Contratti effettivi e struttura dei file: [config/README.md](../config/README.md
 
 Dallo step 05 è disponibile il [repository IndexedDB](../src/lib/offline/README.md),
 con input recuperabili, ultima versione valida e outbox atomica. È verificabile
-tramite test; dallo step 06 ricorda anche profilo/evento selezionati. Il layout server
-legge il catalogo e un provider client prepara l’archivio locale, senza un endpoint
-API aggiuntivo. Nome e colore del profilo attivo compaiono nell’header.
+tramite test; dallo step 06 ricorda anche profilo/evento selezionati. Dallo step 18
+il provider client legge il bootstrap PostgreSQL e prepara l’archivio locale,
+conservando l’ultima copia valida quando il server non risponde. Nome e colore
+del profilo attivo compaiono nell’header.
 
 Per provare il primo avvio, usare un contesto browser nuovo o una finestra privata,
 senza cancellare archivi già usati. Se il browser impedisce IndexedDB, viene mostrato
@@ -128,10 +129,19 @@ docker compose -f .devcontainer/compose.yaml exec -e PGPASSWORD=expotrack_dev po
 docker compose -f .devcontainer/compose.yaml exec postgres psql -U expotrack -d expotrack
 ```
 
-Il container applicativo riceve la connessione, ma la base Next.js non esegue
-ancora query: driver/ORM, schema e migrazioni verranno aggiunti con la persistenza
-applicativa. Non è necessario avviare Docker dall'interno del devcontainer:
-Compose gestisce entrambi i servizi dall'host.
+Dallo step 18 il server usa `pg` con query parametrizzate e migrazioni SQL.
+Prima del primo avvio, con PostgreSQL acceso:
+
+```bash
+npm run db:migrate
+npm run db:import
+```
+
+I comandi usano `DATABASE_URL` dell’ambiente; sull’host caricano anche `.env.local`
+con il supporto nativo di Node.js. Non serve avviare Docker dall’interno del
+devcontainer: Compose gestisce entrambi i servizi dall’host. Importare di nuovo
+dopo modifiche ai JSON; nessun import o migrazione automatica a ogni richiesta.
+La procedura e le API effettive sono in [server/README.md](../src/lib/server/README.md).
 
 ## Avvio senza container
 
@@ -154,8 +164,11 @@ docker compose -f .devcontainer/compose.yaml up -d --wait postgres
 ```
 
 Copiare `.env.example` in `.env.local`: l'URL di esempio usa `localhost`, mentre
-il devcontainer usa `postgres`. Il file `.env.local` è ignorato da Git. La pagina
-iniziale attuale funziona anche senza database.
+il devcontainer usa `postgres`. Il file `.env.local` è ignorato da Git. Eseguire
+poi `npm run db:migrate` e `npm run db:import` prima di avviare Next.js. Il primo
+bootstrap richiede il catalogo nel database. Un browser già preparato recupera il
+catalogo locale se PostgreSQL non risponde; la shell offline completa arriverà
+allo step 20.
 
 ## Verifiche
 
@@ -164,7 +177,8 @@ npm run lint
 npm run typecheck
 npm run validate:config
 npm run test:unit
-npm run test:integration
+npm run test:local
+TEST_DATABASE_URL=postgresql://expotrack:expotrack_dev@postgres:5432/expotrack_test npm run test:integration
 ```
 
 `typecheck` genera prima i tipi delle route Next.js. Per provare la build di
@@ -177,13 +191,22 @@ si passa con `npm run validate:config -- /percorso/directory-config`.
 `test:unit` esegue i test dei contratti e del loader con `node:test`, usando copie
 temporanee isolate del dataset. Gli strumenti compilano TypeScript in `/tmp`
 (o nella directory temporanea del sistema) e ripuliscono l’output a fine esecuzione.
-Non richiedono un database server o un browser. `test:integration` usa la dipendenza
+Non richiedono un database server o un browser. `test:local` usa la dipendenza
 di sviluppo `fake-indexeddb` per i test della persistenza locale, con factory e nomi
 database isolati; include rollback, riapertura delle connessioni e selezione del
 profilo con preferenze valide/non valide. `NODE_PATH` dei
 processi di test punta alle dipendenze del progetto per eseguire il codice compilato
-nella directory temporanea. Le prove su browser reale, API/PostgreSQL ed E2E della
-PWA saranno ampliate quando verranno implementati i rispettivi comportamenti.
+nella directory temporanea.
+
+`test:integration` esegue `test:local` e `test:server`: quest’ultimo richiede
+`TEST_DATABASE_URL` distinta da `DATABASE_URL`, con segmento `test` nel nome
+(sull’host usare `localhost`). La suite si collega al database di manutenzione
+`postgres`, crea database unici `expotrack_test_<UUID>`, li migra e li elimina al
+termine; l’utente PostgreSQL deve poter creare database. Il database indicato
+nell’URL di test non deve essere già creato e non viene modificato. Nessun test
+server viene saltato se manca la variabile: il comando fallisce. `test:server`
+verifica migrazioni, import/rollback, vincoli, contesti e risposte HTTP con il
+repository PostgreSQL reale. Le prove E2E della PWA restano agli step successivi.
 
 La [validazione finale](final-validation.md) si esegue con `npm run validate:final`:
 l’assistente la eseguirà al termine dello step 21 (ex step 28). Raccoglie i controlli statici,

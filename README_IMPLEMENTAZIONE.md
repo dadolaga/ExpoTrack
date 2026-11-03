@@ -2,7 +2,7 @@
 
 Questo README definisce **come lavoriamo**, un passo alla volta, sulla parte web mobile da fiera. Ogni step parte da una domanda concreta, produce un’implementazione circoscritta e termina con un risultato verificabile. Non autorizza a implementare l’intera applicazione in un’unica sessione.
 
-**Stato corrente:** implementazione arrivata allo step 17, da verificare dall’utente; la richiesta di proseguire conferma lo step 16 con la rimozione di «Apri risposta». Restano **quattro step, dal 18 al 21**, tutti da iniziare, del piano ridotto che sostituisce i precedenti step 16–28.
+**Stato corrente:** implementazione arrivata allo step 18, da verificare dall’utente; la richiesta di proseguire conferma lo step 17. Restano **tre step, dal 19 al 21**, da iniziare, del piano ridotto che sostituisce i precedenti step 16–28.
 
 ## Riferimenti e priorità
 
@@ -133,7 +133,7 @@ L’ordine è intenzionale: prima fondamenta e funzioni locali verificabili, poi
 | 15 | Motore questionari e primi controlli | Accettato |
 | 16 | Completamento questionari, budget e impostazioni | Accettato |
 | 17 | Fotografie complete sul dispositivo | Accettato |
-| 18 | PostgreSQL, importazione catalogo e API di lettura | Da iniziare |
+| 18 | PostgreSQL, importazione catalogo e API di lettura | Accettato |
 | 19 | Sincronizzazione completa di dati e fotografie | Da iniziare |
 | 20 | Apertura e riapertura dell’app senza rete | Da iniziare |
 | 21 | Collaudo fiera → server → consultazione da casa | Da iniziare |
@@ -769,3 +769,19 @@ Le suite permanenti usano fixture e database IndexedDB emulati isolati; i nuovi 
 - **Come provarlo:** `npm run dev` → prodotto nuovo o esistente → Fotografie → Scatta foto/Dalla galleria. Attendere salvataggio, ricaricare, aprire il viewer e «Mostra originale», scegliere un’altra principale, annullare e confermare una cancellazione. Provare prima di compilare nome/categoria, poi completare i campi e controllare lista e filtro con foto. Per un prodotto ancora incompleto conservare il suo URL editor. Su quota fallita riprovare dopo aver liberato spazio, oppure ignorare esplicitamente l’operazione non salvata.
 - **Limiti:** fotocamera/permessi e pressione reale sullo storage da provare sul telefono; test browser con file e database fittizi isolati. Upload/archivio server e riavvio dell’intera app offline restano agli step 18–20. Suite E2E di produzione e prove fisiche pendenti.
 - **Punto di commit suggerito:** `Add offline product photos with original preservation and gallery`; soli file dello step elencati sopra, nessun commit o push eseguito.
+
+### Consegna step 18 — Archivio PostgreSQL e API di lettura
+
+- **Data / stato:** 3 novembre 2026; Da verificare dall’utente. La richiesta conferma lo step 17. Working tree iniziale pulito.
+- **Risultato:** driver `pg` senza ORM, pool esclusivamente server, migrazione SQL versionata con checksum/lock/rollback e importazione transazionale dei JSON validati. Snapshot con hash canonico e puntatore atomico; reimportazione invariata senza duplicati. Elementi editoriali rimossi conservati come inattivi per non rompere le raccolte; collisioni con profili personali e modifica di questionari senza nuova versione respinte.
+- **Dati:** profili, budget per categoria senza evento, stand personali, prodotti/risposte con snapshot storici, preferenze/checklist, metadati e riferimenti media. Chiavi e vincoli per profilo/evento, categoria/stand bloccati, una principale fotografica, tombstone protette. Revisioni transazionali e registro operazioni con ID univoco predisposti per lo step 19; nessuna conferma o scrittura di raccolte dal telefono simulata.
+- **API:** `GET /api/v1/bootstrap` con ETag/304, `/api/v1/profiles`, `/api/v1/events/:eventId/catalog`, `/api/v1/profiles/:profileId/events/:eventId/collection`. Raccolte in snapshot di lettura coerente con revisioni, tombstone e stato media; nessun blob, credenziale o percorso storage nella risposta. Errori 400/404/503; cache privata disabilitata. Contratti e comandi in [src/lib/server/README.md](src/lib/server/README.md).
+- **Collegamento locale:** il provider riusa sessione e repository esistenti, ora inizializzati dal bootstrap PostgreSQL. Catalogo e hash attivati nello stesso commit; prodotti, input incompleti, profili personali, override, foto e outbox conservati. Rimozioni esplicite degli interessi non vengono riattivate. Al refresh richiesta condizionale; su rete/server/risposta invalidi rimane l’ultimo catalogo valido. Primo avvio senza catalogo: errore e retry, senza successo apparente.
+- **File nuovi:** `migrations/001_archive.sql`, `scripts/database.ts`, `src/lib/server/{database,migrations,catalog,repository,runtime,http,api}.ts` e relativo README; quattro route sotto `src/app/api/v1/`; `src/types/server.ts`, `src/lib/config/parse-snapshot.ts`, `src/lib/offline/catalog-bootstrap.ts`, `tests/server/archive.test.ts`, `tests/integration/catalog-bootstrap.test.ts`.
+- **File aggiornati:** `package{,-lock}.json`, `scripts/run-config-tools.mjs`, `tsconfig.config-tools.json`, `src/app/(app)/layout.tsx`, `src/components/profiles/ProfileProvider.tsx`, `src/lib/offline/{repository.ts,README.md}`, `config/README.md`, `docs/{development,final-validation}.md`, `validation/final-evidence.json`, questo README. Riusati loader, parser, validazione e transazioni IndexedDB; nessun componente UI aggiunto.
+- **Verifiche:** `npm run lint:fix`, `npm run lint` e `npm run typecheck` superati, exit 0. `npm run test:integration` con `TEST_DATABASE_URL` dedicata: 43 scenari locali e 5 PostgreSQL passati; `npm run test:unit`: 49 test passati; `npm run validate:config`: configurazione valida. Nuovi test collegati alle aree pertinenti del manifest, senza dichiarare completa la validazione finale. Le suite server creano e rimuovono soltanto database `expotrack_test_<UUID>` e copie temporanee delle fixture.
+- **Archivio operativo locale:** PostgreSQL 17.11 raggiungibile; database di sviluppo inizialmente privo di tabelle. Eseguiti `npm run db:migrate` e `npm run db:import`, entrambi exit 0, per preparare il catalogo effettivo; nessuna raccolta personale inserita dai test nel database di sviluppo.
+- **Prova HTTP/browser:** copia temporanea Next.js su porta 3108, server preesistente lasciato attivo. Verificate route reali 200/304/404 e POST 405. Chromium con contesti nuovi: primo bootstrap PostgreSQL, scelta profilo, refresh/304, recupero locale su bootstrap 503, errore primo avvio e retry. Nessun test grafico o certificazione PWA.
+- **Come provarlo:** con PostgreSQL acceso, su un nuovo ambiente eseguire `npm run db:migrate` e `npm run db:import`, poi `npm run dev` (riavviare un server già aperto per caricare le nuove route e il driver). Aprire `/profiles`, scegliere Io · demo e ricaricare; `/api/v1/bootstrap` restituisce il catalogo dal database. Dopo aver aggiornato una copia valida di `config/`, ripetere `db:import` e ricaricare per applicare il catalogo, mantenendo raccolta e personalizzazioni. Le raccolte server sono inizialmente vuote: l’invio dei dati locali arriva nello step 19.
+- **Limiti:** push/pull, replay idempotente, upload/download originali e stato di sync reale nello step 19; shell offline nello step 20. Accesso privato e separazione logica dei profili secondo il progetto, senza autenticazione interna aggiunta. Nessuna build o `validate:final` eseguita; prove fisiche ed E2E di produzione pendenti.
+- **Punto di commit:** soli file elencati sopra; titolo suggerito `Add PostgreSQL archive, catalog import and read APIs`. Nessun commit o push effettuato.

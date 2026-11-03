@@ -98,8 +98,9 @@ npm run validate:config -- /tmp/expotrack-config-copy
 Il loader accetta solo riferimenti JSON interni alla directory scelta, anche dopo
 la risoluzione dei link simbolici. Non scrive su file, database, media o storage
 del browser. Non viene importato dai Client Components: usa le API filesystem di
-Node. Dallo step 06 il layout collega il catalogo alla selezione dei profili e al
-contesto locale; gli elenchi stand/prodotti e il riepilogo restano ai rispettivi step.
+Node. Dallo step 18 `npm run db:import` usa questo loader per pubblicare il catalogo
+in PostgreSQL; il provider riceve lo snapshot completo tramite `/api/v1/bootstrap`.
+Un import fallito mantiene quello precedente. Vedere [server/README.md](../src/lib/server/README.md).
 
 CLI e test compilano gli stessi sorgenti TypeScript in una directory temporanea,
 eseguono Node e rimuovono l’output. Nessuna dipendenza aggiuntiva. I test usano

@@ -320,3 +320,13 @@ browser; JPEG, PNG e WebP statico. Limiti tecnici: 64 MiB per file, 100 megapixe
 anteprima JPEG fino a 2048 px, orientamento del decoder e nessun EXIF nelle derivate.
 L’originale conserva tutti i byte, inclusi eventuali EXIF/GPS. SHA-256 usa Web Crypto
 quando disponibile e un fallback verificato sulle origini HTTP locali.
+
+## Bootstrap server (step 18)
+
+`initializeServerCatalog` legge `/api/v1/bootstrap` con ETag e timeout. Il provider
+riusa il catalogo locale su rete/server/risposta invalidi; senza una copia valida
+il primo avvio resta in errore con retry. `initializeProfileSession(catalog, hash)`
+attiva snapshot e hash nello stesso commit senza modificare raccolte, asset,
+preferenze, profili personali, budget o outbox. Collisioni annullano il commit.
+`saveCatalog` e l’inizializzazione senza hash invalidano l’ETag precedente.
+La rilettura dei dati personali server e la sincronizzazione arrivano nello step 19.
