@@ -14,6 +14,7 @@ next-env.d.ts
 # Local configuration and secrets
 .env*
 !.env.example
+!.env.production.example
 *.pem
 
 # Logs and editor / OS files
@@ -27,3 +28,7 @@ Thumbs.db
 
 # Original photographs and derivatives stored by the server
 /.media/
+
+# Optional private production files kept alongside the checkout
+/config.local/
+/production/

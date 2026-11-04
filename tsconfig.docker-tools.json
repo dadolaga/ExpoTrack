@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "types": ["node"],
+    "noEmit": false,
+    "noEmitOnError": true,
+    "incremental": false,
+    "rootDir": "."
+  },
+  "include": ["scripts/database.ts", "scripts/validate-config.ts"],
+  "exclude": ["node_modules", ".next"]
+}

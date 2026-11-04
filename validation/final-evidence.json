@@ -26,6 +26,7 @@
       "tests/server/sync.test.ts"
     ],
     "server-contracts": [
+      "tests/integration/docker-startup.test.ts",
       "tests/server/archive.test.ts",
       "tests/server/sync.test.ts"
     ],

@@ -1,5 +1,8 @@
 # Sviluppo locale
 
+Per distribuire sul server usare [Docker in produzione](production.md), con env,
+catalogo reale e directory persistenti separati da questo ambiente di sviluppo.
+
 La base implementata comprende Next.js con App Router in `src/app`, React,
 TypeScript in modalità strict, Tailwind CSS, ESLint e PostgreSQL 17 in Docker.
 L'alias `@/*` punta a `src/*`. La shell mobile offre Home (`/`), Stand (`/stands`),

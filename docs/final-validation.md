@@ -24,6 +24,12 @@ Il [piano ridotto a sei step](../README_IMPLEMENTAZIONE.md#corrispondenza-con-il
 
 ## Aree automatiche obbligatorie
 
+Il test `tests/integration/docker-startup.test.ts`, eseguito da `test:local`
+e quindi da `test:integration`, è collegato a `server-contracts`: verifica
+l'entrypoint Docker reale con programmi figli simulati, catalogo esterno,
+codifica password, ordine di bootstrap e arresto su errore. Non sostituisce
+una prova dei container, di PostgreSQL o del tunnel sul server.
+
 | ID nel manifest | Suite npm | Comportamenti da dimostrare |
 |---|---|---|
 | `catalog-and-domain` | `test:unit` | JSON e riferimenti validi/invalidi; importazione e override; filtri, contatori e perimetro interessi; categorie esatte; questionari/versioni e sei tipi di risposta. |

@@ -1,0 +1,23 @@
+# Allow only build inputs: private catalogs, media, env files and Git stay outside.
+**
+!Dockerfile
+!package.json
+!package-lock.json
+!next.config.ts
+!postcss.config.mjs
+!tsconfig.json
+!tsconfig.docker-tools.json
+!src/
+!src/**
+!public/
+!public/**
+!migrations/
+!migrations/*.sql
+!scripts/
+!scripts/prepare-pwa.mjs
+!scripts/database.ts
+!scripts/validate-config.ts
+!deploy/
+!deploy/entrypoint.mjs
+# Regenerate the worker from this image's build.
+public/sw.js
