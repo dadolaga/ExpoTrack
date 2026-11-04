@@ -243,7 +243,11 @@ test("shell di produzione: preparazione, raccolta e riapertura offline, sync e a
     name: "Apri elenco categorie",
     exact: true,
   }).click();
-  assert.equal(await page.getByRole("option").count(), 3);
+  assert.equal(await page.getByRole("option").count(), 2);
+  assert.equal(await page.getByRole("option", {
+    name: "Illuminazione · demo",
+    exact: true,
+  }).count(), 0);
   await category.fill("categoria inesistente");
   await page.getByRole("status").filter({
     hasText: "Nessuna categoria trovata.",

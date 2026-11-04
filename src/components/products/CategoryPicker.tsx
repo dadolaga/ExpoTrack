@@ -6,6 +6,7 @@ import {
 
 import { TextField } from "@/components/forms/TextField";
 import { NavigationIcon } from "@/components/layout/NavigationIcon";
+import { productCategories } from "@/features/products/product-categories";
 
 import type { Category } from "@/types/catalog";
 
@@ -14,11 +15,13 @@ function normalize(value: string) {
 }
 
 export function CategoryPicker({
-  categories, value, disabled, error, onChange,
+  categories, categoryIds, value, disabled, hint, error, onChange,
 }: {
   categories: Category[];
+  categoryIds?: readonly string[];
   value: string | null;
   disabled: boolean;
+  hint?: string;
   error?: string;
   onChange: (categoryId: string | null) => void;
 }) {
@@ -30,7 +33,7 @@ export function CategoryPicker({
   const [activeId, setActiveId] = useState<string | null>(null);
   const selected = categories.find((category) => category.id === value);
   const terms = normalize(query ?? "").trim().split(/\s+/u);
-  const items = categories.filter((category) => {
+  const items = productCategories(categories, categoryIds).filter((category) => {
     const name = normalize(category.name);
 
     return terms.every((term) => name.includes(term));
@@ -93,6 +96,7 @@ export function CategoryPicker({
           label="Categoria"
           required
           requiredIndicator="asterisk"
+          hint={hint}
           role="combobox"
           aria-autocomplete="list"
           aria-expanded={expanded}

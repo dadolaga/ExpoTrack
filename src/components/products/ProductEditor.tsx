@@ -15,6 +15,7 @@ import { ProductQuestionnaire } from "@/components/questionnaires/ProductQuestio
 import { SyncIndicator } from "@/components/sync/SyncStatus";
 import { Button } from "@/components/ui/Button";
 import { useProductPhotos } from "@/features/photos/use-product-photos";
+import { productCategories } from "@/features/products/product-categories";
 import { useProductEditor, useProductLoader } from "@/features/products/use-product-editor";
 import { standHref } from "@/features/stands/stand-list";
 import { useStandList } from "@/features/stands/use-stand-list";
@@ -209,8 +210,14 @@ function Editor({
           data={data}
           eventId={context.eventId}
           onSelect={(standRef) => {
+            const nextStand = data.items.find((item) => item.id === standRef.standId
+              && item.source === standRef.source);
+            const categories = productCategories(catalog.categories, nextStand?.categoryIds);
+
             change({
               standRef,
+              categoryId: categories.some((category) => category.id === input.categoryId)
+                ? input.categoryId : null,
             });
             show(null, true);
           }}
@@ -248,9 +255,14 @@ function Editor({
             }}
           />
           <CategoryPicker
+            key={JSON.stringify(input.standRef)}
             categories={catalog.categories}
+            categoryIds={stand?.categoryIds}
             value={input.categoryId}
-            disabled={locked}
+            disabled={locked || (input.standRef !== null && data.status === "loading")}
+            hint={stand !== undefined && stand.categoryIds.length > 0
+              ? "Cerca tra le categorie dello stand selezionato."
+              : "Senza categorie associate allo stand, puoi scegliere tra tutte le categorie."}
             error={record?.issues.categoryId}
             onChange={(categoryId) => {
               change({

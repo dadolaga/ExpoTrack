@@ -1,5 +1,12 @@
 # Validazione finale dell’implementazione
 
+**Categorie per stand nel nuovo prodotto:** `tests/unit/product-categories.test.ts`
+è collegato a `catalog-and-domain` e verifica il filtro per gli ID associati allo
+stand, l’ordine del catalogo e la scelta completa in assenza di associazioni.
+Il test E2E già collegato `tests/e2e/pwa.test.mjs` controlla anche l’esclusione delle
+categorie estranee allo stand selezionato. Questi collegamenti non dichiarano
+superati test non eseguiti né completate le prove su telefono fisico.
+
 **Ricerca categoria prodotto:** `tests/e2e/pwa.test.mjs` è collegato anche a
 `products-and-questionnaires` e include apertura dell’elenco completo dalla
 freccia del campo categoria, ricerca nello stesso campo senza risultati, filtro
