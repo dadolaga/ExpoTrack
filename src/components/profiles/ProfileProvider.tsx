@@ -135,7 +135,7 @@ export function ProfileProvider({ children }: {
         if (isActive()) {
           setState({
             status: "error",
-            message: "Non è stato possibile preparare i profili. Al primo avvio serve il catalogo server; consenti l’archiviazione nel browser e riprova.",
+            message: "Questo dispositivo non dispone di un catalogo utilizzabile. Al primo accesso serve la connessione al server: torna online, consenti l’archiviazione nel browser e riprova.",
           });
         }
       }

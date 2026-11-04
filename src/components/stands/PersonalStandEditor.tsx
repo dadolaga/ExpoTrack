@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-
 import { ConfirmDialog } from "@/components/feedback/ConfirmDialog";
 import { SaveStatus } from "@/components/feedback/SaveStatus";
 import { SelectField } from "@/components/forms/SelectField";
@@ -9,6 +7,7 @@ import { TextField } from "@/components/forms/TextField";
 import { useProfileSession } from "@/components/profiles/ProfileProvider";
 import { Button } from "@/components/ui/Button";
 import { usePersonalStand, usePersonalStandEditor } from "@/features/stands/use-personal-stand";
+import Link from "@/lib/navigation";
 
 import type { LocalRepository } from "@/lib/offline/repository";
 import type { CatalogSnapshot } from "@/types/catalog";

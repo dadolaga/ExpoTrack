@@ -343,3 +343,11 @@ Il recupero conserva payload, input e riferimenti agli originali, creando ID nuo
 Le notifiche delle viste arrivano dopo il commit e non possono farlo risultare
 fallito. Notifiche tra schede opzionali; coordinamento e idempotenza non dipendono
 dalla sola memoria di un componente React.
+
+
+## Shell PWA (step 20)
+
+La cache della shell è separata da IndexedDB. Il worker non intercetta le API e
+non cancella store, originali o outbox quando cambia versione. Il catalogo locale
+valido continua a provenire dal bootstrap esistente. I dettagli operativi sono
+in [sviluppo](../../../docs/development.md#shell-offline-step-20).

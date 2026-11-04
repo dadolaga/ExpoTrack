@@ -1,9 +1,8 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-
 import { SyncIndicator } from "@/components/sync/SyncStatus";
 import { Button } from "@/components/ui/Button";
+import { usePathname } from "@/lib/navigation";
 
 import { destinations, isDestinationActive } from "./navigation";
 

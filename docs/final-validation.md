@@ -6,7 +6,7 @@ Il comando unico è:
 npm run validate:final
 ```
 
-**Responsabile: l’assistente.** Lo eseguirà al termine dell’intera implementazione nello step 21 (ex step 28), correggerà gli errori e riporterà gli esiti. Preparare lo script ora non completa né avvia gli step applicativi successivi. `test:unit` copre i contratti e il loader; dallo step 05 `test:integration` copre il repository locale con IndexedDB emulato. Dallo step 18 `test:integration` include anche API/PostgreSQL isolati; gli E2E non sono ancora disponibili. I prerequisiti incompleti devono produrre `not-ready`, senza dichiarare validata l’app.
+**Responsabile: l’assistente.** Lo eseguirà al termine dell’intera implementazione nello step 21 (ex step 28), correggerà gli errori e riporterà gli esiti. Preparare lo script ora non completa né avvia gli step applicativi successivi. `test:unit` copre i contratti e il loader; dallo step 05 `test:integration` copre il repository locale con IndexedDB emulato. Dallo step 18 `test:integration` include anche API/PostgreSQL isolati; dallo step 20 è disponibile il primo E2E della shell PWA di produzione. I prerequisiti incompleti devono produrre `not-ready`, senza dichiarare validata l’app.
 
 La fonte dei requisiti è [la specifica mobile corrente, §§6–7](27_Specifiche_UI_Mobile.md#6-accessibilità-prestazioni-e-verifiche). Le indicazioni precedenti su bozze, conferma Salva, pagina 08, foto stand o conflitti manuali non sono criteri di accettazione attivi.
 
@@ -247,3 +247,21 @@ Il file è collegato a `server-contracts`, `sync-integrity`, `media-integrity`,
 rispetto alla validazione finale: PWA, prove fisiche ed E2E della build di
 produzione saranno completati negli step 20–21. Le prove browser temporanee non
 sostituiscono questi requisiti e non introducono asserzioni grafiche.
+
+
+## Copertura introdotta nello step 20
+
+`tests/e2e/pwa.test.mjs`, eseguito da `test:e2e`, è collegato a
+`offline-pwa-multidevice`. Avvia autonomamente `next start` dalla build esistente,
+con PostgreSQL univoco, media e profili Chromium persistenti temporanei. Copre
+preparazione completa di shell/catalogo, manifest/icone e installabilità Chromium,
+navigazione client senza rete anche su ID nuovi, checklist e note con uscita
+protetta, prodotto con prezzo/voto/descrizione e
+foto, refresh e chiusura/riapertura del browser mantenendo gli originali byte per
+byte e la coda, ritorno online e sync reale, aggiornamento in attesa e riapertura
+senza perdita, shell senza catalogo con errore recuperabile.
+
+Il collegamento è parziale: giornata completa, rete intermittente, secondo
+browser/PC e altre aree E2E saranno completati nello step 21. La verifica
+Chromium di installabilità non sostituisce Android fisico; le tre prove manuali
+restano `pending`. Nessun confronto grafico o test sul database di sviluppo.

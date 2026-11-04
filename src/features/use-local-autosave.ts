@@ -1,11 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import {
   useCallback, useEffect, useRef, useState,
 } from "react";
 
 import { useProfileSession } from "@/components/profiles/ProfileProvider";
+import { useRouter } from "@/lib/navigation";
 
 import type { SaveState } from "@/components/feedback/SaveStatus";
 

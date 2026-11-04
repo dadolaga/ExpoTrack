@@ -1,11 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-
 import { SelectField } from "@/components/forms/SelectField";
 import { ThemeSelector } from "@/components/forms/ThemeSelector";
 import { Card } from "@/components/ui/Card";
+import Link, { useRouter } from "@/lib/navigation";
 
 import { useProfileSession } from "./ProfileProvider";
 

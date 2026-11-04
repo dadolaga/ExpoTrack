@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { SelectField } from "@/components/forms/SelectField";
 import { TextField } from "@/components/forms/TextField";
@@ -7,6 +5,7 @@ import { NavigationIcon } from "@/components/layout/NavigationIcon";
 import {
   countStandVisits, defaultStandFilters, filterStandList, standKey,
 } from "@/features/stands/stand-list";
+import Link from "@/lib/navigation";
 
 import { StandRow } from "./StandRow";
 

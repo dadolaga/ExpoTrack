@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
-
 import { Card } from "@/components/ui/Card";
+import Link from "@/lib/navigation";
 
 import { ProfileIdentity } from "./ProfileIdentity";
 import { useProfileSession } from "./ProfileProvider";

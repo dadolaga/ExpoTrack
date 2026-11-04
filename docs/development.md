@@ -168,8 +168,7 @@ Copiare `.env.example` in `.env.local`: l'URL di esempio usa `localhost`, mentre
 il devcontainer usa `postgres`. Il file `.env.local` è ignorato da Git. Eseguire
 poi `npm run db:migrate` e `npm run db:import` prima di avviare Next.js. Il primo
 bootstrap richiede il catalogo nel database. Un browser già preparato recupera il
-catalogo locale se PostgreSQL non risponde; la shell offline completa arriverà
-allo step 20.
+catalogo locale se PostgreSQL non risponde; la shell offline completa è disponibile dallo step 20 nella versione di produzione.
 
 ## Verifiche
 
@@ -207,7 +206,7 @@ termine; l’utente PostgreSQL deve poter creare database. Il database indicato
 nell’URL di test non deve essere già creato e non viene modificato. Nessun test
 server viene saltato se manca la variabile: il comando fallisce. `test:server`
 verifica migrazioni, import/rollback, vincoli, contesti e risposte HTTP con il
-repository PostgreSQL reale. Le prove E2E della PWA restano agli step successivi.
+repository PostgreSQL reale. La suite E2E PWA è disponibile dallo step 20; le ulteriori aree di collaudo restano allo step 21.
 
 La [validazione finale](final-validation.md) si esegue con `npm run validate:final`:
 l’assistente la eseguirà al termine dello step 21 (ex step 28). Raccoglie i controlli statici,
@@ -237,6 +236,42 @@ al database. Dopo l’aggiornamento eseguire `npm run db:migrate` e riavviare Ne
 La raccolta e gli originali vengono riletti anche da un browser con archivio vuoto.
 Stato, errori, recuperi e comando manuale sono nella pagina `/sync`; la copia
 locale continua a funzionare quando le API non rispondono.
-Lo storage locale è distinto dalla shell PWA: riavviare l’intera app senza rete
-sarà garantito nello step 20. Prove fotocamera/permessi/quota sul telefono reale
+Dallo step 20 la shell PWA consente anche la riapertura completa senza rete dopo
+la preparazione online della versione di produzione. Prove fotocamera/permessi/quota sul telefono reale
 restano da eseguire; i file dei test sono isolati dai dati di sviluppo.
+
+
+## Shell offline (step 20)
+
+`npm run build` genera anche `public/sw.js` dalla build appena compilata; il file
+è un artefatto ignorato da Git e dal lint, la sorgente resta controllata in
+`src/lib/pwa/service-worker.js`. Distribuire insieme `.next` e `public` della
+stessa build. Se si invoca direttamente Next con un compilatore alternativo,
+eseguire anche `node scripts/prepare-pwa.mjs` dopo la compilazione.
+
+Su produzione e origine HTTPS (oppure localhost per i test), la preparazione
+parte all’apertura. In `/sync`, **Uso senza rete** distingue shell e catalogo
+locali. La shell include tutte le schermate operative, anche per nuovi ID non
+visitati online; riusa i componenti esistenti e naviga con History senza payload
+server. Le API restano sempre di rete: catalogo, raccolta, originali e outbox
+usano i repository IndexedDB e la sincronizzazione esistenti. Le foto remote
+non ancora scaricate sono indicate nella stessa pagina Sincronizzazione.
+
+L’aggiornamento scarica una cache completa separata e aspetta la chiusura di
+tutte le schede; non ricarica automaticamente un editor. Un download incompleto
+lascia attiva la versione precedente. L’attivazione pulisce soltanto le vecchie
+cache della shell, senza toccare IndexedDB o fotografie. Un dispositivo con
+shell ma senza catalogo mostra il problema e **Riprova**; un browser mai
+preparato e già senza rete può mostrare soltanto il proprio errore di rete.
+`next dev` non registra il worker e non certifica l’uso offline; usare un’origine
+separata da quella di produzione per le prove di sviluppo.
+
+La suite funzionale `npm run test:e2e` richiede una build completa, Chromium
+Playwright disponibile (`npx playwright install chromium`) e `TEST_DATABASE_URL`
+con le stesse protezioni di `test:server`. Il runner avvia e ferma autonomamente
+`next start` su una porta libera, crea un database univoco e media/profili browser
+temporanei, poi li elimina. Non riusa server di sviluppo. È possibile indicare
+un eseguibile già presente con `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`.
+Non contiene snapshot o confronti grafici; i requisiti di icone/manifest sono
+verificati per l’installabilità. Il telefono di riferimento resta da collaudare
+fisicamente, come registrato nelle evidenze finali.

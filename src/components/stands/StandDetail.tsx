@@ -1,11 +1,10 @@
 "use client";
 
-import Link from "next/link";
-
 import { useProfileSession } from "@/components/profiles/ProfileProvider";
 import { Button } from "@/components/ui/Button";
 import { standHref } from "@/features/stands/stand-list";
 import { useStandDetail } from "@/features/stands/use-stand-detail";
+import Link from "@/lib/navigation";
 
 import { StandChecklist } from "./StandChecklist";
 import { StandInterestButton } from "./StandRow";

@@ -1,9 +1,9 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { useRemoteRevision } from "@/features/use-local-revision";
+import { useSearchParams } from "@/lib/navigation";
 
 import { productFiltersQuery, readProductFilters, resolveProductList } from "./product-list";
 

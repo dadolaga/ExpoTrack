@@ -4,6 +4,7 @@
 
 # Next.js and TypeScript output
 /.next/
+/public/sw.js
 /out/
 /build/
 /validation-results/

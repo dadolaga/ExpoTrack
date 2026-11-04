@@ -1,11 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
 
 import { SyncIndicator } from "@/components/sync/SyncStatus";
 import { Card } from "@/components/ui/Card";
+import Link, { useRouter, useSearchParams } from "@/lib/navigation";
 
 import { PersonalProfileEditor } from "./PersonalProfileEditor";
 import { useProfileSession } from "./ProfileProvider";
@@ -69,6 +68,7 @@ export function ProfilePicker() {
     <div className="flex flex-col gap-section">
       <header className="flex flex-col gap-3 text-center">
         <Image
+          unoptimized
           src="/brand/expotrack-icon.png"
           alt=""
           width={112}

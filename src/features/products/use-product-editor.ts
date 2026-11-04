@@ -1,12 +1,12 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import {
   useCallback, useEffect, useRef, useState,
 } from "react";
 
 import { useLocalAutosave } from "@/features/use-local-autosave";
 import { useRemoteRevision } from "@/features/use-local-revision";
+import { useRouter } from "@/lib/navigation";
 import { createLocalId } from "@/lib/offline/identity";
 import { isProductDeleted } from "@/lib/offline/product-input";
 

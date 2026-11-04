@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { useProfileSession } from "@/components/profiles/ProfileProvider";
+import { OfflineStatus } from "@/components/pwa/OfflineStatus";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import Link, { useRouter } from "@/lib/navigation";
 import { recoverAsNew } from "@/lib/sync/recovery";
 
 import { useSyncEngine } from "./SyncProvider";
@@ -128,6 +128,7 @@ export function SyncPage() {
 
   return (
     <div className="flex flex-col gap-section">
+      <OfflineStatus />
       <Card>
         <div className="flex items-center justify-between gap-3">
           <h2>{syncLabel(status)}</h2>

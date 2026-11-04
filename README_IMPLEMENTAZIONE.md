@@ -2,7 +2,7 @@
 
 Questo README definisce **come lavoriamo**, un passo alla volta, sulla parte web mobile da fiera. Ogni step parte da una domanda concreta, produce un’implementazione circoscritta e termina con un risultato verificabile. Non autorizza a implementare l’intera applicazione in un’unica sessione.
 
-**Stato corrente:** step 18 accettato con la richiesta di proseguire; step 19 implementato, da verificare dall’utente. Restano gli step 20 e 21 del piano ridotto che sostituisce i precedenti step 16–28.
+**Stato corrente:** step 19 accettato con la richiesta di proseguire; step 20 implementato, da verificare dall’utente, con prova su telefono fisico pendente. Resta lo step 21 del piano ridotto che sostituisce i precedenti step 16–28.
 
 ## Riferimenti e priorità
 
@@ -135,7 +135,7 @@ L’ordine è intenzionale: prima fondamenta e funzioni locali verificabili, poi
 | 17 | Fotografie complete sul dispositivo | Accettato |
 | 18 | PostgreSQL, importazione catalogo e API di lettura | Accettato |
 | 19 | Sincronizzazione completa di dati e fotografie | Accettato |
-| 20 | Apertura e riapertura dell’app senza rete | Da iniziare |
+| 20 | Apertura e riapertura dell’app senza rete | Accettato |
 | 21 | Collaudo fiera → server → consultazione da casa | Da iniziare |
 
 ### Corrispondenza con il piano precedente
@@ -802,3 +802,21 @@ Le suite permanenti usano fixture e database IndexedDB emulati isolati; i nuovi 
 - **Come provarlo:** riavviare `npm run dev` per caricare nuove route/driver e aprire `/sync`. Con il server raggiungibile, aggiungere un prodotto valido e una foto; verificare invio automatico e contatore che scende solo dopo conferma. Aprire da un browser nuovo, scegliere lo stesso profilo e ritrovare raccolta/originale. Per provare una disconnessione mantenere l’app aperta: le modifiche restano locali e riprendono al ritorno delle API. Su una nuova installazione restano necessari PostgreSQL, `npm run db:migrate` e `npm run db:import` prima dell’avvio.
 - **Limiti:** riapertura dell’intera app senza rete e cache della shell PWA nello step 20. Raggiungibilità del server dal telefono, quota/fotocamera e comportamento sul dispositivo effettivo richiedono la prova fisica degli step 20–21; non sono certificati da Chromium. La pubblicazione resta separata. Nessuna cancellazione automatica degli originali o retention aggressiva di audit/tombstone. Step 20 non avviato.
 - **Punto di commit:** soli file elencati sopra e nel diff dello step; titolo suggerito `Implement durable data and photo synchronization`. Nessun commit o push eseguito.
+
+
+### Consegna step 20 — Apertura e riapertura senza rete
+
+**Stato:** da verificare dall’utente; prova sul telefono fisico pendente.
+
+- **Risposta:** dopo preparazione online della versione di produzione, la shell completa si riapre senza rete anche su URL di prodotti e stand mai visitati. Manifest, icone e metadati Apple predisposti; nessuna procedura guidata d’installazione aggiunta.
+- **Cache e navigazione:** `public/sw.js` è generato dalla build e precachea la pagina `/offline`, tutti gli asset compilati, manifest e marchio. La shell riusa dashboard, cataloghi, editor, profili, budget, note, foto e sync. L’adattatore `src/lib/navigation.tsx` usa Next normalmente e History nella shell, osservando anche le modifiche native di filtri e ID; conserva i guard di autosalvataggio e il ritorno alla lista. API e media personali non sono nella cache HTTP.
+- **Preparazione:** registrazione automatica solo in produzione e su origine sicura. `/sync` mostra disponibilità di shell e catalogo separatamente; restano visibili le foto remote da scaricare. Senza catalogo locale compare un errore con Riprova. Un browser mai preparato e già offline non può scaricare l’app e mostra l’errore del browser.
+- **Aggiornamenti:** una cache separata viene completata prima dell’attivazione; un errore di download mantiene la shell precedente. Nessun `skipWaiting` o reload automatico. L’utente riceve l’avviso di chiudere tutte le schede dopo il salvataggio; l’attivazione elimina soltanto le vecchie cache della shell, senza toccare IndexedDB, originali o outbox.
+- **File dello step:** `.gitignore`, `eslint.config.mjs` (esclusione del solo worker generato), `next.config.ts`, `package.json`, `package-lock.json`; `scripts/{prepare-pwa,run-config-tools}.mjs`; `src/app/layout.tsx`, `src/app/manifest.ts`, `src/app/offline/page.tsx`; `src/components/pwa/{OfflineApplication,OfflineStatus}.tsx`; `src/lib/navigation.tsx`, `src/lib/pwa/service-worker.js`; `public/brand/{pwa-192,pwa-512,apple-touch-icon}.png`, `public/brand/README.md`; `tests/e2e/pwa.test.mjs`; `validation/final-evidence.json`; `docs/{development,final-validation}.md`, `src/components/README.md`, `src/lib/{offline,sync}/README.md`, questo registro. Gli altri file di componenti e hook modificati cambiano gli import di Link/router verso l’adattatore condiviso; `ProfilePicker` carica il marchio direttamente e `ProfileProvider` esplicita il catalogo mancante.
+- **Componenti:** tutte le schermate operative già esistenti riusate; nuovi `OfflineApplication`, `PwaProvider` e `OfflineStatus`. Il layout server e le route online esistenti restano in uso al primo accesso.
+- **Test funzionale eseguito:** `node scripts/run-config-tools.mjs e2e` (stesso runner di `npm run test:e2e`), un percorso integrato superato su `next start` della build corrente, con PostgreSQL univoco, media temporanei e profili Chromium persistenti isolati. Verificati installabilità Chromium, manifest/icone, preparazione, navigazione client senza rete, checklist e note con uscita protetta, prodotto/prezzo/voto/descrizione/foto, refresh, chiusura/riapertura completa, originale byte per byte e identità della coda, sync reale al ritorno rete, aggiornamento in attesa e attivazione senza perdita di dati o coda, shell senza catalogo e retry. Nessun test grafico.
+- **Build funzionale:** `node node_modules/next/dist/bin/next build --webpack` e `node scripts/prepare-pwa.mjs` superati; 61 risorse nella cache di questa build. `npm run build` con Turbopack ha incontrato il limite dell’ambiente nell’apertura di porte/sottoprocessi; la prova di produzione è stata eseguita con Webpack, senza modificare il compilatore predefinito del progetto.
+- **Controlli obbligatori:** `npm run lint` e `npm run typecheck` eseguiti sul codice aggiornato e terminati con exit code 0; nessuna regola indebolita.
+- **Come provarlo:** eseguire la versione di produzione (`npm run build`, poi `npm run start`) su un’origine HTTPS raggiungibile dal telefono. Con rete attiva, scegliere il profilo e aprire `/sync`; attendere shell e catalogo disponibili e scaricare eventuali foto remote. Passare in modalità aereo, aprire uno stand, compilare checklist/note e un prodotto con foto; ricaricare, chiudere e riaprire l’app. Tornando online, la coda deve svuotarsi dopo la conferma server. La preparazione offline non funziona su un normale indirizzo LAN HTTP del telefono.
+- **Limiti:** installazione e intero percorso sul Galaxy S25/telefono di riferimento non eseguiti in questo ambiente; le evidenze manuali restano `pending`. Pubblicazione, raggiungibilità dell’ambiente operativo e collaudo completo fiera → casa restano allo step 21 o alla pubblicazione separatamente autorizzata. `validate:final` non avviato, previsto nello step 21.
+- **Punto di commit:** soli file dello step elencati e import di navigazione nel diff; titolo suggerito `Enable offline PWA shell and safe asset updates`. Nessun commit effettuato. Step 21 non avviato.

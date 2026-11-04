@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useSyncExternalStore } from "react";
 
+import Link from "@/lib/navigation";
 import { emptySummary } from "@/lib/sync/engine";
 
 import { useSyncEngine } from "./SyncProvider";

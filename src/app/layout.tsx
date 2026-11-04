@@ -1,4 +1,5 @@
 import { ThemeController } from "@/components/layout/ThemeController";
+import { PwaProvider } from "@/components/pwa/OfflineStatus";
 import { themeInitializationScript } from "@/lib/theme";
 
 import "./globals.css";
@@ -13,12 +14,21 @@ type RootLayoutProps = {
 export const metadata: Metadata = {
   title: "ExpoTrack",
   description: "Pianifica e documenta le tue visite a fiere ed eventi.",
+  appleWebApp: {
+    capable: true,
+    title: "ExpoTrack",
+    statusBarStyle: "default",
+  },
+  icons: {
+    apple: "/brand/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: "#0866e8",
 };
 
 export default function RootLayout({ children }: RootLayoutProps) {
@@ -36,7 +46,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
       </head>
       <body>
         <ThemeController />
-        {children}
+        <PwaProvider>{children}</PwaProvider>
       </body>
     </html>
   );

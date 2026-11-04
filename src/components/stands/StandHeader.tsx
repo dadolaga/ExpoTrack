@@ -1,10 +1,9 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
-
 import { NavigationIcon } from "@/components/layout/NavigationIcon";
 import { useProfileSession } from "@/components/profiles/ProfileProvider";
 import { SyncIndicator } from "@/components/sync/SyncStatus";
+import { usePathname, useRouter } from "@/lib/navigation";
 
 import type { ProfileSummary } from "@/types/profiles";
 

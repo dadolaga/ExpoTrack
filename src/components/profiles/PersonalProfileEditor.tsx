@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { ConfirmDialog } from "@/components/feedback/ConfirmDialog";
@@ -9,6 +8,7 @@ import { TextField } from "@/components/forms/TextField";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useLocalAutosave } from "@/features/use-local-autosave";
+import { useRouter } from "@/lib/navigation";
 import { createLocalId } from "@/lib/offline/identity";
 
 import { useProfileSession } from "./ProfileProvider";

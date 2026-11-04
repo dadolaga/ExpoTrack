@@ -210,3 +210,14 @@ ID, errori, caricamento e guardie di navigazione. La vista `view=photos` apparti
 all’editor 05/06; la sezione inferiore mostra conteggio e anteprime. Nessuna pagina
 08 o azione Informazioni. `ProductRow` mostra la miniatura principale; filtri
 con/senza foto leggono i metadati reali del profilo/evento.
+
+
+## Shell offline (step 20)
+
+`pwa/OfflineApplication` compone le stesse viste operative dentro i provider
+esistenti; `pwa/OfflineStatus` registra il worker in `PwaProvider` nel layout
+radice e mostra in `/sync` disponibilità e aggiornamenti. Link e hook di
+navigazione dell’app passano da `@/lib/navigation`: Next al primo accesso,
+History quando il documento è la shell completa già conservata. Il wrapper
+rispetta `onNavigate`, i guard di uscita, query/ID nativi e cronologia.
+La preparazione e i test sono descritti in `docs/development.md`.

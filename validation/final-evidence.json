@@ -40,7 +40,9 @@
     "stands": [],
     "products-and-questionnaires": [],
     "photo-workflow": [],
-    "offline-pwa-multidevice": [],
+    "offline-pwa-multidevice": [
+      "tests/e2e/pwa.test.mjs"
+    ],
     "accessibility-and-mobile-scope": []
   },
   "manual": {

@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
 import { ConfirmDialog } from "@/components/feedback/ConfirmDialog";
@@ -21,6 +19,7 @@ import { useProductPhotos } from "@/features/photos/use-product-photos";
 import { useProductEditor, useProductLoader } from "@/features/products/use-product-editor";
 import { standHref } from "@/features/stands/stand-list";
 import { useStandList } from "@/features/stands/use-stand-list";
+import Link, { useRouter, useSearchParams } from "@/lib/navigation";
 import { parsePrice, sameStand } from "@/lib/offline/product-input";
 
 import { ProductDescription } from "./ProductDescription";

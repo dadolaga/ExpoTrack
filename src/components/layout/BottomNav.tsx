@@ -1,10 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-
 import { useProfileSession } from "@/components/profiles/ProfileProvider";
 import { resetStandListScroll } from "@/features/stands/use-stand-filters";
+import Link, { usePathname, useRouter } from "@/lib/navigation";
 
 import { destinations, isDestinationActive } from "./navigation";
 import { NavigationIcon } from "./NavigationIcon";

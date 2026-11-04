@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { SaveStatus } from "@/components/feedback/SaveStatus";
@@ -9,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useLocalAutosave } from "@/features/use-local-autosave";
 import { useRemoteRevision } from "@/features/use-local-revision";
+import { useRouter } from "@/lib/navigation";
 import { parsePrice } from "@/lib/offline/product-input";
 import { effectiveBudget } from "@/lib/offline/profile-settings";
 

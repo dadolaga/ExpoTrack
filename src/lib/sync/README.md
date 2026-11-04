@@ -41,5 +41,6 @@ significati. I conteggi globali includono ogni operazione pendente/respinta una
 sola volta; le foto sono un sottoinsieme. I dettagli UI rispettano profilo/evento.
 
 `test:integration` include sei scenari completi su database/media isolati.
-La cache della shell PWA e la riapertura dell’intera app senza rete sono dello
-step 20; richiedono la successiva prova su telefono reale.
+Dallo step 20 la cache della shell PWA permette la riapertura completa senza rete
+dopo preparazione online in produzione. Il test Chromium integra anche la ripresa
+della sync; la prova sul telefono fisico resta pendente.

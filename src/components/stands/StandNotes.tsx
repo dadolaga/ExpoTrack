@@ -1,12 +1,11 @@
 "use client";
 
-import Link from "next/link";
-
 import { SaveStatus } from "@/components/feedback/SaveStatus";
 import { useProfileSession } from "@/components/profiles/ProfileProvider";
 import { Button } from "@/components/ui/Button";
 import { useStandDetail } from "@/features/stands/use-stand-detail";
 import { useStandNotes } from "@/features/stands/use-stand-notes";
+import Link from "@/lib/navigation";
 
 import type { LocalRepository } from "@/lib/offline/repository";
 import type { CatalogSnapshot, StandReference } from "@/types/catalog";

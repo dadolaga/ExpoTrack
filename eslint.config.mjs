@@ -413,6 +413,7 @@ export default defineConfig([
     },
   },
   globalIgnores([
+    "public/sw.js", // Generated from the linted worker source after each build.
     ".next/**",
     ".npm-cache/**",
     "out/**",

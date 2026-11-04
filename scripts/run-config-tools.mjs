@@ -10,10 +10,12 @@ const require = createRequire(import.meta.url);
 const [mode, ...args] = process.argv.slice(2);
 
 if (![
-  "validate", "test", "integration", "server", "migrate", "import",
+  "validate", "test", "integration", "server", "e2e", "migrate", "import",
 ].includes(mode)) {
-  throw new Error("Specificare validate, test, integration, server, migrate oppure import.");
+  throw new Error("Specificare validate, test, integration, server, e2e, migrate oppure import.");
 }
+
+const output = await mkdtemp(path.join(tmpdir(), "expotrack-config-tools-"));
 
 function run(arguments_) {
   const result = spawnSync(process.execPath, arguments_, {
@@ -21,6 +23,7 @@ function run(arguments_) {
     stdio: "inherit",
     env: {
       ...process.env,
+      EXPOTRACK_TEST_TOOLS: output,
       NODE_PATH: [path.join(root, "node_modules"), process.env.NODE_PATH]
         .filter(Boolean).join(path.delimiter),
     },
@@ -32,8 +35,6 @@ function run(arguments_) {
 
   return result.status ?? 1;
 }
-
-const output = await mkdtemp(path.join(tmpdir(), "expotrack-config-tools-"));
 
 try {
   const compilation = run([
@@ -57,10 +58,11 @@ try {
       integration: "tests/integration",
       test: "tests/unit",
       server: "tests/server",
+      e2e: "tests/e2e",
     };
     const directory = directories[mode];
     const files = (await readdir(path.join(root, directory)))
-      .filter((file) => file.endsWith(".test.ts"))
+      .filter((file) => file.endsWith(mode === "e2e" ? ".test.mjs" : ".test.ts"))
       .sort();
 
     if (files.length === 0) {
@@ -68,7 +70,8 @@ try {
     }
     process.exitCode = run([
       "--test",
-      ...files.map((file) => path.join(output, directory, file.replace(/\.ts$/, ".js"))),
+      ...files.map((file) => mode === "e2e" ? path.join(root, directory, file)
+        : path.join(output, directory, file.replace(/\.ts$/, ".js"))),
       ...args,
     ]);
   }

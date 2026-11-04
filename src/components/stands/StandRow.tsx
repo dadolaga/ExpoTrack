@@ -1,7 +1,6 @@
-import Link from "next/link";
-
 import { NavigationIcon } from "@/components/layout/NavigationIcon";
 import { standHref, visitLabels } from "@/features/stands/stand-list";
+import Link from "@/lib/navigation";
 
 import type { StandListItem } from "@/features/stands/stand-list";
 

@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { NavigationIcon } from "@/components/layout/NavigationIcon";
 import { useProfileSession } from "@/components/profiles/ProfileProvider";
@@ -12,6 +10,7 @@ import {
   defaultStandFilters, selectDashboard, standFiltersQuery, standKey,
 } from "@/features/stands/stand-list";
 import { useStandList } from "@/features/stands/use-stand-list";
+import Link from "@/lib/navigation";
 
 import type { LocalRepository } from "@/lib/offline/repository";
 import type { CatalogSnapshot } from "@/types/catalog";

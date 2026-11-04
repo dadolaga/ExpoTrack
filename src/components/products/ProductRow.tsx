@@ -1,7 +1,6 @@
-import Link from "next/link";
-
 import { NavigationIcon } from "@/components/layout/NavigationIcon";
 import { PhotoImage } from "@/components/photos/PhotoImage";
+import Link from "@/lib/navigation";
 
 import type { ProductListItem } from "@/features/products/product-list";
 

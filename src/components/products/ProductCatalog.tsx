@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Suspense } from "react";
 
 import { EmptyState } from "@/components/feedback/EmptyState";
@@ -10,6 +9,7 @@ import {
   defaultProductFilters, filterProductList, productFilterIssues, productHref,
 } from "@/features/products/product-list";
 import { useProductFilters, useProductList } from "@/features/products/use-product-list";
+import Link from "@/lib/navigation";
 
 import { ProductListControls } from "./ProductListControls";
 import { ProductRow } from "./ProductRow";

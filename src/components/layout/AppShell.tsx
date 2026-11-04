@@ -1,6 +1,5 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 import { ProfileIdentity } from "@/components/profiles/ProfileIdentity";
@@ -8,6 +7,7 @@ import { useProfileSession } from "@/components/profiles/ProfileProvider";
 import { StandHeader } from "@/components/stands/StandHeader";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { usePathname, useRouter } from "@/lib/navigation";
 
 import { BottomNav } from "./BottomNav";
 import { TopBar } from "./TopBar";
