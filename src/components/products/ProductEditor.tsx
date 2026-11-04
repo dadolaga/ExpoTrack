@@ -5,7 +5,6 @@ import { Suspense } from "react";
 import { ConfirmDialog } from "@/components/feedback/ConfirmDialog";
 import { SaveStatus } from "@/components/feedback/SaveStatus";
 import { RatingSlider } from "@/components/forms/RatingSlider";
-import { SelectField } from "@/components/forms/SelectField";
 import { TextField } from "@/components/forms/TextField";
 import { NavigationIcon } from "@/components/layout/NavigationIcon";
 import { PhotoImage } from "@/components/photos/PhotoImage";
@@ -22,6 +21,7 @@ import { useStandList } from "@/features/stands/use-stand-list";
 import Link, { useRouter, useSearchParams } from "@/lib/navigation";
 import { parsePrice, sameStand } from "@/lib/offline/product-input";
 
+import { CategoryPicker } from "./CategoryPicker";
 import { ProductDescription } from "./ProductDescription";
 import { StandPicker } from "./StandPicker";
 
@@ -247,27 +247,17 @@ function Editor({
               });
             }}
           />
-          <SelectField
-            label="Categoria *"
-            required
-            value={input.categoryId ?? ""}
+          <CategoryPicker
+            categories={catalog.categories}
+            value={input.categoryId}
             disabled={locked}
-            onChange={(event) => {
+            error={record?.issues.categoryId}
+            onChange={(categoryId) => {
               change({
-                categoryId: event.target.value === "" ? null : event.target.value,
+                categoryId,
               });
             }}
-          >
-            <option value="">Seleziona categoria</option>
-            {catalog.categories.map((category) => (
-              <option
-                key={category.id}
-                value={category.id}
-              >{category.name}
-              </option>
-            ))}
-          </SelectField>
-          {record?.issues.categoryId !== undefined && <p className="text-label text-danger">{record.issues.categoryId}</p>}
+          />
           {record?.issues.standRef !== undefined && <p className="text-label text-danger">{record.issues.standRef}</p>}
           <div className="product-price-rating">
             <TextField

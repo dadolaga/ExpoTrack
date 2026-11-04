@@ -1,5 +1,12 @@
 # Validazione finale dell’implementazione
 
+**Ricerca categoria prodotto:** `tests/e2e/pwa.test.mjs` è collegato anche a
+`products-and-questionnaires` e include apertura dell’elenco completo dalla
+freccia del campo categoria, ricerca nello stesso campo senza risultati, filtro
+parziale senza distinzione tra maiuscole e minuscole e selezione della categoria
+prima della registrazione offline. È copertura parziale dell’area; il collegamento non
+dichiara superata la suite né completati i questionari o le prove fisiche.
+
 Il comando unico è:
 
 ```bash

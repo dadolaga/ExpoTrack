@@ -234,9 +234,26 @@ test("shell di produzione: preparazione, raccolta e riapertura offline, sync e a
   await page.getByRole("textbox", {
     name: /Nome prodotto/,
   }).fill("Raccolta offline PWA");
-  await page.getByLabel("Categoria *", {
+  const category = page.getByRole("combobox", {
+    name: /Categoria/,
+  });
+
+  assert.equal(await category.evaluate((element) => element.tagName), "INPUT");
+  await page.getByRole("button", {
+    name: "Apri elenco categorie",
     exact: true,
-  }).selectOption("bags");
+  }).click();
+  assert.equal(await page.getByRole("option").count(), 3);
+  await category.fill("categoria inesistente");
+  await page.getByRole("status").filter({
+    hasText: "Nessuna categoria trovata.",
+  }).waitFor();
+  await category.fill("bOr");
+  await page.getByRole("option", {
+    name: "Borse · demo",
+    exact: true,
+  }).click();
+  assert.equal(await category.inputValue(), "Borse · demo");
   await page.getByLabel("Prezzo (€)", {
     exact: true,
   }).fill("0");

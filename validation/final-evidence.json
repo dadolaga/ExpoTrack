@@ -39,7 +39,9 @@
     ],
     "profiles-and-dashboard": [],
     "stands": [],
-    "products-and-questionnaires": [],
+    "products-and-questionnaires": [
+      "tests/e2e/pwa.test.mjs"
+    ],
     "photo-workflow": [],
     "offline-pwa-multidevice": [
       "tests/e2e/pwa.test.mjs"

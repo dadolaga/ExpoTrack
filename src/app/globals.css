@@ -1183,6 +1183,48 @@
   background: color-mix(in srgb, var(--surface-muted) 45%, var(--surface));
 }
 
+.category-picker-control { position: relative; }
+.category-picker-control input { padding-right: calc(var(--touch-target) + var(--space-2)); }
+
+.category-picker-toggle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  place-items: center;
+  width: var(--touch-target);
+  height: var(--touch-target);
+}
+
+.category-picker-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  max-height: 30dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
+  background: var(--surface);
+}
+
+.category-picker-results button {
+  display: block;
+  width: 100%;
+  min-height: var(--touch-target);
+  padding: var(--space-3);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.category-picker-results button:is(:hover, [data-active="true"], [aria-selected="true"]) {
+  background: var(--surface-muted);
+}
+
+.category-picker-results p { padding: var(--space-3); }
+
 .product-stand-field {
   display: flex;
   flex-direction: column;
